@@ -29,7 +29,9 @@ class SctpTransportFactory : public webrtc::SctpTransportFactoryInterface {
 
  private:
   rtc::Thread* network_thread_;
+#if defined(WEBRTC_HAVE_DCSCTP) && defined(WEBRTC_WEBKIT_BUILD)
   webrtc::FieldTrialFlag use_dcsctp_;
+#endif
 };
 
 }  // namespace cricket

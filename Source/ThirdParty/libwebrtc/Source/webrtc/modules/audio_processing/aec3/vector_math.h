@@ -59,9 +59,11 @@ class VectorMath {
           x[j] = sqrtf(x[j]);
         }
       } break;
+#if !defined(WEBRTC_WEBKIT_BUILD)
       case Aec3Optimization::kAvx2:
         SqrtAVX2(x);
         break;
+#endif
 #endif
 #if defined(WEBRTC_HAS_NEON)
       case Aec3Optimization::kNeon: {

@@ -110,7 +110,7 @@ std::vector<RtpCodecCapability> FilterVideoCodecCapabilities(
 // If offer has no simulcast video sections - do nothing.
 //
 // If offer has simulcast video sections - for each section creates
-// SimulcastSectionInfo and put it into `context_`.
+// SimulcastSectionInfo and put it into |context_|.
 void SignalingInterceptor::FillSimulcastContext(
     SessionDescriptionInterface* offer) {
   for (auto& content : offer->description()->contents()) {
@@ -166,15 +166,14 @@ void SignalingInterceptor::FillSimulcastContext(
 }
 
 LocalAndRemoteSdp SignalingInterceptor::PatchOffer(
-    std::unique_ptr<SessionDescriptionInterface> offer,
-    const PeerConnectionE2EQualityTestFixture::VideoCodecConfig& first_codec) {
+    std::unique_ptr<SessionDescriptionInterface> offer) {
   for (auto& content : offer->description()->contents()) {
     context_.mids_order.push_back(content.mid());
     cricket::MediaContentDescription* media_desc = content.media_description();
     if (media_desc->type() != cricket::MediaType::MEDIA_TYPE_VIDEO) {
       continue;
     }
-    if (content.media_description()->streams().empty()) {
+    if (content.media_description()->streams().size() == 0) {
       // It means that this media section describes receive only media section
       // in SDP.
       RTC_CHECK_EQ(content.media_description()->direction(),
@@ -184,13 +183,13 @@ LocalAndRemoteSdp SignalingInterceptor::PatchOffer(
     media_desc->set_conference_mode(params_.use_conference_mode);
   }
 
-  if (!params_.stream_label_to_simulcast_streams_count.empty()) {
-    // Because simulcast enabled `params_.video_codecs` has only 1 element.
-    if (first_codec.name == cricket::kVp8CodecName) {
+  if (params_.stream_label_to_simulcast_streams_count.size() > 0) {
+    // Because simulcast enabled |params_.video_codecs| has only 1 element.
+    if (params_.video_codecs[0].name == cricket::kVp8CodecName) {
       return PatchVp8Offer(std::move(offer));
     }
 
-    if (first_codec.name == cricket::kVp9CodecName) {
+    if (params_.video_codecs[0].name == cricket::kVp9CodecName) {
       return PatchVp9Offer(std::move(offer));
     }
   }
@@ -227,7 +226,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Offer(
 
     // Remove simulcast video section from offer.
     RTC_CHECK(desc->RemoveContentByName(simulcast_content->mid()));
-    // Clear `simulcast_content`, because now it is pointing to removed object.
+    // Clear |simulcast_content|, because now it is pointing to removed object.
     simulcast_content = nullptr;
 
     // Swap mid and rid extensions, so remote peer will understand rid as mid.
@@ -363,8 +362,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Offer(
 }
 
 LocalAndRemoteSdp SignalingInterceptor::PatchAnswer(
-    std::unique_ptr<SessionDescriptionInterface> answer,
-    const PeerConnectionE2EQualityTestFixture::VideoCodecConfig& first_codec) {
+    std::unique_ptr<SessionDescriptionInterface> answer) {
   for (auto& content : answer->description()->contents()) {
     cricket::MediaContentDescription* media_desc = content.media_description();
     if (media_desc->type() != cricket::MediaType::MEDIA_TYPE_VIDEO) {
@@ -377,13 +375,13 @@ LocalAndRemoteSdp SignalingInterceptor::PatchAnswer(
     media_desc->set_conference_mode(params_.use_conference_mode);
   }
 
-  if (!params_.stream_label_to_simulcast_streams_count.empty()) {
-    // Because simulcast enabled `params_.video_codecs` has only 1 element.
-    if (first_codec.name == cricket::kVp8CodecName) {
+  if (params_.stream_label_to_simulcast_streams_count.size() > 0) {
+    // Because simulcast enabled |params_.video_codecs| has only 1 element.
+    if (params_.video_codecs[0].name == cricket::kVp8CodecName) {
       return PatchVp8Answer(std::move(answer));
     }
 
-    if (first_codec.name == cricket::kVp9CodecName) {
+    if (params_.video_codecs[0].name == cricket::kVp9CodecName) {
       return PatchVp9Answer(std::move(answer));
     }
   }
@@ -410,7 +408,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Answer(
     // Get media description, which will be converted to simulcast answer.
     std::unique_ptr<cricket::MediaContentDescription> media_desc =
         simulcast_content->media_description()->Clone();
-    // Set `simulcast_content` to nullptr, because then it will be removed, so
+    // Set |simulcast_content| to nullptr, because then it will be removed, so
     // it will point to deleted object.
     simulcast_content = nullptr;
 
@@ -419,7 +417,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Answer(
       RTC_CHECK(desc->RemoveContentByName(rid));
     }
 
-    // Patch `media_desc` to make it simulcast answer description.
+    // Patch |media_desc| to make it simulcast answer description.
     // Restore mid/rid rtp header extensions
     std::vector<webrtc::RtpExtension> extensions =
         media_desc->rtp_header_extensions();
@@ -536,7 +534,7 @@ SignalingInterceptor::PatchOffererIceCandidates(
       // This is candidate for simulcast section, so it should be transformed
       // into candidates for replicated sections. The sdpMLineIndex is set to
       // -1 and ignored if the rid is present.
-      for (const std::string& rid : simulcast_info_it->second->rids) {
+      for (auto rid : simulcast_info_it->second->rids) {
         out.push_back(CreateIceCandidate(rid, -1, candidate->candidate()));
       }
     } else {
@@ -562,7 +560,7 @@ SignalingInterceptor::PatchAnswererIceCandidates(
       // section.
       out.push_back(CreateIceCandidate(simulcast_info_it->second->mid, 0,
                                        candidate->candidate()));
-    } else if (!context_.simulcast_infos_by_rid.empty()) {
+    } else if (context_.simulcast_infos_by_rid.size()) {
       // When using simulcast and bundle, put everything on the first m-line.
       out.push_back(CreateIceCandidate("", 0, candidate->candidate()));
     } else {

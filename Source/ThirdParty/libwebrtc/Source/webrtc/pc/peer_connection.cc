@@ -686,9 +686,16 @@ void PeerConnection::InitializeTransportController_n(
   config.ice_transport_factory = ice_transport_factory_.get();
   config.on_dtls_handshake_error_ =
       [weak_ptr = weak_factory_.GetWeakPtr()](rtc::SSLHandshakeError s) {
+#if defined(WEBRTC_WEBKIT_BUILD)
+        RTC_HISTOGRAM_ENUMERATION(
+            "WebRTC.PeerConnection.DtlsHandshakeError", static_cast<int>(s),
+            static_cast<int>(rtc::SSLHandshakeError::MAX_VALUE));
+#else
+        // FIXME: weak_ptr check is unsafe since destruction happens in signaling thread while the callback is called in networking thread.
         if (weak_ptr) {
           weak_ptr->OnTransportControllerDtlsHandshakeError(s);
         }
+#endif
       };
 
   transport_controller_.reset(
