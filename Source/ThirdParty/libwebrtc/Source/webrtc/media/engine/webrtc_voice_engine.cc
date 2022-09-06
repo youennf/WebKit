@@ -1384,7 +1384,7 @@ bool WebRtcVoiceMediaChannel::SetSendParameters(
     return false;
   }
 
-  if (!ValidateRtpExtensions(params.extensions, send_rtp_extensions_)) {
+  if (!ValidateRtpExtensions(params.extensions)) {
     return false;
   }
 
@@ -1430,7 +1430,7 @@ bool WebRtcVoiceMediaChannel::SetRecvParameters(
     return false;
   }
 
-  if (!ValidateRtpExtensions(params.extensions, recv_rtp_extensions_)) {
+  if (!ValidateRtpExtensions(params.extensions)) {
     return false;
   }
   std::vector<webrtc::RtpExtension> filtered_extensions = FilterRtpExtensions(

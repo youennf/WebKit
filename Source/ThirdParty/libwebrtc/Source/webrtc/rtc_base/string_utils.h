@@ -11,9 +11,7 @@
 #ifndef RTC_BASE_STRING_UTILS_H_
 #define RTC_BASE_STRING_UTILS_H_
 
-#if !defined(WEBRTC_WEBKIT_BUILD)
 #include <ctype.h>
-#endif // !defined(WEBRTC_WEBKIT_BUILD)
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>

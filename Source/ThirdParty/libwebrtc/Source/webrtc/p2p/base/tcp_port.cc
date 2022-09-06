@@ -355,11 +355,7 @@ TCPConnection::TCPConnection(TCPPort* port,
     RTC_LOG(LS_VERBOSE) << ToString() << ": socket ipaddr: "
                         << socket_->GetLocalAddress().ToSensitiveString()
                         << ", port() Network:" << port->Network()->ToString();
-#if defined(WEBRTC_WEBKIT_BUILD)
-    RTC_DCHECK(socket->GetLocalAddress().IsLoopbackIP() || absl::c_any_of(
-#else
     RTC_DCHECK(absl::c_any_of(
-#endif
         port_->Network()->GetIPs(), [this](const rtc::InterfaceAddress& addr) {
           return socket_->GetLocalAddress().ipaddr() == addr;
         }));

@@ -367,14 +367,6 @@ class RTCStatsMember : public RTCStatsMemberInterface {
   T value_;
 };
 
-#if !defined(WEBRTC_WEBKIT_BUILD)
-#define WEBRTC_DECLARE_RTCSTATSMEMBER_AS_EXTERN(T)                          \
-  extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)             \
-      RTCStatsMember<T>
-#else
-#define WEBRTC_DECLARE_RTCSTATSMEMBER_AS_EXTERN(T)
-#endif // WEBRTC_WEBKIT_BUILD
-
 namespace rtc_stats_internal {
 
 typedef std::map<std::string, uint64_t> MapStringUint64;
@@ -393,7 +385,8 @@ typedef std::map<std::string, double> MapStringDouble;
   RTC_EXPORT std::string RTCStatsMember<T>::ValueToString() const;          \
   template <>                                                               \
   RTC_EXPORT std::string RTCStatsMember<T>::ValueToJson() const;            \
-  WEBRTC_DECLARE_RTCSTATSMEMBER_AS_EXTERN(T)
+  extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)             \
+      RTCStatsMember<T>
 
 WEBRTC_DECLARE_RTCSTATSMEMBER(bool);
 WEBRTC_DECLARE_RTCSTATSMEMBER(int32_t);

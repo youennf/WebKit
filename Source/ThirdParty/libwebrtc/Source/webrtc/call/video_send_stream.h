@@ -246,9 +246,6 @@ class VideoSendStream {
   virtual void ReconfigureVideoEncoder(VideoEncoderConfig config) = 0;
 
   virtual Stats GetStats() = 0;
-#if defined(WEBRTC_WEBKIT_BUILD)
-  virtual void GenerateKeyFrame() = 0;
-#endif
 
  protected:
   virtual ~VideoSendStream() {}

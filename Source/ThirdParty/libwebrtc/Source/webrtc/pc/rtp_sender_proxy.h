@@ -44,9 +44,6 @@ PROXY_METHOD1(void, SetStreams, const std::vector<std::string>&)
 PROXY_METHOD1(void,
               SetEncoderToPacketizerFrameTransformer,
               rtc::scoped_refptr<FrameTransformerInterface>)
-#if defined(WEBRTC_WEBKIT_BUILD)
-PROXY_METHOD0(void, GenerateKeyFrame)
-#endif
 END_PROXY_MAP(RtpSender)
 
 }  // namespace webrtc

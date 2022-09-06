@@ -112,21 +112,6 @@ void VideoRtpReceiver::SetDepacketizerToDecoderFrameTransformer(
   }
 }
 
-#if defined(WEBRTC_WEBKIT_BUILD)
-void VideoRtpReceiver::GenerateKeyFrame()
-{
-  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
-  if (stopped_)
-    return;
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    if (media_channel_) {
-      media_channel_->GenerateKeyFrame(ssrc_.value_or(0));
-    }
-  });
-}
-#endif
-
 void VideoRtpReceiver::Stop() {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   // TODO(deadbeef): Need to do more here to fully stop receiving packets.

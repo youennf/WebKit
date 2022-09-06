@@ -808,7 +808,7 @@ bool WebRtcVideoChannel::GetChangedSendParameters(
     const VideoSendParameters& params,
     ChangedSendParameters* changed_params) const {
   if (!ValidateCodecFormats(params.codecs) ||
-      !ValidateRtpExtensions(params.extensions, send_rtp_extensions_)) {
+      !ValidateRtpExtensions(params.extensions)) {
     return false;
   }
 
@@ -843,7 +843,7 @@ bool WebRtcVideoChannel::GetChangedSendParameters(
   std::vector<webrtc::RtpExtension> filtered_extensions = FilterRtpExtensions(
       params.extensions, webrtc::RtpExtension::IsSupportedForVideo, true,
       call_->trials());
-  if (send_rtp_extensions_ != filtered_extensions) {
+  if (!send_rtp_extensions_ || (*send_rtp_extensions_ != filtered_extensions)) {
     changed_params->rtp_header_extensions =
         absl::optional<std::vector<webrtc::RtpExtension>>(filtered_extensions);
   }
@@ -990,7 +990,7 @@ bool WebRtcVideoChannel::ApplyChangedParams(
     SetExtmapAllowMixed(*changed_params.extmap_allow_mixed);
   }
   if (changed_params.rtp_header_extensions) {
-    send_rtp_extensions_ = *changed_params.rtp_header_extensions;
+    send_rtp_extensions_ = changed_params.rtp_header_extensions;
   }
 
   if (changed_params.send_codec || changed_params.max_bandwidth_bps) {
@@ -1167,7 +1167,7 @@ bool WebRtcVideoChannel::GetChangedRecvParameters(
     const VideoRecvParameters& params,
     ChangedRecvParameters* changed_params) const {
   if (!ValidateCodecFormats(params.codecs) ||
-      !ValidateRtpExtensions(params.extensions, recv_rtp_extensions_)) {
+      !ValidateRtpExtensions(params.extensions)) {
     return false;
   }
 
@@ -2767,14 +2767,6 @@ void WebRtcVideoChannel::WebRtcVideoSendStream::
     RecreateWebRtcStream();
 }
 
-#if defined(WEBRTC_WEBKIT_BUILD)
-void WebRtcVideoChannel::WebRtcVideoSendStream::GenerateKeyFrame() {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  if (stream_ != NULL)
-    stream_->GenerateKeyFrame();
-}
-#endif
-
 void WebRtcVideoChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (stream_ != NULL) {
@@ -3490,20 +3482,11 @@ void WebRtcVideoChannel::GenerateKeyFrame(uint32_t ssrc) {
   WebRtcVideoReceiveStream* stream = FindReceiveStream(ssrc);
   if (stream) {
     stream->GenerateKeyFrame();
-    return;
+  } else {
+    RTC_LOG(LS_ERROR)
+        << "Absent receive stream; ignoring key frame generation for ssrc "
+        << ssrc;
   }
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (ssrc != 0) {
-    auto matching_stream = send_streams_.find(ssrc);
-    if (matching_stream != send_streams_.end()) {
-      matching_stream->second->GenerateKeyFrame();
-      return;
-    }
-  }
-#endif
-  RTC_LOG(LS_ERROR)
-      << "Absent receive stream; ignoring key frame generation for ssrc "
-      << ssrc;
 }
 
 void WebRtcVideoChannel::SetEncoderToPacketizerFrameTransformer(
