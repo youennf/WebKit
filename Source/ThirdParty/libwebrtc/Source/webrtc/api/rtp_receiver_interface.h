@@ -113,9 +113,6 @@ class RTC_EXPORT RtpReceiverInterface : public rtc::RefCountInterface {
   // logic.
   virtual void SetDepacketizerToDecoderFrameTransformer(
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
-#if defined(WEBRTC_WEBKIT_BUILD)
-  virtual void GenerateKeyFrame() { }
-#endif
 
  protected:
   ~RtpReceiverInterface() override = default;

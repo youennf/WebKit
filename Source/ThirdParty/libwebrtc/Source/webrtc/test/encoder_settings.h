@@ -40,10 +40,10 @@ class DefaultVideoStreamFactory
       const VideoEncoderConfig& encoder_config) override;
 };
 
-// Creates |encoder_config.number_of_streams| VideoStreams where index
-// |encoder_config.number_of_streams -1| have width = |width|, height =
-// |height|. The total max bitrate of all VideoStreams is
-// |encoder_config.max_bitrate_bps|.
+// Creates `encoder_config.number_of_streams` VideoStreams where index
+// `encoder_config.number_of_streams -1` have width = `width`, height =
+// `height`. The total max bitrate of all VideoStreams is
+// `encoder_config.max_bitrate_bps`.
 std::vector<VideoStream> CreateVideoStreams(
     int width,
     int height,
@@ -53,11 +53,11 @@ void FillEncoderConfiguration(VideoCodecType codec_type,
                               size_t num_streams,
                               VideoEncoderConfig* configuration);
 
-VideoReceiveStream::Decoder CreateMatchingDecoder(
+VideoReceiveStreamInterface::Decoder CreateMatchingDecoder(
     int payload_type,
     const std::string& payload_name);
 
-VideoReceiveStream::Decoder CreateMatchingDecoder(
+VideoReceiveStreamInterface::Decoder CreateMatchingDecoder(
     const VideoSendStream::Config& config);
 }  // namespace test
 }  // namespace webrtc
