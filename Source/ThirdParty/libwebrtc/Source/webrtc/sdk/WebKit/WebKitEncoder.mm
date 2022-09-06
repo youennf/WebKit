@@ -271,7 +271,6 @@ RemoteVideoEncoder::EncoderInfo RemoteVideoEncoder::GetEncoderInfo() const
     info.supports_native_handle = true;
     info.implementation_name = "RemoteVideoToolBox";
     info.is_hardware_accelerated = true;
-    info.has_internal_source = false;
 
     // Values taken from RTCVideoEncoderH264.mm
     const int kLowH264QpThreshold = 28;

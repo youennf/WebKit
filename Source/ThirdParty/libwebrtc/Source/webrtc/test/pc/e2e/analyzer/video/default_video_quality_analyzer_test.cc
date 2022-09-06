@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
-
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -26,9 +24,10 @@
 #include "rtc_tools/frame_analyzer/video_geometry_aligner.h"
 #include "system_wrappers/include/sleep.h"
 #include "test/gtest.h"
-#include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_shared_objects.h"
+#include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
 
 namespace webrtc {
+namespace webrtc_pc_e2e {
 namespace {
 
 using StatsSample = ::webrtc::SamplesStatsCounter::StatsSample;
@@ -555,10 +554,7 @@ TEST(DefaultVideoQualityAnalyzerTest, NormalScenario2Receivers) {
   }
 }
 
-// Test the case which can happen when SFU is switching from one layer to
-// another, so the same frame can be received twice by the same peer.
-TEST(DefaultVideoQualityAnalyzerTest,
-     OneFrameReceivedTwiceBySamePeerWith2Receivers) {
+TEST(DefaultVideoQualityAnalyzerTest, OneFrameReceivedTwiceWith2Receivers) {
   std::unique_ptr<test::FrameGeneratorInterface> frame_generator =
       test::CreateSquareFrameGenerator(kFrameWidth, kFrameHeight,
                                        /*type=*/absl::nullopt,
@@ -603,9 +599,7 @@ TEST(DefaultVideoQualityAnalyzerTest,
 
   AnalyzerStats stats = analyzer.GetAnalyzerStats();
   EXPECT_EQ(stats.memory_overloaded_comparisons_done, 0);
-  // We have 2 comparisons here because 1 for the frame received by Bob and
-  // 1 for the frame in flight from Alice to Charlie.
-  EXPECT_EQ(stats.comparisons_done, 2);
+  EXPECT_EQ(stats.comparisons_done, 1);
 
   FrameCounters frame_counters = analyzer.GetGlobalCounters();
   EXPECT_EQ(frame_counters.captured, 1);
@@ -926,9 +920,9 @@ TEST(DefaultVideoQualityAnalyzerTest, RuntimeParticipantsAdding) {
   {
     FrameCounters stream_conters =
         analyzer.GetPerStreamCounters().at(kAliceCharlieStats);
-    EXPECT_EQ(stream_conters.captured, kFramesCount);
-    EXPECT_EQ(stream_conters.pre_encoded, kFramesCount);
-    EXPECT_EQ(stream_conters.encoded, kFramesCount);
+    EXPECT_EQ(stream_conters.captured, kTwoThirdFrames);
+    EXPECT_EQ(stream_conters.pre_encoded, kTwoThirdFrames);
+    EXPECT_EQ(stream_conters.encoded, kTwoThirdFrames);
     EXPECT_EQ(stream_conters.received, kTwoThirdFrames);
     EXPECT_EQ(stream_conters.decoded, kTwoThirdFrames);
     EXPECT_EQ(stream_conters.rendered, kTwoThirdFrames);
@@ -936,15 +930,16 @@ TEST(DefaultVideoQualityAnalyzerTest, RuntimeParticipantsAdding) {
   {
     FrameCounters stream_conters =
         analyzer.GetPerStreamCounters().at(kAliceKatieStats);
-    EXPECT_EQ(stream_conters.captured, kFramesCount);
-    EXPECT_EQ(stream_conters.pre_encoded, kFramesCount);
-    EXPECT_EQ(stream_conters.encoded, kFramesCount);
+    EXPECT_EQ(stream_conters.captured, kTwoThirdFrames);
+    EXPECT_EQ(stream_conters.pre_encoded, kTwoThirdFrames);
+    EXPECT_EQ(stream_conters.encoded, kTwoThirdFrames);
     EXPECT_EQ(stream_conters.received, kOneThirdFrames);
     EXPECT_EQ(stream_conters.decoded, kOneThirdFrames);
     EXPECT_EQ(stream_conters.rendered, kOneThirdFrames);
   }
 }
 
+<<<<<<< HEAD
 TEST(DefaultVideoQualityAnalyzerTest,
      SimulcastFrameWasFullyReceivedByAllPeersBeforeEncodeFinish) {
   std::unique_ptr<test::FrameGeneratorInterface> frame_generator =
@@ -1976,5 +1971,8 @@ TEST(DefaultVideoQualityAnalyzerTest,
   EXPECT_EQ(alice_charlie_stream_conters.rendered, 12);
 }
 
+=======
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
 }  // namespace
+}  // namespace webrtc_pc_e2e
 }  // namespace webrtc

@@ -14,6 +14,10 @@
 #include "absl/types/optional.h"
 #include "rtc_base/bitstream_reader.h"
 
+#if defined(WEBRTC_WEBKIT_BUILD)
+#include <cstdint>
+#endif
+
 namespace webrtc {
 
 // A class for parsing out sequence parameter set (SPS) data from an H264 NALU.

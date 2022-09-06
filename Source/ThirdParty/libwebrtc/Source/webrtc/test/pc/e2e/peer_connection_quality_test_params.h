@@ -114,15 +114,23 @@ struct InjectableComponents {
 struct Params {
   // Peer name. If empty - default one will be set by the fixture.
   absl::optional<std::string> name;
+<<<<<<< HEAD
   // If `audio_config` is set audio stream will be configured
   absl::optional<PeerConnectionE2EQualityTestFixture::AudioConfig> audio_config;
   // Flags to set on `cricket::PortAllocator`. These flags will be added
   // to the default ones that are presented on the port allocator.
   uint32_t port_allocator_extra_flags = cricket::kDefaultPortAllocatorFlags;
   // If `rtc_event_log_path` is set, an RTCEventLog will be saved in that
+=======
+  // If |video_configs| is empty - no video should be added to the test call.
+  std::vector<PeerConnectionE2EQualityTestFixture::VideoConfig> video_configs;
+  // If |audio_config| is set audio stream will be configured
+  absl::optional<PeerConnectionE2EQualityTestFixture::AudioConfig> audio_config;
+  // If |rtc_event_log_path| is set, an RTCEventLog will be saved in that
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
   // location and it will be available for further analysis.
   absl::optional<std::string> rtc_event_log_path;
-  // If `aec_dump_path` is set, an AEC dump will be saved in that location and
+  // If |aec_dump_path| is set, an AEC dump will be saved in that location and
   // it will be available for further analysis.
   absl::optional<std::string> aec_dump_path;
 
@@ -139,8 +147,6 @@ struct Params {
   PeerConnectionInterface::RTCConfiguration rtc_configuration;
   PeerConnectionInterface::RTCOfferAnswerOptions rtc_offer_answer_options;
   BitrateSettings bitrate_settings;
-  std::vector<PeerConnectionE2EQualityTestFixture::VideoCodecConfig>
-      video_codecs;
 };
 
 // Contains parameters that maybe changed by test writer during the test call.

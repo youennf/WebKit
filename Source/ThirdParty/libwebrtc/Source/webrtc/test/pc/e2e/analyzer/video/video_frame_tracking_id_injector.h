@@ -27,7 +27,8 @@ namespace webrtc_pc_e2e {
 // (http://www.webrtc.org/experiments/rtp-hdrext/video-frame-tracking-id).
 //
 // Note that this injector doesn't allow to discard frames.
-class VideoFrameTrackingIdInjector : public EncodedImageDataPropagator {
+class VideoFrameTrackingIdInjector : public EncodedImageDataInjector,
+                                     public EncodedImageDataExtractor {
  public:
   EncodedImage InjectData(uint16_t id,
                           bool unused_discard,

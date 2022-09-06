@@ -63,9 +63,11 @@ struct FftData {
         power_spectrum[kFftLengthBy2] = re[kFftLengthBy2] * re[kFftLengthBy2] +
                                         im[kFftLengthBy2] * im[kFftLengthBy2];
       } break;
+#if !defined(WEBRTC_WEBKIT_BUILD)
       case Aec3Optimization::kAvx2:
         SpectrumAVX2(power_spectrum);
         break;
+#endif
 #endif
       default:
         std::transform(re.begin(), re.end(), im.begin(), power_spectrum.begin(),

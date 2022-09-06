@@ -49,6 +49,13 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
       EncodedImageDataExtractor* extractor);
   ~VideoQualityAnalyzerInjectionHelper() override;
 
+  // Registers new call participant to the underlying video quality analyzer.
+  // The method should be called before the participant is actually added.
+  void RegisterParticipantInCall(absl::string_view peer_name) {
+    analyzer_->RegisterParticipantInCall(peer_name);
+    extractor_->AddParticipantInCall();
+  }
+
   // Wraps video encoder factory to give video quality analyzer access to frames
   // before encoding and encoded images after.
   std::unique_ptr<VideoEncoderFactory> WrapVideoEncoderFactory(
@@ -65,13 +72,13 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
 
   // Creates VideoFrame preprocessor, that will allow video quality analyzer to
   // get access to the captured frames. If provided config also specifies
-  // `input_dump_file_name`, video will be written into that file.
+  // |input_dump_file_name|, video will be written into that file.
   std::unique_ptr<test::TestVideoCapturer::FramePreprocessor>
   CreateFramePreprocessor(absl::string_view peer_name,
                           const VideoConfig& config);
   // Creates sink, that will allow video quality analyzer to get access to
   // the rendered frames. If corresponding video track has
-  // `output_dump_file_name` in its VideoConfig, which was used for
+  // |output_dump_file_name| in its VideoConfig, which was used for
   // CreateFramePreprocessor(...), then video also will be written
   // into that file.
   std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>> CreateVideoSink(
@@ -80,6 +87,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   void Start(std::string test_case_name,
              rtc::ArrayView<const std::string> peer_names,
              int max_threads_count = 1);
+<<<<<<< HEAD
 
   // Registers new call participant to the underlying video quality analyzer.
   // The method should be called before the participant is actually added.
@@ -91,6 +99,11 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
 
   // Forwards `stats_reports` for Peer Connection `pc_label` to
   // `analyzer_`.
+=======
+
+  // Forwards |stats_reports| for Peer Connection |pc_label| to
+  // |analyzer_|.
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
   void OnStatsReports(
       absl::string_view pc_label,
       const rtc::scoped_refptr<const RTCStatsReport>& report) override;
@@ -116,6 +129,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
     VideoQualityAnalyzerInjectionHelper* const helper_;
   };
 
+<<<<<<< HEAD
   struct ReceiverStream {
     ReceiverStream(absl::string_view peer_name, absl::string_view stream_label)
         : peer_name(peer_name), stream_label(stream_label) {}
@@ -162,6 +176,8 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
     int64_t frames_counter_ = 0;
   };
 
+=======
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
   test::VideoFrameWriter* MaybeCreateVideoWriter(
       absl::optional<std::string> file_name,
       const PeerConnectionE2EQualityTestFixture::VideoConfig& config);
@@ -169,7 +185,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   // passing real frame to the sinks
   void OnFrame(absl::string_view peer_name, const VideoFrame& frame);
   std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>*
-  PopulateSinks(const ReceiverStream& receiver_stream);
+  PopulateSinks(const std::string& stream_label);
 
   Clock* const clock_;
   std::unique_ptr<VideoQualityAnalyzerInterface> analyzer_;
@@ -179,14 +195,11 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   std::vector<std::unique_ptr<test::VideoFrameWriter>> video_writers_;
   std::vector<std::unique_ptr<VideoFrameIdsWriter>> frame_ids_writers_;
 
-  Mutex mutex_;
-  int peers_count_ RTC_GUARDED_BY(mutex_);
-  // Map from stream label to the video config.
-  std::map<std::string, VideoConfig> known_video_configs_
-      RTC_GUARDED_BY(mutex_);
-  std::map<ReceiverStream,
+  Mutex lock_;
+  std::map<std::string, VideoConfig> known_video_configs_ RTC_GUARDED_BY(lock_);
+  std::map<std::string,
            std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>>
-      sinks_ RTC_GUARDED_BY(mutex_);
+      sinks_ RTC_GUARDED_BY(lock_);
 };
 
 }  // namespace webrtc_pc_e2e

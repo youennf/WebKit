@@ -26,6 +26,7 @@ constexpr char kPayloadNameAv1[] = "AV1";
 // needed.
 constexpr char kPayloadNameAv1x[] = "AV1X";
 constexpr char kPayloadNameH264[] = "H264";
+constexpr char kPayloadNameH265[] = "H265";
 constexpr char kPayloadNameGeneric[] = "Generic";
 constexpr char kPayloadNameMultiplex[] = "Multiplex";
 }  // namespace
@@ -112,6 +113,10 @@ const char* CodecTypeToPayloadString(VideoCodecType type) {
       return kPayloadNameAv1;
     case kVideoCodecH264:
       return kPayloadNameH264;
+#ifndef DISABLE_H265
+    case kVideoCodecH265:
+      return kPayloadNameH265;
+#endif
     case kVideoCodecMultiplex:
       return kPayloadNameMultiplex;
     case kVideoCodecGeneric:
@@ -130,6 +135,10 @@ VideoCodecType PayloadStringToCodecType(const std::string& name) {
     return kVideoCodecAV1;
   if (absl::EqualsIgnoreCase(name, kPayloadNameH264))
     return kVideoCodecH264;
+#ifndef DISABLE_H265
+  if (absl::EqualsIgnoreCase(name, kPayloadNameH265))
+    return kVideoCodecH265;
+#endif
   if (absl::EqualsIgnoreCase(name, kPayloadNameMultiplex))
     return kVideoCodecMultiplex;
   return kVideoCodecGeneric;

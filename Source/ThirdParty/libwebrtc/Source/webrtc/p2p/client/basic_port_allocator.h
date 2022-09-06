@@ -365,7 +365,11 @@ class AllocationSequence : public sigslot::has_slots<> {
   const rtc::Network* network() const { return network_; }
 
   bool network_failed() const { return network_failed_; }
+#if defined(WEBRTC_WEBKIT_BUILD)
+  void set_network_failed();
+#else
   void set_network_failed() { network_failed_ = true; }
+#endif
 
   // Disables the phases for a new sequence that this one already covers for an
   // equivalent network setup.

@@ -31,7 +31,7 @@ std::string ToString(const rtc::SocketAddress& addr) {
 }  // namespace
 
 // Represents a socket, which will operate with emulated network.
-class FakeNetworkSocket : public rtc::Socket,
+class FakeNetworkSocket : public rtc::AsyncSocket,
                           public EmulatedNetworkReceiverInterface {
  public:
   explicit FakeNetworkSocket(FakeNetworkSocketServer* scoket_manager,
@@ -57,7 +57,7 @@ class FakeNetworkSocket : public rtc::Socket,
                rtc::SocketAddress* paddr,
                int64_t* timestamp) override;
   int Listen(int backlog) override;
-  rtc::Socket* Accept(rtc::SocketAddress* paddr) override;
+  rtc::AsyncSocket* Accept(rtc::SocketAddress* paddr) override;
   int GetError() const override;
   void SetError(int error) override;
   ConnState GetState() const override;
@@ -184,7 +184,7 @@ int FakeNetworkSocket::Recv(void* pv, size_t cb, int64_t* timestamp) {
   return RecvFrom(pv, cb, &paddr, timestamp);
 }
 
-// Reads 1 packet from internal queue. Reads up to `cb` bytes into `pv`
+// Reads 1 packet from internal queue. Reads up to |cb| bytes into |pv|
 // and returns the length of received packet.
 int FakeNetworkSocket::RecvFrom(void* pv,
                                 size_t cb,
@@ -222,7 +222,7 @@ int FakeNetworkSocket::Listen(int backlog) {
   RTC_CHECK(false) << "Listen() isn't valid for SOCK_DGRAM";
 }
 
-rtc::Socket* FakeNetworkSocket::Accept(rtc::SocketAddress* /*paddr*/) {
+rtc::AsyncSocket* FakeNetworkSocket::Accept(rtc::SocketAddress* /*paddr*/) {
   RTC_CHECK(false) << "Accept() isn't valid for SOCK_DGRAM";
 }
 
@@ -248,7 +248,7 @@ void FakeNetworkSocket::SetError(int error) {
   error_ = error;
 }
 
-rtc::Socket::ConnState FakeNetworkSocket::GetState() const {
+rtc::AsyncSocket::ConnState FakeNetworkSocket::GetState() const {
   RTC_DCHECK_RUN_ON(thread_);
   return state_;
 }
@@ -285,7 +285,13 @@ void FakeNetworkSocketServer::Unregister(FakeNetworkSocket* socket) {
   sockets_.erase(absl::c_find(sockets_, socket));
 }
 
-rtc::Socket* FakeNetworkSocketServer::CreateSocket(int family, int type) {
+rtc::Socket* FakeNetworkSocketServer::CreateSocket(int /*family*/,
+                                                   int /*type*/) {
+  RTC_CHECK(false) << "Only async sockets are supported";
+}
+
+rtc::AsyncSocket* FakeNetworkSocketServer::CreateAsyncSocket(int family,
+                                                             int type) {
   RTC_DCHECK(family == AF_INET || family == AF_INET6);
   // We support only UDP sockets for now.
   RTC_DCHECK(type == SOCK_DGRAM) << "Only UDP sockets are supported";

@@ -18,6 +18,8 @@ if (rtc_include_tests) {
       "peer_scenario_client.h",
       "scenario_connection.cc",
       "scenario_connection.h",
+      "sdp_callbacks.cc",
+      "sdp_callbacks.h",
       "signaling_route.cc",
       "signaling_route.h",
     ]
@@ -47,8 +49,12 @@ if (rtc_include_tests) {
       "../../pc:channel",
       "../../pc:jsep_transport_controller",
       "../../pc:pc_test_utils",
+<<<<<<< HEAD
       "../../pc:rtp_transport_internal",
       "../../pc:session_description",
+=======
+      "../../pc:rtc_pc_base",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       "../../rtc_base",
       "../../rtc_base:null_socket_server",
       "../../rtc_base:stringutils",

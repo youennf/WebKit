@@ -60,6 +60,7 @@ std::string DefaultNamesProvider::GenerateNameInternal() {
   return prefix_ + std::to_string(counter_++);
 }
 
+<<<<<<< HEAD
 PeerParamsPreprocessor::PeerParamsPreprocessor()
     : peer_names_provider_("peer_", kDefaultNames) {}
 
@@ -116,6 +117,54 @@ void PeerParamsPreprocessor::ValidateParams(const PeerConfigurerImpl& peer) {
     if (video_config.output_dump_file_name.has_value()) {
       RTC_CHECK_GT(video_config.output_dump_sampling_modulo, 0)
           << "video_config.input_dump_sampling_modulo must be greater than 0";
+=======
+void SetDefaultValuesForMissingParams(
+    RunParams* run_params,
+    std::vector<std::unique_ptr<PeerConfigurerImpl>>* peers) {
+  DefaultNamesProvider peer_names_provider("peer_", kDefaultNames);
+  for (size_t i = 0; i < peers->size(); ++i) {
+    auto* peer = peers->at(i).get();
+    auto* p = peer->params();
+    peer_names_provider.MaybeSetName(&p->name);
+    DefaultNamesProvider video_stream_names_provider(
+        *p->name + "_auto_video_stream_label_");
+    for (VideoConfig& video_config : p->video_configs) {
+      video_stream_names_provider.MaybeSetName(&video_config.stream_label);
+    }
+    if (p->audio_config) {
+      DefaultNamesProvider audio_stream_names_provider(
+          *p->name + "_auto_audio_stream_label_");
+      audio_stream_names_provider.MaybeSetName(&p->audio_config->stream_label);
+    }
+  }
+
+  if (run_params->video_codecs.empty()) {
+    run_params->video_codecs.push_back(
+        VideoCodecConfig(cricket::kVp8CodecName));
+  }
+}
+
+void ValidateParams(
+    const RunParams& run_params,
+    const std::vector<std::unique_ptr<PeerConfigurerImpl>>& peers) {
+  RTC_CHECK_GT(run_params.video_encoder_bitrate_multiplier, 0.0);
+  RTC_CHECK_GE(run_params.video_codecs.size(), 1);
+
+  std::set<std::string> peer_names;
+  std::set<std::string> video_labels;
+  std::set<std::string> audio_labels;
+  std::set<std::string> video_sync_groups;
+  std::set<std::string> audio_sync_groups;
+  int media_streams_count = 0;
+
+  for (size_t i = 0; i < peers.size(); ++i) {
+    Params* p = peers[i]->params();
+
+    {
+      RTC_CHECK(p->name);
+      bool inserted = peer_names.insert(p->name.value()).second;
+      RTC_CHECK(inserted) << "Duplicate name=" << p->name.value();
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
     }
 
     // TODO(bugs.webrtc.org/4762): remove this check after synchronization of
@@ -135,11 +184,35 @@ void PeerParamsPreprocessor::ValidateParams(const PeerConfigurerImpl& peer) {
         RTC_CHECK_LT(*video_config.simulcast_config->target_spatial_index,
                      video_config.simulcast_config->simulcast_streams_count);
       }
+<<<<<<< HEAD
       if (!video_config.encoding_params.empty()) {
         RTC_CHECK_EQ(video_config.simulcast_config->simulcast_streams_count,
                      video_config.encoding_params.size())
             << "|encoding_params| have to be specified for each simulcast "
             << "stream in |video_config|.";
+=======
+
+      if (video_config.simulcast_config) {
+        if (video_config.simulcast_config->target_spatial_index) {
+          RTC_CHECK_GE(*video_config.simulcast_config->target_spatial_index, 0);
+          RTC_CHECK_LT(*video_config.simulcast_config->target_spatial_index,
+                       video_config.simulcast_config->simulcast_streams_count);
+        }
+        RTC_CHECK_EQ(run_params.video_codecs.size(), 1)
+            << "Only 1 video codec is supported when simulcast is enabled in "
+            << "at least 1 video config";
+        RTC_CHECK(!video_config.max_encode_bitrate_bps)
+            << "Setting max encode bitrate is not implemented for simulcast.";
+        RTC_CHECK(!video_config.min_encode_bitrate_bps)
+            << "Setting min encode bitrate is not implemented for simulcast.";
+        if (run_params.video_codecs[0].name == cricket::kVp8CodecName &&
+            !video_config.simulcast_config->encoding_params.empty()) {
+          RTC_CHECK_EQ(video_config.simulcast_config->simulcast_streams_count,
+                       video_config.simulcast_config->encoding_params.size())
+              << "|encoding_params| have to be specified for each simulcast "
+              << "stream in |simulcast_config|.";
+        }
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       }
     } else {
       RTC_CHECK_LE(video_config.encoding_params.size(), 1)

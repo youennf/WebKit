@@ -284,9 +284,14 @@ void SetAllowLegacyTLSProtocols(const absl::optional<bool>& allow) {
 }
 
 bool ShouldAllowLegacyTLSProtocols() {
+  // WEBKIT_WEBRTC: Remove DTL10 optional support.
   return g_use_legacy_tls_protocols_override.load()
              ? g_allow_legacy_tls_protocols.load()
+#if defined(WEBRTC_WEBKIT_BUILD)
+             : !webrtc::field_trial::IsDisabled("WebRTC-LegacyTlsProtocols");
+#else
              : webrtc::field_trial::IsEnabled("WebRTC-LegacyTlsProtocols");
+#endif
 }
 
 OpenSSLStreamAdapter::OpenSSLStreamAdapter(
@@ -1047,6 +1052,10 @@ SSL_CTX* OpenSSLStreamAdapter::SetupSSLContext() {
         break;
       case SSL_PROTOCOL_TLS_12:
       default:
+#if defined(WEBRTC_WEBKIT_BUILD)
+        SSL_CTX_set_min_proto_version(
+            ctx, ssl_mode_ == SSL_MODE_DTLS ? DTLS1_2_VERSION : TLS1_2_VERSION);
+#endif
         SSL_CTX_set_max_proto_version(
             ctx, ssl_mode_ == SSL_MODE_DTLS ? DTLS1_2_VERSION : TLS1_2_VERSION);
         break;

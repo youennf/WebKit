@@ -39,12 +39,20 @@ rtc::scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
     rtc::scoped_refptr<AudioMixer> audio_mixer,
     rtc::scoped_refptr<AudioProcessing> audio_processing,
     AudioFrameProcessor* audio_frame_processor,
-    std::unique_ptr<FieldTrialsView> field_trials) {
+    std::unique_ptr<FieldTrialsView> field_trials
+#if defined(WEBRTC_WEBKIT_BUILD)
+    , std::unique_ptr<TaskQueueFactory> task_queue_factory
+#endif
+    ) {
   PeerConnectionFactoryDependencies dependencies;
   dependencies.network_thread = network_thread;
   dependencies.worker_thread = worker_thread;
   dependencies.signaling_thread = signaling_thread;
+#if defined(WEBRTC_WEBKIT_BUILD)
+  dependencies.task_queue_factory = task_queue_factory ? std::move(task_queue_factory) : CreateDefaultTaskQueueFactory();
+#else
   dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
+#endif
   dependencies.call_factory = CreateCallFactory();
   dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>(
       dependencies.task_queue_factory.get());

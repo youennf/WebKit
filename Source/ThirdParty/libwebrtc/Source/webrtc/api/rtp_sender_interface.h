@@ -97,6 +97,9 @@ class RTC_EXPORT RtpSenderInterface : public rtc::RefCountInterface {
 
   virtual void SetEncoderToPacketizerFrameTransformer(
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
+#if defined(WEBRTC_WEBKIT_BUILD)
+  virtual void GenerateKeyFrame() { }
+#endif
 
   // Sets a user defined encoder selector.
   // Overrides selector that is (optionally) provided by VideoEncoderFactory.

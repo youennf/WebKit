@@ -142,7 +142,7 @@ class TestPeer final : public StatsProvider {
     }
   }
 
-  // Adds provided `candidates` to the owned peer connection.
+  // Adds provided |candidates| to the owned peer connection.
   bool AddIceCandidates(
       std::vector<std::unique_ptr<IceCandidateInterface>> candidates);
 
@@ -162,6 +162,7 @@ class TestPeer final : public StatsProvider {
            std::unique_ptr<rtc::Thread> worker_thread);
 
  private:
+<<<<<<< HEAD
   const Params params_;
 
   mutable Mutex mutex_;
@@ -173,6 +174,9 @@ class TestPeer final : public StatsProvider {
       nullptr;
 
   // Keeps ownership of worker thread. It has to be destroyed after `wrapper_`.
+=======
+  // Keeps ownership of worker thread. It has to be destroyed after |wrapper_|.
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
   std::unique_ptr<rtc::Thread> worker_thread_;
   std::unique_ptr<PeerConnectionWrapper> wrapper_;
   std::vector<PeerConfigurerImpl::VideoSource> video_sources_;

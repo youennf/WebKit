@@ -56,9 +56,12 @@ rtc_library("emulated_network") {
     "../../api/units:timestamp",
     "../../call:simulated_network",
     "../../p2p:p2p_server_utils",
-    "../../p2p:rtc_p2p",
     "../../rtc_base",
+<<<<<<< HEAD
     "../../rtc_base:copy_on_write_buffer",
+=======
+    "../../rtc_base:async_socket",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
     "../../rtc_base:ip_address",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
@@ -68,7 +71,6 @@ rtc_library("emulated_network") {
     "../../rtc_base:rtc_event",
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base:safe_minmax",
-    "../../rtc_base:socket",
     "../../rtc_base:socket_address",
     "../../rtc_base:socket_server",
     "../../rtc_base:stringutils",

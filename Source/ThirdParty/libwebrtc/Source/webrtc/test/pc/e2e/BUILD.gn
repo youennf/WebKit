@@ -34,8 +34,11 @@ if (!build_with_chromium) {
       testonly = true
 
       deps = [
+<<<<<<< HEAD
         ":default_video_quality_analyzer_frames_comparator_test",
         ":default_video_quality_analyzer_stream_state_test",
+=======
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
         ":default_video_quality_analyzer_test",
         ":multi_reader_queue_test",
         ":names_collection_test",
@@ -195,7 +198,6 @@ if (!build_with_chromium) {
         "../../../api/video:video_rtp_headers",
         "../../../api/video_codecs:video_codecs_api",
         "../../../rtc_base:criticalsection",
-        "../../../rtc_base:stringutils",
         "../../../rtc_base/synchronization:mutex",
         "../../../system_wrappers",
         "../../../test:video_test_common",
@@ -308,7 +310,11 @@ if (!build_with_chromium) {
         "../../../api:media_stream_interface",
         "../../../api:peer_connection_quality_test_fixture_api",
         "../../../api/video:video_frame",
+<<<<<<< HEAD
         "../../../pc:session_description",
+=======
+        "../../../pc:peerconnection",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
         "../../../pc:video_track_source",
       ]
       absl_deps = [ "//third_party/abseil-cpp/absl/types:variant" ]
@@ -467,7 +473,6 @@ if (!build_with_chromium) {
       deps = [
         ":default_audio_quality_analyzer",
         ":default_video_quality_analyzer",
-        ":default_video_quality_analyzer_shared",
         ":network_quality_metrics_reporter",
         ":stats_based_network_quality_metrics_reporter",
         "../../../api:callfactory_api",
@@ -549,7 +554,6 @@ if (!build_with_chromium) {
       sources = [ "analyzer/video/default_video_quality_analyzer_test.cc" ]
       deps = [
         ":default_video_quality_analyzer",
-        ":default_video_quality_analyzer_shared",
         "../..:test_support",
         "../../../api:create_frame_generator",
         "../../../api:rtp_packet_info",
@@ -563,6 +567,7 @@ if (!build_with_chromium) {
       ]
     }
 
+<<<<<<< HEAD
     rtc_library("default_video_quality_analyzer_frames_comparator_test") {
       testonly = true
       sources = [ "analyzer/video/default_video_quality_analyzer_frames_comparator_test.cc" ]
@@ -591,6 +596,9 @@ if (!build_with_chromium) {
     }
 
     rtc_library("multi_reader_queue_test") {
+=======
+    rtc_library("multi_head_queue_test") {
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       testonly = true
       sources = [ "analyzer/video/multi_reader_queue_test.cc" ]
       deps = [
@@ -708,8 +716,12 @@ if (!build_with_chromium) {
     ]
 
     deps = [
+<<<<<<< HEAD
       ":default_video_quality_analyzer_internal",
       ":default_video_quality_analyzer_shared",
+=======
+      ":multi_head_queue",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       "../..:perf_test",
       "../../../api:array_view",
       "../../../api:video_quality_analyzer_api",
@@ -722,9 +734,9 @@ if (!build_with_chromium) {
       "../../../api/video:video_frame_type",
       "../../../api/video:video_rtp_headers",
       "../../../common_video",
-      "../../../rtc_base:checks",
       "../../../rtc_base:criticalsection",
       "../../../rtc_base:logging",
+<<<<<<< HEAD
       "../../../rtc_base:macromagic",
       "../../../rtc_base:platform_thread",
       "../../../rtc_base:rtc_event",
@@ -777,12 +789,16 @@ if (!build_with_chromium) {
       "../../../common_video",
       "../../../rtc_base:checks",
       "../../../rtc_base:platform_thread",
+=======
+      "../../../rtc_base:rtc_base_approved",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       "../../../rtc_base:rtc_base_tests_utils",
       "../../../rtc_base:rtc_event",
-      "../../../rtc_base:stringutils",
+      "../../../rtc_base:rtc_numerics",
       "../../../rtc_base:timeutils",
       "../../../rtc_base/synchronization:mutex",
       "../../../rtc_tools:video_quality_analysis",
+<<<<<<< HEAD
       "../../../system_wrappers:system_wrappers",
     ]
     absl_deps = [
@@ -805,8 +821,10 @@ if (!build_with_chromium) {
       "../../../api/units:timestamp",
       "../../../rtc_base:checks",
       "../../../rtc_base:stringutils",
+=======
+      "../../../system_wrappers",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
     ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
 
   rtc_library("network_quality_metrics_reporter") {
@@ -901,9 +919,14 @@ if (!build_with_chromium) {
       "../../../api:rtp_parameters",
       "../../../media:rtc_media_base",
       "../../../p2p:rtc_p2p",
+<<<<<<< HEAD
       "../../../pc:sdp_utils",
       "../../../pc:session_description",
       "../../../pc:simulcast_description",
+=======
+      "../../../pc:peerconnection",
+      "../../../pc:rtc_pc_base",
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
       "../../../rtc_base:stringutils",
     ]
     absl_deps = [

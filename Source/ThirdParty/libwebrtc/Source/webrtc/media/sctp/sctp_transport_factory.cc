@@ -20,7 +20,11 @@
 namespace cricket {
 
 SctpTransportFactory::SctpTransportFactory(rtc::Thread* network_thread)
-    : network_thread_(network_thread) {
+    : network_thread_(network_thread)
+#if defined(WEBRTC_HAVE_DCSCTP) && defined(WEBRTC_WEBKIT_BUILD)
+    , use_dcsctp_("Enabled", false)
+#endif
+  {
   RTC_UNUSED(network_thread_);
 }
 

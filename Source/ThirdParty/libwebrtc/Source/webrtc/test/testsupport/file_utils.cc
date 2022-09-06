@@ -10,6 +10,7 @@
 
 #include "test/testsupport/file_utils.h"
 
+#include <assert.h>
 
 #if defined(WEBRTC_POSIX)
 #include <unistd.h>
@@ -107,7 +108,11 @@ std::string TempFilename(absl::string_view dir, absl::string_view prefix) {
   if (::GetTempFileNameW(rtc::ToUtf16(dir).c_str(),
                          rtc::ToUtf16(prefix).c_str(), 0, filename) != 0)
     return rtc::ToUtf8(filename);
+<<<<<<< HEAD
   RTC_DCHECK_NOTREACHED();
+=======
+  assert(false);
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
   return "";
 #else
   rtc::StringBuilder os;
@@ -116,7 +121,11 @@ std::string TempFilename(absl::string_view dir, absl::string_view prefix) {
 
   int fd = ::mkstemp(tempname.data());
   if (fd == -1) {
+<<<<<<< HEAD
     RTC_DCHECK_NOTREACHED();
+=======
+    assert(false);
+>>>>>>> parent of 8e32ad0e8387 (revert libwebrtc changes to help bump)
     return "";
   } else {
     ::close(fd);

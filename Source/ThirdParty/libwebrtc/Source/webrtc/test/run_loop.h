@@ -51,6 +51,7 @@ class RunLoop {
     void WakeUp() override;
 
     rtc::Socket* CreateSocket(int family, int type) override;
+    rtc::AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
    private:
     bool fail_next_wait_ = false;
