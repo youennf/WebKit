@@ -116,7 +116,6 @@ public:
     {
     }
 
-    VideoEncoderFactory::CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const final { return m_internalEncoderFactory->QueryVideoEncoder(format); }
     std::unique_ptr<VideoEncoder> CreateVideoEncoder(const SdpVideoFormat& format) final;
     std::vector<SdpVideoFormat> GetSupportedFormats() const final { return m_internalEncoderFactory->GetSupportedFormats(); }
 
@@ -187,7 +186,6 @@ public:
     ~RemoteVideoEncoderFactory() = default;
 
 private:
-    VideoEncoderFactory::CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const final { return m_internalFactory->QueryVideoEncoder(format); }
     std::unique_ptr<VideoEncoder> CreateVideoEncoder(const SdpVideoFormat& format) final;
     std::vector<SdpVideoFormat> GetSupportedFormats() const final { return m_internalFactory->GetSupportedFormats(); }
 

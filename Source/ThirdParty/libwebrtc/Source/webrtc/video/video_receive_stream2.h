@@ -205,6 +205,11 @@ class VideoReceiveStream2
   void CreateAndRegisterExternalDecoder(const Decoder& decoder);
 
   struct DecodeFrameResult {
+    DecodeFrameResult(bool force_request_key_frame, absl::optional<int64_t> decoded_frame_picture_id, bool keyframe_required)
+      : force_request_key_frame(force_request_key_frame)
+      , decoded_frame_picture_id(std::move(decoded_frame_picture_id))
+      , keyframe_required(keyframe_required)
+    {}
     DecodeFrameResult(const DecodeFrameResult&) = delete;
     DecodeFrameResult& operator=(const DecodeFrameResult&) = delete;
     DecodeFrameResult(DecodeFrameResult&&) = default;
