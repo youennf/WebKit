@@ -395,6 +395,7 @@ namespace WebCore {
     macro(TransformStreamDefaultController) \
     macro(UndoItem) \
     macro(UndoManager) \
+    macro(VideoFrame) \
     macro(VisualViewport) \
     macro(WaveShaperNode) \
     macro(WebGL2RenderingContext) \

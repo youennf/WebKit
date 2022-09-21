@@ -1,4 +1,5 @@
 {
+    "-f": "import", 
     "LayoutTests/imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/": "import", 
     "apng": "import", 
     "css/css-animations": "import", 
@@ -463,6 +464,7 @@
     "web-platform-tests/web-share": "import", 
     "web-platform-tests/webaudio": "import", 
     "web-platform-tests/webauthn": "skip", 
+    "web-platform-tests/webcodecs": "import", 
     "web-platform-tests/webdriver": "skip", 
     "web-platform-tests/webgl": "skip", 
     "web-platform-tests/webmessaging": "import", 
