@@ -42,6 +42,7 @@ class HTMLCanvasElement;
 class HTMLImageElement;
 class HTMLVideoElement;
 class ImageBitmap;
+class NativeImage;
 class OffscreenCanvas;
 
 using CanvasImageSource = std::variant<RefPtr<HTMLImageElement>, RefPtr<HTMLCanvasElement>, RefPtr<ImageBitmap>
@@ -54,7 +55,6 @@ using CanvasImageSource = std::variant<RefPtr<HTMLImageElement>, RefPtr<HTMLCanv
     #if ENABLE(VIDEO)
     , RefPtr<HTMLVideoElement>
     #endif
-    , WebCodecsVideoFrame
     >;
 
 class WebCodecsVideoFrame : public RefCounted<WebCodecsVideoFrame> {
@@ -62,22 +62,22 @@ public:
     ~WebCodecsVideoFrame();
 
     struct Init {
-        uint64_t duration;
-        int64_t timestamp;
+        std::optional<uint64_t> duration;
+        std::optional<int64_t> timestamp;
         DOMRectInit visibleRect;
-        size_t displayWidth;
-        size_t displayHeight;
+        std::optional<size_t> displayWidth;
+        std::optional<size_t> displayHeight;
     };
     struct BufferInit {
         VideoPixelFormat format { VideoPixelFormat::I420 };
         size_t codedWidth { 0 };
         size_t codedHeight { 0 };
         int64_t timestamp { 0 };
-        uint64_t duration { 0 };
+        std::optional<uint64_t> duration { 0 };
 
         std::optional<Vector<PlaneLayout>> layout;
 
-        DOMRectInit visibleRect;
+        std::optional<DOMRectInit> visibleRect;
 
         std::optional<size_t> displayWidth { 0 };
         std::optional<size_t> displayHeight { 0 };
@@ -85,15 +85,16 @@ public:
         std::optional<VideoColorSpaceInit> colorSpace;
     };
 
-    static Ref<WebCodecsVideoFrame> create(CanvasImageSource&&, Init&&);
-    static Ref<WebCodecsVideoFrame> create(BufferSource&&, BufferInit&&);
+    static ExceptionOr<Ref<WebCodecsVideoFrame>> create(CanvasImageSource&&, Init&&);
+    static ExceptionOr<Ref<WebCodecsVideoFrame>> create(Ref<WebCodecsVideoFrame>&&, Init&&);
+    static ExceptionOr<Ref<WebCodecsVideoFrame>> create(BufferSource&&, BufferInit&&);
 
     std::optional<VideoPixelFormat> format() const { return m_format; }
     size_t codedWidth() const { return m_codedWidth; }
     size_t codedHeight() const { return m_codedHeight; }
 
-    DOMRectReadOnly* codedRect() const { return m_codedRect.get(); }
-    DOMRectReadOnly* visibleRect() const { return m_visibleRect.get(); }
+    DOMRectReadOnly* codedRect() const;
+    DOMRectReadOnly* visibleRect() const;
 
     size_t displayWidth() const { return m_displayWidth; }
     size_t displayHeight() const { return m_displayHeight; }
@@ -105,24 +106,35 @@ public:
         DOMRectInit rect;
         Vector<PlaneLayout> layout;
     };
-    size_t allocationSize(CopyToOptions&&);
+    ExceptionOr<size_t> allocationSize(CopyToOptions&&);
 
     using CopyToPromise = DOMPromiseDeferred<IDLSequence<IDLInterface<PlaneLayout>>>;
     void copyTo(BufferSource&&, CopyToOptions&&, CopyToPromise&&);
-    Ref<WebCodecsVideoFrame> clone();
+    ExceptionOr<Ref<WebCodecsVideoFrame>> clone();
     void close();
 
     bool isDetached() const { return m_isDetached; }
 
+    void setDisplaySize(size_t, size_t);
+    void setVisibleRect(const DOMRectInit&);
+
 private:
+    static Ref<WebCodecsVideoFrame> initializeFrameFromOtherFrame(Ref<WebCodecsVideoFrame>&&, Init&&);
+    static Ref<WebCodecsVideoFrame> initializeFrameFromOtherFrame(Ref<VideoFrame>&&, Init&&);
+    static ExceptionOr<Ref<WebCodecsVideoFrame>> initializeFrameWithResourceAndSize(Ref<NativeImage>&&, Init&&);
+
     RefPtr<VideoFrame> m_internalFrame;
     std::optional<VideoPixelFormat> m_format;
     size_t m_codedWidth { 0 };
     size_t m_codedHeight { 0 };
-    RefPtr<DOMRectReadOnly> m_codedRect;
-    RefPtr<DOMRectReadOnly> m_visibleRect;
+    mutable RefPtr<DOMRectReadOnly> m_codedRect;
     size_t m_displayWidth { 0 };
     size_t m_displayHeight { 0 };
+    size_t m_visibleWidth { 0 };
+    size_t m_visibleHeight { 0 };
+    size_t m_visibleLeft { 0 };
+    size_t m_visibleTop { 0 };
+    mutable RefPtr<DOMRectReadOnly> m_visibleRect;
     std::optional<uint64_t> m_duration { 0 };
     int64_t m_timestamp { 0 };
     RefPtr<VideoColorSpace> m_colorSpace;

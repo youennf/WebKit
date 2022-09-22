@@ -34,6 +34,12 @@
 
 namespace WebCore {
 
+RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage& image)
+{
+    auto transferSession = ImageTransferSessionVT::create(kCVPixelFormatType_32ARGB, false);
+    return transferSession->createVideoFrame(image.platformImage().get(), { }, image.size());
+}
+
 Ref<VideoFrameCV> VideoFrameCV::create(CMSampleBufferRef sampleBuffer, bool isMirrored, Rotation rotation)
 {
     auto pixelBuffer = static_cast<CVPixelBufferRef>(PAL::CMSampleBufferGetImageBuffer(sampleBuffer));

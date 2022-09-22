@@ -36,6 +36,7 @@ typedef struct __CVBuffer *CVPixelBufferRef;
 
 namespace WebCore {
 
+class NativeImage;
 class ProcessIdentity;
 #if USE(AVFOUNDATION) && PLATFORM(COCOA)
 class VideoFrameCV;
@@ -45,6 +46,8 @@ class VideoFrameCV;
 class VideoFrame : public ThreadSafeRefCounted<VideoFrame> {
 public:
     virtual ~VideoFrame() = default;
+
+    static RefPtr<VideoFrame> fromNativeImage(NativeImage&);
 
     enum class Rotation {
         None = 0,

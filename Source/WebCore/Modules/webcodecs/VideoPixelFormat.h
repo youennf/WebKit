@@ -42,6 +42,8 @@ enum class VideoPixelFormat
     BGRX
 };
 
+VideoPixelFormat convertVideoFramePixelFormat(uint32_t);
+
 }
 
 #endif

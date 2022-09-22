@@ -49,6 +49,12 @@ void VideoFrame::initializeCharacteristics(MediaTime presentationTime, bool isMi
 }
 
 #if !PLATFORM(COCOA)
+RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
 RefPtr<JSC::Uint8ClampedArray> VideoFrame::getRGBAImageData() const
 {
 #if USE(GSTREAMER)

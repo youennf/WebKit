@@ -45,6 +45,7 @@ typedef (HTMLImageElement or HTMLCanvasElement or ImageBitmap
     InterfaceName=VideoFrame,
 ] interface WebCodecsVideoFrame {
     constructor(CanvasImageSource image, optional VideoFrameInit init = {});
+    constructor(WebCodecsVideoFrame image, optional VideoFrameInit init = {});
     constructor([AllowShared] BufferSource data, VideoFrameBufferInit init);
 
     readonly attribute VideoPixelFormat? format;
@@ -85,7 +86,7 @@ dictionary VideoFrameBufferInit {
 
     sequence<PlaneLayout> layout;
 
-    required DOMRectInit visibleRect;
+    DOMRectInit visibleRect;
 
     [EnforceRange] unsigned long displayWidth;
     [EnforceRange] unsigned long displayHeight;
