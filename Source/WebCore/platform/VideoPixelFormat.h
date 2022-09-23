@@ -44,6 +44,11 @@ enum class VideoPixelFormat
 
 VideoPixelFormat convertVideoFramePixelFormat(uint32_t);
 
+inline bool isRGBVideoPixelFormat(VideoPixelFormat format)
+{
+    return format == VideoPixelFormat::RGBA || format == VideoPixelFormat::RGBX || format == VideoPixelFormat::BGRA || format == VideoPixelFormat::BGRX;
+}
+
 }
 
 #endif

@@ -27,6 +27,7 @@
 #include "WebCodecsVideoFrameAlgorithms.h"
 
 #include "DOMRectReadOnly.h"
+#include "VideoColorSpace.h"
 
 namespace WebCore {
 
@@ -223,7 +224,6 @@ ExceptionOr<CombinedPlaneLayout> parseVideoFrameCopyToOptions(const WebCodecsVid
 }
 
 // https://w3c.github.io/webcodecs/#videoframe-initialize-visible-rect-and-display-size
-
 void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame& frame, const WebCodecsVideoFrame::Init& init, const DOMRectInit& defaultVisibleRect, size_t defaultDisplayWidth, size_t defaultDisplayHeight)
 {
     frame.setVisibleRect(init.visibleRect);
@@ -234,6 +234,18 @@ void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame& frame, const WebCo
         auto heightScale = defaultDisplayHeight / defaultVisibleRect.height;
         frame.setDisplaySize(init.visibleRect.width * widthScale, init.visibleRect.height * heightScale);
     }
+}
+
+// https://w3c.github.io/webcodecs/#videoframe-pick-color-space
+Ref<VideoColorSpace> videoFramePickColorSpace(const std::optional<VideoColorSpaceInit>& overrideColorSpace, VideoPixelFormat format)
+{
+    if (overrideColorSpace)
+        return VideoColorSpace::create(*overrideColorSpace);
+
+    if (isRGBVideoPixelFormat(format))
+        return VideoColorSpace::create({ PlatformVideoColorPrimaries::Bt709, PlatformVideoTransferCharacteristics::Iec6196621, PlatformVideoMatrixCoefficients::Rgb, true });
+
+    return VideoColorSpace::create({ PlatformVideoColorPrimaries::Bt709, PlatformVideoTransferCharacteristics::Bt709, PlatformVideoMatrixCoefficients::Bt709, false });
 }
 
 } // namespace WebCore

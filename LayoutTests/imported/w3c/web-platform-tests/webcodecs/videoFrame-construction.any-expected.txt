@@ -1,10 +1,34 @@
 
-FAIL Test buffer constructed NV12 VideoFrame null is not an object (evaluating 'frame.colorSpace.primaries')
-FAIL Test buffer constructed RGB VideoFrames Unable to copy data
+FAIL Test we can construct a VideoFrame. Can't find variable: OffscreenCanvas
+FAIL Test closed VideoFrame. Can't find variable: OffscreenCanvas
+FAIL Test we can construct a VideoFrame with a negative timestamp. Can't find variable: OffscreenCanvas
+FAIL Test that timestamp is required when constructing VideoFrame from ImageBitmap promise_test: Unhandled rejection with value: object "ReferenceError: Can't find variable: OffscreenCanvas"
+FAIL Test that timestamp is required when constructing VideoFrame from OffscreenCanvas promise_test: Unhandled rejection with value: object "ReferenceError: Can't find variable: OffscreenCanvas"
+FAIL Test that timestamp is NOT required when constructing VideoFrame from another VideoFrame promise_test: Unhandled rejection with value: object "TypeError: Data is too small 12 / 18"
+FAIL Test we can construct an odd-sized VideoFrame. Can't find variable: OffscreenCanvas
+FAIL Test constructing w/ unusable image argument throws: HAVE_NOTHING <video>. assert_throws_dom: function "() => {
+    let frame = new VideoFrame(video, {timestamp: 10});
+  }" threw object "TypeError: Member VideoFrameInit.visibleRect is required and must be an instance of DOMRectInit" that is not a DOMException InvalidStateError: property "code" is equal to undefined, expected 11
+FAIL Test constructing w/ unusable image argument throws: emtpy Canvas. Can't find variable: OffscreenCanvas
+FAIL Test constructing w/ unusable image argument throws: closed ImageBitmap. Can't find variable: OffscreenCanvas
+FAIL Test constructing w/ unusable image argument throws: closed VideoFrame. Can't find variable: OffscreenCanvas
+FAIL Test invalid CanvasImageSource constructed VideoFrames Data is too small 12 / 18
+FAIL Test visibleRect metadata override where source display size = visible size Data is too small 12 / 18
+FAIL Test visibleRect metadata override where source display width = 2 * visible width (anamorphic) Data is too small 12 / 18
+FAIL Test visibleRect metadata override where source display size = 2 * visible size for both width and height Data is too small 12 / 18
+FAIL Test visibleRect + display size metadata override Can't find variable: OffscreenCanvas
+FAIL Test display size metadata override Can't find variable: OffscreenCanvas
+PASS Test invalid buffer constructed VideoFrames
+FAIL Test Uint8Array(ArrayBuffer) constructed I420 VideoFrame Data is too small 12 / 18
+FAIL Test ArrayBuffer constructed I420 VideoFrame Data is too small 12 / 18
+FAIL Test planar constructed I420 VideoFrame with colorSpace Data is too small 12 / 18
+FAIL Test buffer constructed I420+Alpha VideoFrame VideoPixelFormat is not supported
+PASS Test buffer constructed NV12 VideoFrame
+FAIL Test buffer constructed RGB VideoFrames Unable to create internal resource from data
 FAIL Test VideoFrame constructed VideoFrame Can't find variable: OffscreenCanvas
 FAIL Test we can construct a VideoFrame from an offscreen canvas. Can't find variable: OffscreenCanvas
-FAIL Test I420 VideoFrame with odd visible size Unable to copy data
+FAIL Test I420 VideoFrame with odd visible size Unable to create internal resource from data
 FAIL Test I420A VideoFrame and alpha={keep,discard} VideoPixelFormat is not supported
-FAIL Test RGBA, BGRA VideoFrames with alpha={keep,discard} Unable to copy data
+FAIL Test RGBA, BGRA VideoFrames with alpha={keep,discard} Unable to create internal resource from data
 FAIL Test a VideoFrame constructed from canvas can drop the alpha channel. Can't find variable: OffscreenCanvas
 

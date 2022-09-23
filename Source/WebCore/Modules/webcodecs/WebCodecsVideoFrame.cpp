@@ -208,9 +208,8 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(BufferSource&&
     }
     result->m_duration = init.duration;
     result->m_timestamp = init.timestamp;
-    if (init.colorSpace)
-        result->m_colorSpace = VideoColorSpace::create(*init.colorSpace);
-    // FIXME: Implement https://w3c.github.io/webcodecs/#videoframe-pick-color-space
+    result->m_colorSpace = videoFramePickColorSpace(init.colorSpace, *result->m_format);
+
     return result;
 }
 

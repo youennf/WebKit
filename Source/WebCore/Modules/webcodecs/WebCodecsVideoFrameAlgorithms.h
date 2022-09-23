@@ -51,6 +51,8 @@ ExceptionOr<CombinedPlaneLayout> parseVideoFrameCopyToOptions(const WebCodecsVid
 
 void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame&, const WebCodecsVideoFrame::Init&, const DOMRectInit&, size_t defaultDisplayWidth, size_t defaultDisplayHeight);
 
+Ref<VideoColorSpace> videoFramePickColorSpace(const std::optional<VideoColorSpaceInit>&, VideoPixelFormat);
+
 }
 
 #endif
