@@ -108,7 +108,7 @@ public:
     };
     ExceptionOr<size_t> allocationSize(CopyToOptions&&);
 
-    using CopyToPromise = DOMPromiseDeferred<IDLSequence<IDLInterface<PlaneLayout>>>;
+    using CopyToPromise = DOMPromiseDeferred<IDLSequence<IDLDictionary<PlaneLayout>>>;
     void copyTo(BufferSource&&, CopyToOptions&&, CopyToPromise&&);
     ExceptionOr<Ref<WebCodecsVideoFrame>> clone();
     void close();

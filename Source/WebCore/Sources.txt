@@ -389,7 +389,6 @@ Modules/webauthn/fido/FidoParsingUtils.cpp
 Modules/webauthn/fido/Pin.cpp
 Modules/webauthn/fido/U2fCommandConstructor.cpp
 Modules/webauthn/fido/U2fResponseConverter.cpp
-Modules/webcodecs/VideoPixelFormat.cpp
 Modules/webcodecs/WebCodecsVideoFrame.cpp
 Modules/webcodecs/WebCodecsVideoFrameAlgorithms.cpp
 Modules/webdatabase/ChangeVersionWrapper.cpp
@@ -1984,6 +1983,7 @@ platform/ThreadTimers.cpp
 platform/Timer.cpp
 platform/UserActivity.cpp
 platform/VideoFrame.cpp
+platform/VideoPixelFormat.cpp
 platform/WebCoreCrossThreadCopier.cpp
 platform/WebGLStateTracker.cpp
 platform/Widget.cpp

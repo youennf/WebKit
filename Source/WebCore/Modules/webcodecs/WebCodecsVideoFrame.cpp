@@ -34,6 +34,7 @@
 #include "HTMLImageElement.h"
 #include "HTMLVideoElement.h"
 #include "ImageBitmap.h"
+#include "JSPlaneLayout.h"
 #include "VideoColorSpaceInit.h"
 #include "WebCodecsVideoFrameAlgorithms.h"
 
@@ -162,33 +163,35 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(BufferSource&&
         return Exception { TypeError, "buffer init is not valid"_s };
     
     DOMRectInit defaultRect { 0, 0, static_cast<double>(init.codedWidth), static_cast<double>(init.codedHeight) };
-    auto parsedRect = parseVisibleRect(defaultRect, init.visibleRect, init.codedWidth, init.codedHeight, init.format);
-    if (parsedRect.hasException())
-        return parsedRect.releaseException();
+    auto parsedRectOrExtension = parseVisibleRect(defaultRect, init.visibleRect, init.codedWidth, init.codedHeight, init.format);
+    if (parsedRectOrExtension.hasException())
+        return parsedRectOrExtension.releaseException();
     
-    auto layout = computeLayoutAndAllocationSize(parsedRect.returnValue(), init.layout, init.format);
-    if (layout.hasException())
-        return layout.releaseException();
-    
-    if (data.length() < layout.returnValue().allocationSize)
-        return Exception { TypeError, "Data is too small"_s };
+    auto parsedRect = parsedRectOrExtension.releaseReturnValue();
+    auto layoutOrException = computeLayoutAndAllocationSize(parsedRect, init.layout, init.format);
+    if (layoutOrException.hasException())
+        return layoutOrException.releaseException();
+
+    auto layout = layoutOrException.releaseReturnValue();
+    if (data.length() < layout.allocationSize)
+        return Exception { TypeError, makeString("Data is too small ", data.length(), " / ", layout.allocationSize) };
     
     RefPtr<VideoFrame> videoFrame;
     if (init.format == VideoPixelFormat::NV12)
-        videoFrame = VideoFrame::createNV12({ data.data(), data.length() }, layout.computedLayouts[0], layout.computedLayouts[1]);
+        videoFrame = VideoFrame::createNV12({ data.data(), data.length() }, parsedRect.width, parsedRect.height, layout.computedLayouts[0], layout.computedLayouts[1]);
     else if (init.format == VideoPixelFormat::RGBA)
-        videoFrame = VideoFrame::createRGBA({ data.data(), data.length() });
+        videoFrame = VideoFrame::createRGBA({ data.data(), data.length() }, parsedRect.width, parsedRect.height, layout.computedLayouts[0]);
     else if (init.format == VideoPixelFormat::I420)
-        videoFrame = VideoFrame::createI420({ data.data(), data.length() }, layout.computedLayouts[0], layout.computedLayouts[1], layout.computedLayouts[2]);
+        videoFrame = VideoFrame::createI420({ data.data(), data.length() }, parsedRect.width, parsedRect.height, layout.computedLayouts[0], layout.computedLayouts[1], layout.computedLayouts[2]);
     else
         return Exception { NotSupportedError, "VideoPixelFormat is not supported"_s };
     
     if (!videoFrame)
-        return Exception { TypeError, "Unable to copy data"_s };
+        return Exception { TypeError, "Unable to create internal resource from data"_s };
     
     auto result = adoptRef(*new WebCodecsVideoFrame);
-    result->m_internalFrame = videoFrame->m_internalFrame;
-    result->m_format = videoFrame->m_format;
+    result->m_internalFrame = videoFrame.releaseNonNull();
+    result->m_format = convertVideoFramePixelFormat(result->m_internalFrame->pixelFormat());
 
     result->m_codedWidth = result->m_internalFrame->presentationSize().width();
     result->m_codedHeight = result->m_internalFrame->presentationSize().height();
@@ -206,7 +209,7 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(BufferSource&&
     result->m_duration = init.duration;
     result->m_timestamp = init.timestamp;
     if (init.colorSpace)
-        result.m_colorSpace = VideoColorSpace::create(*init.colorSpace);
+        result->m_colorSpace = VideoColorSpace::create(*init.colorSpace);
     // FIXME: Implement https://w3c.github.io/webcodecs/#videoframe-pick-color-space
     return result;
 }
@@ -302,18 +305,26 @@ void WebCodecsVideoFrame::copyTo(BufferSource&& source, CopyToOptions&& options,
         return;
     }
 
-    auto combinedLayout = parseVideoFrameCopyToOptions(*this, options);
-    if (combinedLayout.hasException()) {
-        promise.reject(combinedLayout.releaseException());
+    auto combinedLayoutOrException = parseVideoFrameCopyToOptions(*this, options);
+    if (combinedLayoutOrException.hasException()) {
+        promise.reject(combinedLayoutOrException.releaseException());
         return;
     }
 
-    if (source.length() < combinedLayout.returnValue().allocationSize) {
+    auto combinedLayout = combinedLayoutOrException.releaseReturnValue();
+    if (source.length() < combinedLayout.allocationSize) {
         promise.reject(Exception { TypeError,  "Buffer is too small"_s });
         return;
     }
 
-    // FIXME: Implement actual copy.
+    Span<uint8_t> buffer { static_cast<uint8_t*>(source.mutableData()), source.length() };
+    m_internalFrame->copyTo(buffer, *m_format, WTFMove(combinedLayout.computedLayouts), [source = WTFMove(source), promise = WTFMove(promise)](auto planeLayouts) mutable {
+        if (!planeLayouts) {
+            promise.reject(Exception { TypeError,  "Unable to copy data"_s });
+            return;
+        }
+        promise.resolve(WTFMove(*planeLayouts));
+    });
 }
 
 ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::clone()

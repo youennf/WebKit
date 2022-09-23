@@ -1,4 +1,4 @@
 
-FAIL Test SharedArrayBuffer constructed I420 VideoFrame VideoPixelFormat is not supported
-FAIL Test Uint8Array(SharedArrayBuffer) constructed I420 VideoFrame VideoPixelFormat is not supported
+FAIL Test SharedArrayBuffer constructed I420 VideoFrame Data is too small 12 / 18
+FAIL Test Uint8Array(SharedArrayBuffer) constructed I420 VideoFrame Data is too small 12 / 18
 

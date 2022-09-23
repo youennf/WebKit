@@ -31,6 +31,7 @@
 #include "PixelBuffer.h"
 #include "ProcessIdentity.h"
 #include "CoreVideoSoftLink.h"
+#include <wtf/Scope.h>
 
 namespace WebCore {
 
@@ -40,22 +41,110 @@ RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage& image)
     return transferSession->createVideoFrame(image.platformImage().get(), { }, image.size());
 }
 
-RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+static const uint8_t* copyToCVPixelBufferPlane(CVPixelBufferRef pixelBuffer, size_t planeIndex, const uint8_t* source, size_t height, uint32_t bytesPerRowSource)
+{
+    auto* destination = static_cast<uint8_t*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, planeIndex));
+    uint32_t bytesPerRowDestination = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, planeIndex);
+    for (unsigned i = 0; i < height; ++i) {
+        std::memcpy(destination, source, std::min(bytesPerRowSource, bytesPerRowDestination));
+        source += bytesPerRowSource;
+        destination += bytesPerRowDestination;
+    }
+    return source;
+}
+
+RefPtr<VideoFrame> VideoFrame::createNV12(Span<const uint8_t> span, size_t width, size_t height, const ComputedPlaneLayout& planeY, const ComputedPlaneLayout& planeUV)
+{
+    CVPixelBufferRef rawPixelBuffer = nullptr;
+
+    auto status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange, nullptr, &rawPixelBuffer);
+    if (status != noErr || !rawPixelBuffer)
+        return nullptr;
+    auto pixelBuffer = adoptCF(rawPixelBuffer);
+
+    status = CVPixelBufferLockBaseAddress(rawPixelBuffer, 0);
+    if (status != noErr)
+        return nullptr;
+
+    auto scope = makeScopeExit([&rawPixelBuffer] {
+        CVPixelBufferUnlockBaseAddress(rawPixelBuffer, 0);
+    });
+
+    auto* data = span.data();
+    data = copyToCVPixelBufferPlane(rawPixelBuffer, 0, data, height, planeY.sourceWidthBytes);
+    if (CVPixelBufferGetPlaneCount(rawPixelBuffer) == 2) {
+        if (CVPixelBufferGetWidthOfPlane(rawPixelBuffer, 1) != (width / 2) || CVPixelBufferGetHeightOfPlane(rawPixelBuffer, 1) != (height / 2))
+            return nullptr;
+        copyToCVPixelBufferPlane(rawPixelBuffer, 1, data, height / 2, planeUV.sourceWidthBytes);
+    }
+
+    return VideoFrameCV::create({ }, false, Rotation::None, WTFMove(pixelBuffer));
+}
+
+RefPtr<VideoFrame> VideoFrame::createRGBA(Span<const uint8_t> span, size_t width, size_t height, const ComputedPlaneLayout& plane)
+{
+    CVPixelBufferRef rawPixelBuffer = nullptr;
+    
+    auto status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32RGBA, nullptr, &rawPixelBuffer);
+    if (status != noErr || !rawPixelBuffer)
+        return nullptr;
+    auto pixelBuffer = adoptCF(rawPixelBuffer);
+    
+    status = CVPixelBufferLockBaseAddress(rawPixelBuffer, 0);
+    if (status != noErr)
+        return nullptr;
+    
+    auto scope = makeScopeExit([&rawPixelBuffer] {
+        CVPixelBufferUnlockBaseAddress(rawPixelBuffer, 0);
+    });
+    
+    copyToCVPixelBufferPlane(rawPixelBuffer, 0, span.data(), height, plane.sourceWidthBytes);
+    
+    return VideoFrameCV::create({ }, false, Rotation::None, WTFMove(pixelBuffer));
+}
+
+RefPtr<VideoFrame> VideoFrame::createI420(Span<const uint8_t>, size_t, size_t, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>)
+void VideoFrame::copyTo(Span<uint8_t> span, VideoPixelFormat format, Vector<ComputedPlaneLayout>&&, CompletionHandler<void(std::optional<Vector<PlaneLayout>>&&)>&& callback)
 {
-    // FIXME: Add support.
-    return nullptr;
-}
+    if (format == VideoPixelFormat::RGBA) {
+        // FIXME: We should get the pixel buffer asynchronously if possible.
+        auto pixelBuffer = this->pixelBuffer();
+        auto result = CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        if (result != kCVReturnSuccess) {
+            RELEASE_LOG_ERROR(WebRTC, "VideoFrame::copyTo lock failed");
+            callback({ });
+            return;
+        }
 
-RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
-{
-    // FIXME: Add support.
-    return nullptr;
+        auto scope = makeScopeExit([&pixelBuffer] {
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        });
+
+        auto* planeA = static_cast<const uint8_t*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+        if (!planeA) {
+            RELEASE_LOG_ERROR(WebRTC, "VideoFrame::copyTo plane A is null");
+            callback({ });
+            return;
+        }
+
+        auto height = CVPixelBufferGetHeight(pixelBuffer);
+        auto bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        size_t planeASize = height * bytesPerRow;
+        std::memcpy(span.data(), planeA, planeASize);
+
+        Vector<PlaneLayout> planeLayouts;
+        planeLayouts.append(PlaneLayout { });
+        callback(WTFMove(planeLayouts));
+        return;
+    }
+
+    // FIXME: Add support for NV12 and I420.
+    callback({ });
 }
 
 Ref<VideoFrameCV> VideoFrameCV::create(CMSampleBufferRef sampleBuffer, bool isMirrored, Rotation rotation)

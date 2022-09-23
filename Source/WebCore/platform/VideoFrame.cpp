@@ -55,22 +55,28 @@ RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage&)
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>)
+RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
+}
+
+void VideoFrame::copyTo(Span<uint8_t>, VideoPixelFormat, Vector<ComputedPlaneLayout>&&, CompletionHandler<void(std::optional<Vector<PlaneLayout>>&&)>&& callback)
+{
+    // FIXME: Add support.
+    callback({ });
 }
 
 RefPtr<JSC::Uint8ClampedArray> VideoFrame::getRGBAImageData() const

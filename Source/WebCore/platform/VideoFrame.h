@@ -28,7 +28,10 @@
 #if ENABLE(VIDEO)
 
 #include "FloatSize.h"
+#include "PlaneLayout.h"
+#include "VideoPixelFormat.h"
 #include <JavaScriptCore/TypedArrays.h>
+#include <wtf/CompletionHandler.h>
 #include <wtf/MediaTime.h>
 #include <wtf/ThreadSafeRefCounted.h>
 
@@ -57,9 +60,9 @@ public:
     virtual ~VideoFrame() = default;
 
     static RefPtr<VideoFrame> fromNativeImage(NativeImage&);
-    static RefPtr<VideoFrame> createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
-    static RefPtr<VideoFrame> createRGBA(Span<uint8_t>);
-    static RefPtr<VideoFrame> createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
+    static RefPtr<VideoFrame> createNV12(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
+    static RefPtr<VideoFrame> createRGBA(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&);
+    static RefPtr<VideoFrame> createI420(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
 
     enum class Rotation {
         None = 0,
@@ -76,6 +79,8 @@ public:
     WEBCORE_EXPORT RefPtr<VideoFrameCV> asVideoFrameCV();
 #endif
     WEBCORE_EXPORT RefPtr<JSC::Uint8ClampedArray> getRGBAImageData() const;
+
+    void copyTo(Span<uint8_t>, VideoPixelFormat, Vector<ComputedPlaneLayout>&&, CompletionHandler<void(std::optional<Vector<PlaneLayout>>&&)>&&);
 
     virtual FloatSize presentationSize() const = 0;
     virtual uint32_t pixelFormat() const = 0;
