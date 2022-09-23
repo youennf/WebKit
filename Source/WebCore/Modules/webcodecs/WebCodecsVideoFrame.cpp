@@ -155,29 +155,60 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(Ref<WebCodecsV
     return initializeFrameFromOtherFrame(WTFMove(initFrame), WTFMove(init));
 }
 
+// https://w3c.github.io/webcodecs/#dom-videoframe-videoframe-data-init
 ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(BufferSource&& data, BufferInit&& init)
 {
     if (!isValidVideoFrameBufferInit(init))
         return Exception { TypeError, "buffer init is not valid"_s };
-
-    // FIXME: Support more formats.
-    if (init.format != VideoPixelFormat::NV12 && init.format != VideoPixelFormat::RGBA)
-        return Exception { NotSupportedError, "VideoPixelFormat is not supported"_s };
-
+    
     DOMRectInit defaultRect { 0, 0, static_cast<double>(init.codedWidth), static_cast<double>(init.codedHeight) };
     auto parsedRect = parseVisibleRect(defaultRect, init.visibleRect, init.codedWidth, init.codedHeight, init.format);
     if (parsedRect.hasException())
         return parsedRect.releaseException();
-
+    
     auto layout = computeLayoutAndAllocationSize(parsedRect.returnValue(), init.layout, init.format);
     if (layout.hasException())
         return layout.releaseException();
-
+    
     if (data.length() < layout.returnValue().allocationSize)
         return Exception { TypeError, "Data is too small"_s };
+    
+    RefPtr<VideoFrame> videoFrame;
+    if (init.format == VideoPixelFormat::NV12)
+        videoFrame = VideoFrame::createNV12({ data.data(), data.length() }, layout.computedLayouts[0], layout.computedLayouts[1]);
+    else if (init.format == VideoPixelFormat::RGBA)
+        videoFrame = VideoFrame::createRGBA({ data.data(), data.length() });
+    else if (init.format == VideoPixelFormat::I420)
+        videoFrame = VideoFrame::createI420({ data.data(), data.length() }, layout.computedLayouts[0], layout.computedLayouts[1], layout.computedLayouts[2]);
+    else
+        return Exception { NotSupportedError, "VideoPixelFormat is not supported"_s };
+    
+    if (!videoFrame)
+        return Exception { TypeError, "Unable to copy data"_s };
+    
+    auto result = adoptRef(*new WebCodecsVideoFrame);
+    result->m_internalFrame = videoFrame->m_internalFrame;
+    result->m_format = videoFrame->m_format;
 
-    // FIXME: Copy the data.
-    return adoptRef(*new WebCodecsVideoFrame);
+    result->m_codedWidth = result->m_internalFrame->presentationSize().width();
+    result->m_codedHeight = result->m_internalFrame->presentationSize().height();
+
+    result->m_visibleLeft = 0;
+    result->m_visibleTop = 0;
+
+    if (init.visibleRect) {
+        result->m_visibleWidth = init.visibleRect->width;
+        result->m_visibleHeight = init.visibleRect->height;
+    } else {
+        result->m_visibleWidth = result->m_codedWidth;
+        result->m_visibleHeight = result->m_codedHeight;
+    }
+    result->m_duration = init.duration;
+    result->m_timestamp = init.timestamp;
+    if (init.colorSpace)
+        result.m_colorSpace = VideoColorSpace::create(*init.colorSpace);
+    // FIXME: Implement https://w3c.github.io/webcodecs/#videoframe-pick-color-space
+    return result;
 }
 
 // https://w3c.github.io/webcodecs/#videoframe-initialize-frame-from-other-frame

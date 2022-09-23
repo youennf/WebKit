@@ -40,6 +40,24 @@ RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage& image)
     return transferSession->createVideoFrame(image.platformImage().get(), { }, image.size());
 }
 
+RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
+RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
+RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
 Ref<VideoFrameCV> VideoFrameCV::create(CMSampleBufferRef sampleBuffer, bool isMirrored, Rotation rotation)
 {
     auto pixelBuffer = static_cast<CVPixelBufferRef>(PAL::CMSampleBufferGetImageBuffer(sampleBuffer));

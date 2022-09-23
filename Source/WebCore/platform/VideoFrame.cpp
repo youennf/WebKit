@@ -55,6 +55,24 @@ RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage&)
     return nullptr;
 }
 
+RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
+RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
+RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
 RefPtr<JSC::Uint8ClampedArray> VideoFrame::getRGBAImageData() const
 {
 #if USE(GSTREAMER)

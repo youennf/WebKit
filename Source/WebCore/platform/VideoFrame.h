@@ -42,12 +42,24 @@ class ProcessIdentity;
 class VideoFrameCV;
 #endif
 
+struct ComputedPlaneLayout {
+    size_t destinationOffset { 0 };
+    size_t destinationStride { 0 };
+    size_t sourceTop { 0 };
+    size_t sourceHeight { 0 };
+    size_t sourceLeftBytes { 0 };
+    size_t sourceWidthBytes { 0 };
+};
+
 // A class representing a video frame from a decoder, capture source, or similar.
 class VideoFrame : public ThreadSafeRefCounted<VideoFrame> {
 public:
     virtual ~VideoFrame() = default;
 
     static RefPtr<VideoFrame> fromNativeImage(NativeImage&);
+    static RefPtr<VideoFrame> createNV12(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
+    static RefPtr<VideoFrame> createRGBA(Span<uint8_t>);
+    static RefPtr<VideoFrame> createI420(Span<uint8_t>, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
 
     enum class Rotation {
         None = 0,

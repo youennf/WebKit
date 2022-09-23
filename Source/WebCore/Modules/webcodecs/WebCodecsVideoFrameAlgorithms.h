@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "VideoFrame.h"
 #include "WebCodecsVideoFrame.h"
 
 #if ENABLE(WEB_CODECS)
@@ -38,15 +39,6 @@ ExceptionOr<DOMRectInit> parseVisibleRect(const DOMRectInit&, const std::optiona
 size_t videoPixelFormatToPlaneCount(VideoPixelFormat);
 size_t videoPixelFormatToSampleByteSizePerPlane();
 size_t videoPixelFormatToSubSampling(VideoPixelFormat, size_t);
-
-struct ComputedPlaneLayout {
-    size_t destinationOffset { 0 };
-    size_t destinationStride { 0 };
-    size_t sourceTop { 0 };
-    size_t sourceHeight { 0 };
-    size_t sourceLeftBytes { 0 };
-    size_t sourceWidthBytes { 0 };
-};
 
 struct CombinedPlaneLayout {
     size_t allocationSize { 0 };
