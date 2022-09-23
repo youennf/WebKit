@@ -776,6 +776,8 @@ $(PROJECT_DIR)/Modules/webcodecs/VideoColorSpaceInit.idl
 $(PROJECT_DIR)/Modules/webcodecs/VideoMatrixCoefficients.idl
 $(PROJECT_DIR)/Modules/webcodecs/VideoPixelFormat.idl
 $(PROJECT_DIR)/Modules/webcodecs/VideoTransferCharacteristics.idl
+$(PROJECT_DIR)/Modules/webcodecs/WebCodecsEncodedVideoChunk.idl
+$(PROJECT_DIR)/Modules/webcodecs/WebCodecsEncodedVideoChunkType.idl
 $(PROJECT_DIR)/Modules/webcodecs/WebCodecsVideoFrame.idl
 $(PROJECT_DIR)/Modules/webdatabase/DOMWindow+WebDatabase.idl
 $(PROJECT_DIR)/Modules/webdatabase/Database.idl

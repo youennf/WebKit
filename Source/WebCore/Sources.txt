@@ -389,6 +389,7 @@ Modules/webauthn/fido/FidoParsingUtils.cpp
 Modules/webauthn/fido/Pin.cpp
 Modules/webauthn/fido/U2fCommandConstructor.cpp
 Modules/webauthn/fido/U2fResponseConverter.cpp
+Modules/webcodecs/WebCodecsEncodedVideoChunk.cpp
 Modules/webcodecs/WebCodecsVideoFrame.cpp
 Modules/webcodecs/WebCodecsVideoFrameAlgorithms.cpp
 Modules/webdatabase/ChangeVersionWrapper.cpp
@@ -4108,6 +4109,8 @@ JSVoidCallback.cpp
 JSWaveShaperNode.cpp
 JSWaveShaperOptions.cpp
 JSWebAnimation.cpp
+JSWebCodecsEncodedVideoChunkType.cpp
+JSWebCodecsEncodedVideoChunk.cpp
 JSWebCodecsVideoFrame.cpp
 JSWebGL2RenderingContext.cpp
 JSWebGLActiveInfo.cpp

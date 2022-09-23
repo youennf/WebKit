@@ -1,4 +1,3 @@
 
-Harness Error (TIMEOUT), message = null
-
+PASS Encoding and decoding cycle
 

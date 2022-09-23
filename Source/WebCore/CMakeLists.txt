@@ -703,6 +703,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webcodecs/VideoMatrixCoefficients.idl
     Modules/webcodecs/VideoPixelFormat.idl
     Modules/webcodecs/VideoTransferCharacteristics.idl
+    Modules/webcodecs/WebCodecsEncodedVideoChunkType.idl
+    Modules/webcodecs/WebCodecsEncodedVideoChunk.idl
     Modules/webcodecs/WebCodecsVideoFrame.idl
 
     Modules/webdatabase/DOMWindow+WebDatabase.idl
