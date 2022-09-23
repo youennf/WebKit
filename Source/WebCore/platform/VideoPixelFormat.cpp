@@ -40,7 +40,7 @@ VideoPixelFormat convertVideoFramePixelFormat(uint32_t format)
         return VideoPixelFormat::NV12;
     if (format == kCVPixelFormatType_32BGRA)
         return VideoPixelFormat::BGRA;
-    if (format == kCVPixelFormatType_32RGBA)
+    if (format == kCVPixelFormatType_32ARGB)
         return VideoPixelFormat::RGBA;
     ASSERT_NOT_REACHED();
 #endif

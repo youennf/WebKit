@@ -55,19 +55,25 @@ RefPtr<VideoFrame> VideoFrame::fromNativeImage(NativeImage&)
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+RefPtr<VideoFrame> VideoFrame::createNV12(Span<uint8_t>, size_t, size_t, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&)
+RefPtr<VideoFrame> VideoFrame::createRGBA(Span<uint8_t>, size_t, size_t, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;
 }
 
-RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
+RefPtr<VideoFrame> VideoFrame::createBGRA(Span<const uint8_t>, size_t, size_t, const ComputedPlaneLayout&)
+{
+    // FIXME: Add support.
+    return nullptr;
+}
+
+RefPtr<VideoFrame> VideoFrame::createI420(Span<uint8_t>, size_t, size_t, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&)
 {
     // FIXME: Add support.
     return nullptr;

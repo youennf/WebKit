@@ -84,22 +84,61 @@ RefPtr<VideoFrame> VideoFrame::createNV12(Span<const uint8_t> span, size_t width
 RefPtr<VideoFrame> VideoFrame::createRGBA(Span<const uint8_t> span, size_t width, size_t height, const ComputedPlaneLayout& plane)
 {
     CVPixelBufferRef rawPixelBuffer = nullptr;
-    
-    auto status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32RGBA, nullptr, &rawPixelBuffer);
+
+    auto status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, nullptr, &rawPixelBuffer);
     if (status != noErr || !rawPixelBuffer)
         return nullptr;
     auto pixelBuffer = adoptCF(rawPixelBuffer);
-    
+
     status = CVPixelBufferLockBaseAddress(rawPixelBuffer, 0);
     if (status != noErr)
         return nullptr;
-    
+
     auto scope = makeScopeExit([&rawPixelBuffer] {
         CVPixelBufferUnlockBaseAddress(rawPixelBuffer, 0);
     });
-    
+
+    auto* source = span.data();
+    auto* destination = static_cast<uint8_t*>(CVPixelBufferGetBaseAddressOfPlane(rawPixelBuffer, 0));
+    size_t bytesPerRowDestination = CVPixelBufferGetBytesPerRowOfPlane(rawPixelBuffer, 0);
+    for (unsigned i = 0; i < height; ++i) {
+        size_t j = 0;
+        while (j < std::min(plane.sourceWidthBytes, bytesPerRowDestination)) {
+            // RGBA -> ARGB.
+            destination[j] = source[j + 3];
+            destination[j + 1] = source[j];
+            destination[j + 2] = source[j + 1];
+            destination[j + 3] = source[j + 2];
+            j += 4;
+        }
+        source += plane.sourceWidthBytes;
+        destination += bytesPerRowDestination;
+    }
+
     copyToCVPixelBufferPlane(rawPixelBuffer, 0, span.data(), height, plane.sourceWidthBytes);
-    
+
+    return VideoFrameCV::create({ }, false, Rotation::None, WTFMove(pixelBuffer));
+}
+
+RefPtr<VideoFrame> VideoFrame::createBGRA(Span<const uint8_t> span, size_t width, size_t height, const ComputedPlaneLayout& plane)
+{
+    CVPixelBufferRef rawPixelBuffer = nullptr;
+
+    auto status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, nullptr, &rawPixelBuffer);
+    if (status != noErr || !rawPixelBuffer)
+        return nullptr;
+    auto pixelBuffer = adoptCF(rawPixelBuffer);
+
+    status = CVPixelBufferLockBaseAddress(rawPixelBuffer, 0);
+    if (status != noErr)
+        return nullptr;
+
+    auto scope = makeScopeExit([&rawPixelBuffer] {
+        CVPixelBufferUnlockBaseAddress(rawPixelBuffer, 0);
+    });
+
+    copyToCVPixelBufferPlane(rawPixelBuffer, 0, span.data(), height, plane.sourceWidthBytes);
+
     return VideoFrameCV::create({ }, false, Rotation::None, WTFMove(pixelBuffer));
 }
 
@@ -112,6 +151,47 @@ RefPtr<VideoFrame> VideoFrame::createI420(Span<const uint8_t>, size_t, size_t, c
 void VideoFrame::copyTo(Span<uint8_t> span, VideoPixelFormat format, Vector<ComputedPlaneLayout>&&, CompletionHandler<void(std::optional<Vector<PlaneLayout>>&&)>&& callback)
 {
     if (format == VideoPixelFormat::RGBA) {
+        // FIXME: We should get the pixel buffer asynchronously if possible.
+        auto pixelBuffer = this->pixelBuffer();
+        auto result = CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        if (result != kCVReturnSuccess) {
+            RELEASE_LOG_ERROR(WebRTC, "VideoFrame::copyTo lock failed");
+            callback({ });
+            return;
+        }
+
+        auto scope = makeScopeExit([&pixelBuffer] {
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        });
+
+        auto* planeA = static_cast<const uint8_t*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+        if (!planeA) {
+            RELEASE_LOG_ERROR(WebRTC, "VideoFrame::copyTo plane A is null");
+            callback({ });
+            return;
+        }
+
+        auto height = CVPixelBufferGetHeight(pixelBuffer);
+        auto bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        size_t planeASize = height * bytesPerRow;
+
+        size_t i = 0;
+        while (i < planeASize) {
+            // RGBA -> ARGB.
+            span.data()[i] = planeA[i + 3];
+            span.data()[i + 1] = planeA[i];
+            span.data()[i + 2] = planeA[i + 1];
+            span.data()[i + 3] = planeA[i + 2];
+            i += 4;
+        }
+
+        Vector<PlaneLayout> planeLayouts;
+        planeLayouts.append(PlaneLayout { });
+        callback(WTFMove(planeLayouts));
+        return;
+    }
+
+    if (format == VideoPixelFormat::BGRA) {
         // FIXME: We should get the pixel buffer asynchronously if possible.
         auto pixelBuffer = this->pixelBuffer();
         auto result = CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);

@@ -62,6 +62,7 @@ public:
     static RefPtr<VideoFrame> fromNativeImage(NativeImage&);
     static RefPtr<VideoFrame> createNV12(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
     static RefPtr<VideoFrame> createRGBA(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&);
+    static RefPtr<VideoFrame> createBGRA(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&);
     static RefPtr<VideoFrame> createI420(Span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&);
 
     enum class Rotation {

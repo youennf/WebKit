@@ -24,11 +24,11 @@ FAIL Test ArrayBuffer constructed I420 VideoFrame Data is too small 12 / 18
 FAIL Test planar constructed I420 VideoFrame with colorSpace Data is too small 12 / 18
 FAIL Test buffer constructed I420+Alpha VideoFrame VideoPixelFormat is not supported
 PASS Test buffer constructed NV12 VideoFrame
-FAIL Test buffer constructed RGB VideoFrames Unable to create internal resource from data
+FAIL Test buffer constructed RGB VideoFrames VideoPixelFormat is not supported
 FAIL Test VideoFrame constructed VideoFrame Can't find variable: OffscreenCanvas
 FAIL Test we can construct a VideoFrame from an offscreen canvas. Can't find variable: OffscreenCanvas
 FAIL Test I420 VideoFrame with odd visible size Unable to create internal resource from data
 FAIL Test I420A VideoFrame and alpha={keep,discard} VideoPixelFormat is not supported
-FAIL Test RGBA, BGRA VideoFrames with alpha={keep,discard} Unable to create internal resource from data
+FAIL Test RGBA, BGRA VideoFrames with alpha={keep,discard} Member VideoFrameInit.visibleRect is required and must be an instance of DOMRectInit
 FAIL Test a VideoFrame constructed from canvas can drop the alpha channel. Can't find variable: OffscreenCanvas
 

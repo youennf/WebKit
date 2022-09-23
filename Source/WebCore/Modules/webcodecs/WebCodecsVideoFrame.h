@@ -64,7 +64,9 @@ public:
     struct Init {
         std::optional<uint64_t> duration;
         std::optional<int64_t> timestamp;
+
         DOMRectInit visibleRect;
+
         std::optional<size_t> displayWidth;
         std::optional<size_t> displayHeight;
     };
