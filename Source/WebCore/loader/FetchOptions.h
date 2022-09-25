@@ -62,6 +62,7 @@ struct FetchOptions {
     String integrity;
     bool keepAlive { false };
     std::optional<ScriptExecutionContextIdentifier> clientIdentifier;
+    std::optional<ScriptExecutionContextIdentifier> resultingClientIdentifier;
 };
 
 inline FetchOptions::FetchOptions(Destination destination, Mode mode, Credentials credentials, Cache cache, Redirect redirect, ReferrerPolicy referrerPolicy, String&& integrity, bool keepAlive, std::optional<ScriptExecutionContextIdentifier> clientIdentifier)
@@ -262,6 +263,7 @@ inline void FetchOptions::encode(Encoder& encoder) const
 {
     encodePersistent(encoder);
     encoder << clientIdentifier;
+    encoder << resultingClientIdentifier;
 }
 
 template<class Decoder>
@@ -276,6 +278,12 @@ inline std::optional<FetchOptions> FetchOptions::decode(Decoder& decoder)
     if (!clientIdentifier)
         return std::nullopt;
     options.clientIdentifier = WTFMove(clientIdentifier.value());
+
+    std::optional<std::optional<ScriptExecutionContextIdentifier>> resultingClientIdentifier;
+    decoder >> resultingClientIdentifier;
+    if (!resultingClientIdentifier)
+        return std::nullopt;
+    options.resultingClientIdentifier = WTFMove(*resultingClientIdentifier.value());
 
     return options;
 }
