@@ -23,30 +23,44 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "WebCodecsEncodedVideoChunk.h"
+#pragma once
 
-#include "Exception.h"
+#if ENABLE(WEB_CODECS)
+
+#include "WebCodecsEncodedVideoChunkType.h"
+#include <wtf/Vector.h>
 
 namespace WebCore {
 
-WebCodecsEncodedVideoChunk::WebCodecsEncodedVideoChunk(Init&& init)
-    : m_type(init.type)
-    , m_timestamp(init.timestamp)
-    , m_duration(init.duration)
-{
-    m_data.reserveInitialCapacity(init.data.length());
-    std::memcpy(m_data.data(), init.data.data(), init.data.length());
+class WebCodecsEncodedVideoChunk : public RefCounted<WebCodecsEncodedVideoChunk> {
+public:
+    ~WebCodecsEncodedVideoChunk() = default;
+
+    struct Init {
+        WebCodecsEncodedVideoChunkType type { WebCodecsEncodedVideoChunkType::Key };
+        int64_t timestamp { 0 };
+        std::optional<uint64_t> duration;
+        BufferSource data;
+    };
+
+    static Ref<WebCodecsEncodedVideoChunk> create(Init&& init) { return adoptRef(*new WebCodecsEncodedVideoChunk(WTFMove(init))); }
+
+    WebCodecsEncodedVideoChunkType type() const { return m_type; };
+    int64_t timestamp() const { return m_timestamp; }
+    std::optional<uint64_t> duration() const { return m_duration; }
+    size_t byteLength() const { return m_data.capacity(); }
+
+    ExceptionOr<void> copyTo(BufferSource&&);
+
+private:
+    explicit WebCodecsEncodedVideoChunk(Init&&);
+
+    WebCodecsEncodedVideoChunkType m_type { WebCodecsEncodedVideoChunkType::Key };
+    int64_t m_timestamp { 0 };
+    std::optional<uint64_t> m_duration { 0 };
+    Vector<uint8_t> m_data;
+};
+
 }
 
-ExceptionOr<void> WebCodecsEncodedVideoChunk::copyTo(BufferSource&& source)
-{
-    if (source.length() < m_data.capacity())
-        return Exception { TypeError, "buffer is too small"_s };
-
-    std::memcpy(source.mutableData(), m_data.data(), m_data.capacity());
-    return { };
-}
-
-} // namespace WebCore
-
+#endif

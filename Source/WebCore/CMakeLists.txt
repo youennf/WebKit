@@ -705,6 +705,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webcodecs/VideoTransferCharacteristics.idl
     Modules/webcodecs/WebCodecsEncodedVideoChunkType.idl
     Modules/webcodecs/WebCodecsEncodedVideoChunk.idl
+    Modules/webcodecs/WebCodecsVideoDecoder.idl
     Modules/webcodecs/WebCodecsVideoFrame.idl
 
     Modules/webdatabase/DOMWindow+WebDatabase.idl

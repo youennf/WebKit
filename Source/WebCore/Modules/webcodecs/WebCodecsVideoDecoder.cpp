@@ -26,8 +26,6 @@
 #include "config.h"
 #include "WebCodecsEncodedVideoChunk.h"
 
-#include "Exception.h"
-
 namespace WebCore {
 
 WebCodecsEncodedVideoChunk::WebCodecsEncodedVideoChunk(Init&& init)

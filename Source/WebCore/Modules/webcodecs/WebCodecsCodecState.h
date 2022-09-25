@@ -23,30 +23,19 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "WebCodecsEncodedVideoChunk.h"
+#pragma once  
 
-#include "Exception.h"
+#if ENABLE(WEB_CODECS)
 
 namespace WebCore {
 
-WebCodecsEncodedVideoChunk::WebCodecsEncodedVideoChunk(Init&& init)
-    : m_type(init.type)
-    , m_timestamp(init.timestamp)
-    , m_duration(init.duration)
+enum class WebCodecsCodecState
 {
-    m_data.reserveInitialCapacity(init.data.length());
-    std::memcpy(m_data.data(), init.data.data(), init.data.length());
+    Unconfigured,
+    Configured,
+    Closed
+};
+
 }
 
-ExceptionOr<void> WebCodecsEncodedVideoChunk::copyTo(BufferSource&& source)
-{
-    if (source.length() < m_data.capacity())
-        return Exception { TypeError, "buffer is too small"_s };
-
-    std::memcpy(source.mutableData(), m_data.data(), m_data.capacity());
-    return { };
-}
-
-} // namespace WebCore
-
+#endif

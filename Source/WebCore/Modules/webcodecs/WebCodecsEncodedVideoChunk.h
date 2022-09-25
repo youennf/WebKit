@@ -27,6 +27,8 @@
 
 #if ENABLE(WEB_CODECS)
 
+#include "BufferSource.h"
+#include "ExceptionOr.h"
 #include "WebCodecsEncodedVideoChunkType.h"
 #include <wtf/Vector.h>
 

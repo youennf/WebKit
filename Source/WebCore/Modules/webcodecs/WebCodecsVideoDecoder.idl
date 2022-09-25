@@ -23,30 +23,32 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "WebCodecsEncodedVideoChunk.h"
+// FIXME: Support Serializable and Transferable.
+[
+    Conditional=WEB_CODECS,
+    EnabledBySetting=WebCodecsEnabled,
+    Exposed=(Window,DedicatedWorker),
+    InterfaceName=VideoDecoder,
+] interface WebCodecsVideoDecoder {
+  constructor(WebCodecsVideoDecoderInit init);
 
-#include "Exception.h"
+  readonly attribute CodecState state;
+  readonly attribute unsigned long decodeQueueSize;
+  attribute EventHandler ondequeue;
 
-namespace WebCore {
+  undefined configure(VideoDecoderConfig config);
+  undefined decode(WebCodecsEncodedVideoChunk chunk);
+  Promise<undefined> flush();
+  undefined reset();
+  undefined close();
 
-WebCodecsEncodedVideoChunk::WebCodecsEncodedVideoChunk(Init&& init)
-    : m_type(init.type)
-    , m_timestamp(init.timestamp)
-    , m_duration(init.duration)
-{
-    m_data.reserveInitialCapacity(init.data.length());
-    std::memcpy(m_data.data(), init.data.data(), init.data.length());
-}
+  static Promise<VideoDecoderSupport> isConfigSupported(VideoDecoderConfig config);
+};
 
-ExceptionOr<void> WebCodecsEncodedVideoChunk::copyTo(BufferSource&& source)
-{
-    if (source.length() < m_data.capacity())
-        return Exception { TypeError, "buffer is too small"_s };
+dictionary WebCodecsVideoDecoderInit {
+  required VideoFrameOutputCallback output;
+  required WebCodecsErrorCallback error;
+};
 
-    std::memcpy(source.mutableData(), m_data.data(), m_data.capacity());
-    return { };
-}
-
-} // namespace WebCore
-
+callback WebCodecsErrorCallback = undefined(DOMException error);
+callback VideoFrameOutputCallback = undefined(WebCodecsVideoFrame output);
