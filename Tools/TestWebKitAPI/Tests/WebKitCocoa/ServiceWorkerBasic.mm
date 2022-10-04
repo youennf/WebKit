@@ -3228,7 +3228,7 @@ TEST(ServiceWorker, WindowClientNavigate)
     EXPECT_WK_STREQ([webView1 _test_waitForAlert], "client");
 
     [webView1 evaluateJavaScript:[NSString stringWithFormat:@"navigateOtherClientToURL('%@?swap')", baseURL] completionHandler: nil];
-    EXPECT_WK_STREQ([webView1 _test_waitForAlert], "client");
+    EXPECT_WK_STREQ([webView1 _test_waitForAlert], "none");
 
     [webView1 evaluateJavaScript:@"countServiceWorkerClients()" completionHandler: nil];
     EXPECT_WK_STREQ([webView1 _test_waitForAlert], "1 client(s)");

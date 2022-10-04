@@ -58,10 +58,12 @@ struct WebsitePoliciesData;
 
 class WebFrameProxy : public API::ObjectImpl<API::Object::Type::Frame> {
 public:
-    static Ref<WebFrameProxy> create(WebPageProxy& page, WebCore::FrameIdentifier frameID)
+    static Ref<WebFrameProxy> create(WebPageProxy& page, WebProcessProxy& process, WebCore::FrameIdentifier frameID)
     {
-        return adoptRef(*new WebFrameProxy(page, frameID));
+        return adoptRef(*new WebFrameProxy(page, process, frameID));
     }
+
+    static WebFrameProxy* webFrame(WebCore::FrameIdentifier);
 
     virtual ~WebFrameProxy();
 
@@ -131,11 +133,12 @@ public:
     void setNavigationCallback(CompletionHandler<void(std::optional<WebCore::PageIdentifier>)>&&);
 
 private:
-    WebFrameProxy(WebPageProxy&, WebCore::FrameIdentifier);
+    WebFrameProxy(WebPageProxy&, WebProcessProxy&, WebCore::FrameIdentifier);
 
     std::optional<WebCore::PageIdentifier> pageIdentifier() const;
 
     WeakPtr<WebPageProxy> m_page;
+    Ref<WebProcessProxy> m_process;
 
     FrameLoadState m_frameLoadState;
 

@@ -37,6 +37,7 @@
 #include <WebCore/Image.h>
 #include <WebCore/MIMETypeRegistry.h>
 #include <stdio.h>
+#include <wtf/RunLoop.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebKit {
@@ -44,10 +45,28 @@ using namespace WebCore;
 
 class WebPageProxy;
 
-WebFrameProxy::WebFrameProxy(WebPageProxy& page, FrameIdentifier frameID)
+static HashMap<FrameIdentifier, WebFrameProxy*>& allFrames()
+{
+    ASSERT(RunLoop::isMain());
+    static NeverDestroyed<HashMap<FrameIdentifier, WebFrameProxy*>> map;
+    return map.get();
+}
+
+WebFrameProxy* WebFrameProxy::webFrame(FrameIdentifier identifier)
+{
+    if (!std::remove_reference_t<decltype(allFrames())>::isValidKey(identifier))
+        return nullptr;
+    return allFrames().get(identifier);
+}
+
+WebFrameProxy::WebFrameProxy(WebPageProxy& page, WebProcessProxy& process, FrameIdentifier frameID)
     : m_page(page)
+    , m_process(process)
     , m_frameID(frameID)
 {
+    ASSERT(!allFrames().contains(frameID));
+    allFrames().add(frameID, this);
+
     WebProcessPool::statistics().wkFrameCount++;
 }
 
@@ -60,6 +79,9 @@ WebFrameProxy::~WebFrameProxy()
 
     if (m_navigateCallback)
         m_navigateCallback({ });
+
+    ASSERT(allFrames().get(m_frameID) == this);
+    allFrames().remove(m_frameID);
 }
 
 void WebFrameProxy::webProcessWillShutDown()

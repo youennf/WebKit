@@ -2155,6 +2155,10 @@ public:
 
     void generateTestReport(const String& message, const String& group);
 
+    void frameCreated(WebCore::FrameIdentifier, WebFrameProxy&);
+    void didDestroyFrame(WebCore::FrameIdentifier);
+    void disconnectFramesFromPage();
+
 private:
     WebPageProxy(PageClient&, WebProcessProxy&, Ref<API::PageConfiguration>&&);
     void platformInitialize();
@@ -2166,6 +2170,9 @@ private:
     bool shouldUseBackForwardCache() const;
 
     bool shouldForceForegroundPriorityForClientNavigation() const;
+
+    using WebFrameProxyMap = HashMap<WebCore::FrameIdentifier, Ref<WebFrameProxy>>;
+    bool canCreateFrame(WebCore::FrameIdentifier) const;
 
     RefPtr<API::Navigation> goToBackForwardItem(WebBackForwardListItem&, WebCore::FrameLoadType);
 
@@ -3303,6 +3310,8 @@ private:
     bool m_isCaptivePortalModeExplicitlySet { false };
 
     std::optional<PrivateClickMeasurementAndMetadata> m_privateClickMeasurement;
+
+    WebFrameProxyMap m_frameMap;
 
 #if ENABLE(WEBXR) && !USE(OPENXR)
     std::unique_ptr<PlatformXRSystem> m_xrSystem;
