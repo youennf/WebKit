@@ -4715,8 +4715,11 @@ void WebPageProxy::didCreateMainFrame(FrameIdentifier frameID)
     m_mainFrame = WebFrameProxy::create(*this, m_process, frameID);
 
 #if ENABLE(SERVICE_WORKER)
-    if (m_serviceWorkerOpenWindowCompletionCallback)
-        m_mainFrame->setNavigationCallback(WTFMove(m_serviceWorkerOpenWindowCompletionCallback));
+    if (m_serviceWorkerOpenWindowCompletionCallback) {
+        m_mainFrame->setNavigationCallback([callback = WTFMove(m_serviceWorkerOpenWindowCompletionCallback)](auto pageID, auto) mutable {
+            callback(pageID);
+        });
+    }
 #endif
 
     frameCreated(frameID, *m_mainFrame);

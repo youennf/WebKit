@@ -1797,14 +1797,14 @@ void NetworkProcessProxy::openWindowFromServiceWorker(PAL::SessionID sessionID, 
     callback(std::nullopt);
 }
 
-void NetworkProcessProxy::navigateServiceWorkerClient(WebCore::FrameIdentifier frameIdentifier, WebCore::ScriptExecutionContextIdentifier documentIdentifier, const URL& url, CompletionHandler<void(std::optional<WebCore::PageIdentifier>)>&& callback)
+void NetworkProcessProxy::navigateServiceWorkerClient(WebCore::FrameIdentifier frameIdentifier, WebCore::ScriptExecutionContextIdentifier documentIdentifier, const URL& url, CompletionHandler<void(std::optional<WebCore::PageIdentifier>, std::optional<WebCore::FrameIdentifier>)>&& callback)
 {
     auto* process = WebProcessProxy::processForIdentifier(documentIdentifier.processIdentifier());
     if (!process)
-        return callback({ });
+        return callback({ }, { });
     if (auto* frame = WebFrameProxy::webFrame(frameIdentifier))
         return frame->navigateServiceWorkerClient(documentIdentifier, url, WTFMove(callback));
-    callback({ });
+    callback({ }, { });
 }
 
 void NetworkProcessProxy::applicationDidEnterBackground()

@@ -78,7 +78,7 @@ public:
 
     FrameLoadState& frameLoadState() { return m_frameLoadState; }
 
-    void navigateServiceWorkerClient(WebCore::ScriptExecutionContextIdentifier, const URL&, CompletionHandler<void(std::optional<WebCore::PageIdentifier>)>&&);
+    void navigateServiceWorkerClient(WebCore::ScriptExecutionContextIdentifier, const URL&, CompletionHandler<void(std::optional<WebCore::PageIdentifier>, std::optional<WebCore::FrameIdentifier>)>&&);
 
     void loadURL(const URL&, const String& referrer = String());
     // Sub frames only. For main frames, use WebPageProxy::loadData.
@@ -130,7 +130,7 @@ public:
 #endif
 
     void transferNavigationCallbackToFrame(WebFrameProxy&);
-    void setNavigationCallback(CompletionHandler<void(std::optional<WebCore::PageIdentifier>)>&&);
+    void setNavigationCallback(CompletionHandler<void(std::optional<WebCore::PageIdentifier>, std::optional<WebCore::FrameIdentifier>)>&&);
 
 private:
     WebFrameProxy(WebPageProxy&, WebProcessProxy&, WebCore::FrameIdentifier);
@@ -151,7 +151,7 @@ private:
 #if ENABLE(CONTENT_FILTERING)
     WebCore::ContentFilterUnblockHandler m_contentFilterUnblockHandler;
 #endif
-    CompletionHandler<void(std::optional<WebCore::PageIdentifier>)> m_navigateCallback;
+    CompletionHandler<void(std::optional<WebCore::PageIdentifier>, std::optional<WebCore::FrameIdentifier>)> m_navigateCallback;
 };
 
 } // namespace WebKit
