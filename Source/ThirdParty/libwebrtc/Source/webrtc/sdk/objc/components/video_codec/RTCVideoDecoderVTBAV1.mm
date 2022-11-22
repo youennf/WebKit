@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Apple Inc. All rights reserved.
+ * Copyright (C) 2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,12 +25,12 @@
  */
 
 /*
- * VP9 decoding through VTB, highly based on RTCVideoDecoderH264.mm
+ * AV1 decoding through VTB, highly based on RTCVideoDecoderH264.mm
  */
 
-#import "RTCVideoDecoderVTBVP9.h"
+#import "RTCVideoDecoderVTBAV1.h"
 
-#if defined(RTC_ENABLE_VP9)
+#if !defined DISABLE_RTC_AV1
 
 #import <VideoToolbox/VideoToolbox.h>
 
@@ -41,65 +41,26 @@
 #import "helpers/scoped_cftyperef.h"
 
 #include "modules/video_coding/include/video_error_codes.h"
-#include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"
 
 extern const CFStringRef kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms;
 
-static uint8_t convertSubsampling(absl::optional<webrtc::Vp9YuvSubsampling> value)
+rtc::ScopedCFTypeRef<CMVideoFormatDescriptionRef> computeAV1InputFormat(const uint8_t* data, size_t size, int32_t width, int32_t height)
 {
-    if (!value)
-        return 1;
+  constexpr size_t VPCodecConfigurationContentsSize = 4;
+    if (size < VPCodecConfigurationContentsSize)
+        return { };
 
-    switch (*value) {
-    case webrtc::Vp9YuvSubsampling::k444:
-        return 3;
-    case webrtc::Vp9YuvSubsampling::k440:
-        return 1;
-    case webrtc::Vp9YuvSubsampling::k422:
-        return 2;
-    case webrtc::Vp9YuvSubsampling::k420:
-        return 1;
-    }
-}
-
-rtc::ScopedCFTypeRef<CMVideoFormatDescriptionRef> computeInputFormat(const uint8_t* data, size_t size, int32_t width, int32_t height)
-{
-  constexpr size_t VPCodecConfigurationContentsSize = 12;
-
-  auto result = webrtc::ParseUncompressedVp9Header(rtc::MakeArrayView(data, size));
-
-  if (!result)
-      return { };
-  auto chromaSubsampling = convertSubsampling(result->sub_sampling);
-  uint8_t bitDepthChromaAndRange = (0xF & (uint8_t)result->bit_detph) << 4 | (0x7 & chromaSubsampling) << 1 | (0x1 & (uint8_t)result->color_range.value_or(webrtc::Vp9ColorRange::kStudio));
-
-  uint8_t record[VPCodecConfigurationContentsSize];
-  memset((void*)record, 0, VPCodecConfigurationContentsSize);
-  // Version and flags (4 bytes)
-  record[0] = 1;
-  // profile
-  record[4] = result->profile;
-  // level
-  record[5] = 10;
-  // bitDepthChromaAndRange
-  record[6] = bitDepthChromaAndRange;
-  // colourPrimaries
-  record[7] = 2; // Unspecified.
-  // transferCharacteristics
-  record[8] = 2; // Unspecified.
-  // matrixCoefficients
-  record[9] = 2; // Unspecified.
-
-  auto cfData = rtc::ScopedCF(CFDataCreate(kCFAllocatorDefault, record, VPCodecConfigurationContentsSize));
-  auto configurationDict = @{ @"vpcC": (__bridge NSData *)cfData.get() };
+  // FIXME: We should probably parse data (get_av1config_from_obu) to set the format description parameters according the AV1 Config.
+  auto cfData = rtc::ScopedCF(CFDataCreate(kCFAllocatorDefault, data, VPCodecConfigurationContentsSize));
+  auto configurationDict = @{ @"av1C": (__bridge NSData *)cfData.get() };
   auto extensions = @{ (__bridge NSString *)kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms: configurationDict };
 
   CMVideoFormatDescriptionRef formatDescription = nullptr;
-  // Use kCMVideoCodecType_VP9 once added to CMFormatDescription.h
-  if (noErr != CMVideoFormatDescriptionCreate(kCFAllocatorDefault, 'vp09', width, height, (__bridge CFDictionaryRef)extensions, &formatDescription))
+  // Use kCMVideoCodecType_AV1 once added to CMFormatDescription.h
+  if (noErr != CMVideoFormatDescriptionCreate(kCFAllocatorDefault, 'av01', width, height, (__bridge CFDictionaryRef)extensions, &formatDescription))
       return { };
 
   return rtc::ScopedCF(formatDescription);
@@ -113,28 +74,28 @@ struct RTCFrameDecodeParams {
   int64_t timestamp;
 };
 
-@interface RTCVideoDecoderVTBVP9 ()
+@interface RTCVideoDecoderVTBAV1 ()
 - (void)setError:(OSStatus)error;
 @end
 
-CMSampleBufferRef VP9BufferToCMSampleBuffer(const uint8_t* buffer,
+CMSampleBufferRef AV1BufferToCMSampleBuffer(const uint8_t* buffer,
                               size_t buffer_size,
                               CMVideoFormatDescriptionRef video_format) {
   CMBlockBufferRef new_block_buffer;
   if (auto error = CMBlockBufferCreateWithMemoryBlock(kCFAllocatorDefault, NULL, buffer_size, kCFAllocatorDefault, NULL, 0, buffer_size, kCMBlockBufferAssureMemoryNowFlag, &new_block_buffer)) {
-    RTC_LOG(LS_ERROR) << "VP9BufferToCMSampleBuffer CMBlockBufferCreateWithMemoryBlock failed with: " << error;
+    RTC_LOG(LS_ERROR) << "AV1BufferToCMSampleBuffer CMBlockBufferCreateWithMemoryBlock failed with: " << error;
     return nullptr;
   }
   auto block_buffer = rtc::ScopedCF(new_block_buffer);
 
   if (auto error = CMBlockBufferReplaceDataBytes(buffer, block_buffer.get(), 0, buffer_size)) {
-    RTC_LOG(LS_ERROR) << "VP9BufferToCMSampleBuffer CMBlockBufferReplaceDataBytes failed with: " << error;
+    RTC_LOG(LS_ERROR) << "AV1BufferToCMSampleBuffer CMBlockBufferReplaceDataBytes failed with: " << error;
     return nullptr;
   }
 
   CMSampleBufferRef sample_buffer = nullptr;
   if (auto error = CMSampleBufferCreate(kCFAllocatorDefault, block_buffer.get(), true, nullptr, nullptr, video_format, 1, 0, nullptr, 0, nullptr, &sample_buffer)) {
-    RTC_LOG(LS_ERROR) << "VP9BufferToCMSampleBuffer CMSampleBufferCreate failed with: " << error;
+    RTC_LOG(LS_ERROR) << "AV1BufferToCMSampleBuffer CMSampleBufferCreate failed with: " << error;
     return nullptr;
   }
   return sample_buffer;
@@ -142,7 +103,7 @@ CMSampleBufferRef VP9BufferToCMSampleBuffer(const uint8_t* buffer,
 
 // This is the callback function that VideoToolbox calls when decode is
 // complete.
-void vp9DecompressionOutputCallback(void *decoderRef,
+void av1DecompressionOutputCallback(void *decoderRef,
                                  void *params,
                                  OSStatus status,
                                  VTDecodeInfoFlags infoFlags,
@@ -151,7 +112,7 @@ void vp9DecompressionOutputCallback(void *decoderRef,
                                  CMTime duration) {
   std::unique_ptr<RTCFrameDecodeParams> decodeParams(reinterpret_cast<RTCFrameDecodeParams *>(params));
   if (status != noErr || !imageBuffer) {
-    RTCVideoDecoderVTBVP9 *decoder = (__bridge RTCVideoDecoderVTBVP9 *)decoderRef;
+    RTCVideoDecoderVTBAV1 *decoder = (__bridge RTCVideoDecoderVTBAV1 *)decoderRef;
     [decoder setError:status != noErr ? status : 1];
     RTC_LOG(LS_ERROR) << "Failed to decode frame. Status: " << status;
     decodeParams->callback(nil);
@@ -168,7 +129,7 @@ void vp9DecompressionOutputCallback(void *decoderRef,
 }
 
 // Decoder.
-@implementation RTCVideoDecoderVTBVP9 {
+@implementation RTCVideoDecoderVTBAV1 {
   CMVideoFormatDescriptionRef _videoFormat;
   VTDecompressionSessionRef _decompressionSession;
   RTCVideoDecoderCallback _callback;
@@ -223,7 +184,7 @@ void vp9DecompressionOutputCallback(void *decoderRef,
   }
 
   if (_shouldCheckFormat || !_videoFormat) {
-    auto inputFormat = computeInputFormat(data, size, _width, _height);
+    auto inputFormat = computeAV1InputFormat(data, size, _width, _height);
     if (inputFormat) {
       _shouldCheckFormat = false;
       // Check if the video format has changed, and reinitialize decoder if
@@ -244,7 +205,7 @@ void vp9DecompressionOutputCallback(void *decoderRef,
     RTC_LOG(LS_WARNING) << "Missing video format.";
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
-  auto sampleBuffer = rtc::ScopedCF(VP9BufferToCMSampleBuffer(data, size, _videoFormat));
+  auto sampleBuffer = rtc::ScopedCF(AV1BufferToCMSampleBuffer(data, size, _videoFormat));
   if (!sampleBuffer) {
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
@@ -332,7 +293,7 @@ void vp9DecompressionOutputCallback(void *decoderRef,
   }
 
   VTDecompressionOutputCallbackRecord record = {
-      vp9DecompressionOutputCallback, (__bridge void *)self,
+      av1DecompressionOutputCallback, (__bridge void *)self,
   };
   OSStatus status = VTDecompressionSessionCreate(
       nullptr, _videoFormat, nullptr, attributes, &record, &_decompressionSession);
@@ -395,4 +356,4 @@ void vp9DecompressionOutputCallback(void *decoderRef,
 
 @end
 
-#endif // defined(RTC_ENABLE_VP9)
+#endif // !defined DISABLE_RTC_AV1

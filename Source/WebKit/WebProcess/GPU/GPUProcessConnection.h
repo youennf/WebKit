@@ -96,6 +96,9 @@ public:
     bool isVPSWDecoderEnabled() const { return m_enableVP9SWDecoder; }
     bool hasVP9HardwareDecoder();
 #endif
+#if !defined DISABLE_RTC_AV1
+    bool hasAV1HardwareDecoder();
+#endif
 
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     void createVisibilityPropagationContextForPage(WebPage&);
@@ -158,6 +161,9 @@ private:
     bool m_enableVP9Decoder { false };
     bool m_enableVP9SWDecoder { false };
     bool m_hasVP9HardwareDecoder { false };
+#endif
+#if !defined DISABLE_RTC_AV1
+    bool m_hasAV1HardwareDecoder { false };
 #endif
 
 #if PLATFORM(COCOA)

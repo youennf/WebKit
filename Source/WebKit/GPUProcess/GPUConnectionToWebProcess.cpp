@@ -289,13 +289,25 @@ GPUConnectionToWebProcess::GPUConnectionToWebProcess(GPUProcess& gpuProcess, Web
         gpuProcess.send(Messages::GPUProcessProxy::SetHasVP9HardwareDecoder(hasVP9HardwareDecoder));
     }
 #endif
+#if !defined DISABLE_RTC_AV1
+    bool hasAV1HardwareDecoder;
+    if (parameters.hasAV1HardwareDecoder)
+        hasAV1HardwareDecoder = *parameters.hasAV1HardwareDecoder;
+    else {
+        hasAV1HardwareDecoder = WebCore::av1HardwareDecoderAvailable();
+        gpuProcess.send(Messages::GPUProcessProxy::SetHasAV1HardwareDecoder(hasAV1HardwareDecoder));
+    }
+#endif
 
     WebKit::GPUProcessConnectionInfo info {
 #if HAVE(AUDIT_TOKEN)
         gpuProcess.parentProcessConnection()->getAuditToken(),
 #endif
 #if ENABLE(VP9)
-        hasVP9HardwareDecoder
+        hasVP9HardwareDecoder,
+#endif
+#if !defined DISABLE_RTC_AV1
+        hasAV1HardwareDecoder
 #endif
     };
     m_connection->send(Messages::GPUProcessConnection::DidInitialize(info), 0);

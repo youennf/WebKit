@@ -391,6 +391,15 @@ bool GPUProcessConnection::hasVP9HardwareDecoder()
 
 #endif
 
+#if !defined DISABLE_RTC_AV1
+bool GPUProcessConnection::hasAV1HardwareDecoder()
+{
+    if (!waitForDidInitialize())
+        return false;
+    return m_hasAV1HardwareDecoder;
+}
+#endif
+
 void GPUProcessConnection::updateMediaConfiguration()
 {
 #if PLATFORM(COCOA)

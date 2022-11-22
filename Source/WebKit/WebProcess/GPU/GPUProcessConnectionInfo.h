@@ -39,6 +39,9 @@ struct GPUProcessConnectionInfo {
 #if ENABLE(VP9)
     bool hasVP9HardwareDecoder { false };
 #endif
+#if !defined DISABLE_RTC_AV1
+    bool hasAV1HardwareDecoder { false };
+#endif
 
     void encode(IPC::Encoder& encoder) const
     {
@@ -47,6 +50,9 @@ struct GPUProcessConnectionInfo {
 #endif
 #if ENABLE(VP9)
         encoder << hasVP9HardwareDecoder;
+#endif
+#if !defined DISABLE_RTC_AV1
+        encoder << hasAV1HardwareDecoder;
 #endif
     }
 
@@ -58,6 +64,9 @@ struct GPUProcessConnectionInfo {
 #if ENABLE(VP9)
         auto hasVP9HardwareDecoder = decoder.decode<bool>();
 #endif
+#if !defined DISABLE_RTC_AV1
+        auto hasAV1HardwareDecoder = decoder.decode<bool>();
+#endif
         if (!decoder.isValid())
             return std::nullopt;
         return GPUProcessConnectionInfo {
@@ -66,6 +75,9 @@ struct GPUProcessConnectionInfo {
 #endif
 #if ENABLE(VP9)
             *hasVP9HardwareDecoder,
+#endif
+#if !defined DISABLE_RTC_AV1
+            *hasAV1HardwareDecoder
 #endif
         };
     }

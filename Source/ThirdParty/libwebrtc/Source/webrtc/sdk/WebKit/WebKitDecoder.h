@@ -66,6 +66,7 @@ using LocalDecoderCallback = void (^)(CVPixelBufferRef, int64_t timeStamp, int64
 void* createLocalH264Decoder(LocalDecoderCallback);
 void* createLocalH265Decoder(LocalDecoderCallback);
 void* createLocalVP9Decoder(LocalDecoderCallback);
+void* createLocalAV1Decoder(LocalDecoderCallback);
 void releaseLocalDecoder(LocalDecoder);
 void flushLocalDecoder(LocalDecoder);
 int32_t setDecodingFormat(LocalDecoder, const uint8_t*, size_t, uint16_t width, uint16_t height);

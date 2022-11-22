@@ -73,7 +73,7 @@ static webrtc::WebKitVideoDecoder createVideoDecoder(const webrtc::SdpVideoForma
         return { codecs.createDecoder(VideoCodecType::VP9), false };
 
 #if !defined DISABLE_RTC_AV1
-    if (format.name == "AV1") {
+    if (format.name == "AV1" && codecs.supportAV1VTB()) {
         auto av1Decoder = createLibWebRTCDav1dDecoder().moveToUniquePtr();
         return { av1Decoder.release(), true };
     }
@@ -92,6 +92,12 @@ std::optional<VideoCodecType> LibWebRTCCodecs::videoCodecTypeFromWebCodec(const 
 
     if (codec.startsWith("avc1."_s))
         return VideoCodecType::H264;
+
+    if (codec.startsWith("av01."_s)) {
+        if (!supportAV1VTB())
+            return { };
+        return VideoCodecType::AV1;
+    }
 
     // FIXME: Expose H265 if available.
     return { };
@@ -253,6 +259,9 @@ void LibWebRTCCodecs::setCallbacks(bool useGPUProcess, bool useRemoteFrames)
 
 #if ENABLE(VP9)
     WebProcess::singleton().libWebRTCCodecs().setVP9VTBSupport(WebProcess::singleton().ensureGPUProcessConnection().hasVP9HardwareDecoder());
+#endif
+#if !defined DISABLE_RTC_AV1
+    WebProcess::singleton().libWebRTCCodecs().setAV1VTBSupport(WebProcess::singleton().ensureGPUProcessConnection().hasAV1HardwareDecoder());
 #endif
 
     webrtc::setVideoDecoderCallbacks(createVideoDecoder, releaseVideoDecoder, decodeVideoFrame, registerDecodeCompleteCallback);
@@ -466,6 +475,8 @@ static inline webrtc::VideoCodecType toWebRTCCodecType(VideoCodecType type)
         return webrtc::kVideoCodecH265;
     case VideoCodecType::VP9:
         return webrtc::kVideoCodecVP9;
+    case VideoCodecType::AV1:
+        return webrtc::kVideoCodecAV1;
     }
 }
 

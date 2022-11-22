@@ -499,6 +499,8 @@
 		410B3927292CC1800003E515 /* planar_functions.h in Headers */ = {isa = PBXBuildFile; fileRef = 410B3910292CC17C0003E515 /* planar_functions.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		410B3928292CC1800003E515 /* row.h in Headers */ = {isa = PBXBuildFile; fileRef = 410B3911292CC17E0003E515 /* row.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		410B3929292CC1800003E515 /* rotate_argb.h in Headers */ = {isa = PBXBuildFile; fileRef = 410B3912292CC17E0003E515 /* rotate_argb.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		410B3932292CF3BF0003E515 /* RTCVideoDecoderVTBAV1.mm in Sources */ = {isa = PBXBuildFile; fileRef = 410B3930292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.mm */; };
+		410B3933292CF3BF0003E515 /* RTCVideoDecoderVTBAV1.h in Headers */ = {isa = PBXBuildFile; fileRef = 410B3931292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.h */; };
 		410BA1232570F60C002E2F8A /* deprecated_rtp_sender_egress.cc in Sources */ = {isa = PBXBuildFile; fileRef = 410BA1212570F60C002E2F8A /* deprecated_rtp_sender_egress.cc */; };
 		410BA1242570F60C002E2F8A /* deprecated_rtp_sender_egress.h in Headers */ = {isa = PBXBuildFile; fileRef = 410BA1222570F60C002E2F8A /* deprecated_rtp_sender_egress.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		410BA1292570F6A5002E2F8A /* libaom_av1_decoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 410BA1272570F6A5002E2F8A /* libaom_av1_decoder.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -6173,6 +6175,8 @@
 		410B3910292CC17C0003E515 /* planar_functions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = planar_functions.h; sourceTree = "<group>"; };
 		410B3911292CC17E0003E515 /* row.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = row.h; sourceTree = "<group>"; };
 		410B3912292CC17E0003E515 /* rotate_argb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rotate_argb.h; sourceTree = "<group>"; };
+		410B3930292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = RTCVideoDecoderVTBAV1.mm; sourceTree = "<group>"; };
+		410B3931292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RTCVideoDecoderVTBAV1.h; sourceTree = "<group>"; };
 		410BA1212570F60C002E2F8A /* deprecated_rtp_sender_egress.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = deprecated_rtp_sender_egress.cc; sourceTree = "<group>"; };
 		410BA1222570F60C002E2F8A /* deprecated_rtp_sender_egress.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = deprecated_rtp_sender_egress.h; sourceTree = "<group>"; };
 		410BA1262570F6A5002E2F8A /* libaom_av1_decoder_absent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libaom_av1_decoder_absent.cc; sourceTree = "<group>"; };
@@ -13485,6 +13489,8 @@
 				416225F4216981F300A91C9B /* RTCVideoDecoderH264.mm */,
 				41009200242E3A4300C5EDA2 /* RTCVideoDecoderH265.h */,
 				41009207242E3A4500C5EDA2 /* RTCVideoDecoderH265.mm */,
+				410B3931292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.h */,
+				410B3930292CF3BE0003E515 /* RTCVideoDecoderVTBAV1.mm */,
 				412FF9332539B3C9001DF036 /* RTCVideoDecoderVTBVP9.h */,
 				412FF9322539B3C9001DF036 /* RTCVideoDecoderVTBVP9.mm */,
 				416225EF216981F200A91C9B /* RTCVideoEncoderFactoryH264.h */,
@@ -21940,6 +21946,7 @@
 				413F4D7022B0BAEF006A7A6B /* RTCVideoDecoderVP8.h in Headers */,
 				414035EC24AA0EBC00BCE9B2 /* RTCVideoDecoderVP9.h in Headers */,
 				413A24601FE1991A00373E99 /* RTCVideoDecoderVP9.h in Headers */,
+				410B3933292CF3BF0003E515 /* RTCVideoDecoderVTBAV1.h in Headers */,
 				DDF30C9327C5A71C006A526F /* RTCVideoDecoderVTBVP9.h in Headers */,
 				4144B3DE2169A070004363AC /* RTCVideoEncoder.h in Headers */,
 				DDF30B8627C5A3CE006A526F /* RTCVideoEncoderAV1.h in Headers */,
@@ -25045,6 +25052,7 @@
 				412FFA6C254B4FEE001DF036 /* RTCVideoDecoderH265.mm in Sources */,
 				413E67682169854B00EF37ED /* RTCVideoDecoderVP8.mm in Sources */,
 				414035EF24AA0EBC00BCE9B2 /* RTCVideoDecoderVP9.mm in Sources */,
+				410B3932292CF3BF0003E515 /* RTCVideoDecoderVTBAV1.mm in Sources */,
 				412FF9342539B764001DF036 /* RTCVideoDecoderVTBVP9.mm in Sources */,
 				410B3869292B86D50003E515 /* RTCVideoEncoderAV1.mm in Sources */,
 				417953B9216982420028266B /* RTCVideoEncoderFactoryH264.m in Sources */,

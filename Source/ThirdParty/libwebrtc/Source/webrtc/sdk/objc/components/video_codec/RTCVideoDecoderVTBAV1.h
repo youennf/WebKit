@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,32 +23,17 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#import <Foundation/Foundation.h>
 
-#include <wtf/EnumTraits.h>
+#import "RTCMacros.h"
+#import "RTCVideoDecoder.h"
 
-namespace WebKit {
-
-enum class VideoCodecType : uint8_t {
-    H264,
-    H265,
-    VP9,
-    AV1
-};
-
-} // namespace WebKit
-
-
-namespace WTF {
-
-template<> struct EnumTraits<WebKit::VideoCodecType> {
-    using values = EnumValues<
-        WebKit::VideoCodecType,
-        WebKit::VideoCodecType::H264,
-        WebKit::VideoCodecType::H265,
-        WebKit::VideoCodecType::VP9,
-        WebKit::VideoCodecType::AV1
-    >;
-};
-
-}
+RTC_OBJC_EXPORT
+__attribute__((objc_runtime_name("WK_RTCVideoDecoderVTBAV1")))
+@interface RTCVideoDecoderVTBAV1 : NSObject <RTCVideoDecoder>
+- (void)setWidth:(uint16_t)width height:(uint16_t)height;
+- (NSInteger)decodeData:(const uint8_t *)data
+    size:(size_t)size
+    timeStamp:(int64_t)timeStamp;
+- (void)flush;
+@end

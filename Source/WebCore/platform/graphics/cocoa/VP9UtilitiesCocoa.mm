@@ -158,6 +158,14 @@ bool vp9HardwareDecoderAvailable()
     return canLoad_VideoToolbox_VTIsHardwareDecodeSupported() && VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9);
 }
 
+bool av1HardwareDecoderAvailable()
+{
+    if (auto disabledForTesting = VP9TestingOverrides::singleton().hardwareDecoderDisabled())
+        return !*disabledForTesting;
+
+    return canLoad_VideoToolbox_VTIsHardwareDecodeSupported() && VTIsHardwareDecodeSupported('av01');
+}
+
 static bool isVP9CodecConfigurationRecordSupported(const VPCodecConfigurationRecord& codecConfiguration)
 {
     if (!isVP9DecoderAvailable())

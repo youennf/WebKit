@@ -144,6 +144,8 @@ public:
 
     void setVP9VTBSupport(bool supportVP9VTB) { m_supportVP9VTB = supportVP9VTB; }
     bool supportVP9VTB() const { return m_supportVP9VTB; }
+    void setAV1VTBSupport(bool supportAV1VTB) { m_supportAV1VTB = supportAV1VTB; }
+    bool supportAV1VTB() const { return m_supportAV1VTB; }
     void setLoggingLevel(WTFLogLevel);
 
 private:
@@ -195,6 +197,7 @@ private:
     size_t m_pixelBufferPoolWidth { 0 };
     size_t m_pixelBufferPoolHeight { 0 };
     bool m_supportVP9VTB { false };
+    bool m_supportAV1VTB { false };
     std::optional<WTFLogLevel> m_loggingLevel;
     bool m_useRemoteFrames { false };
 };
