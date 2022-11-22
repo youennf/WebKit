@@ -41,6 +41,7 @@ ALLOW_COMMA_BEGIN
 #include <webrtc/modules/video_coding/codecs/vp9/include/vp9.h>
 #include <webrtc/sdk/WebKit/WebKitEncoder.h>
 #include <webrtc/system_wrappers/include/cpu_info.h>
+#include <webrtc/modules/video_coding/codecs/av1/libaom_av1_encoder.h>
 
 ALLOW_COMMA_END
 ALLOW_UNUSED_PARAMETERS_END
@@ -140,9 +141,16 @@ void LibWebRTCVPXVideoEncoder::close()
 
 static UniqueRef<webrtc::VideoEncoder> createInternalEncoder(LibWebRTCVPXVideoEncoder::Type type)
 {
-    if (type == LibWebRTCVPXVideoEncoder::Type::VP8)
+    switch (type) {
+    case LibWebRTCVPXVideoEncoder::Type::VP8:
         return makeUniqueRefFromNonNullUniquePtr(webrtc::VP8Encoder::Create());
-    return makeUniqueRefFromNonNullUniquePtr(webrtc::VP9Encoder::Create());
+    case LibWebRTCVPXVideoEncoder::Type::VP9:
+        return makeUniqueRefFromNonNullUniquePtr(webrtc::VP9Encoder::Create());
+#if !defined DISABLE_RTC_AV1
+    case LibWebRTCVPXVideoEncoder::Type::AV1:
+        return makeUniqueRefFromNonNullUniquePtr(webrtc::CreateLibaomAv1Encoder());
+#endif
+    }
 }
 
 LibWebRTCVPXInternalVideoEncoder::LibWebRTCVPXInternalVideoEncoder(LibWebRTCVPXVideoEncoder::Type type, VideoEncoder::OutputCallback&& outputCallback, VideoEncoder::PostTaskCallback&& postTaskCallback)
