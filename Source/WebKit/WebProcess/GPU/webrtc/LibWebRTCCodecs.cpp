@@ -49,6 +49,10 @@ ALLOW_COMMA_BEGIN
 #include <webrtc/sdk/WebKit/WebKitDecoder.h>
 #include <webrtc/sdk/WebKit/WebKitEncoder.h>
 
+#if !defined DISABLE_RTC_AV1
+#include <WebCore/LibWebRTCDav1dDecoder.h>
+#endif
+
 ALLOW_COMMA_END
 
 #include <pal/cf/CoreMediaSoftLink.h>
@@ -60,15 +64,22 @@ static webrtc::WebKitVideoDecoder createVideoDecoder(const webrtc::SdpVideoForma
 {
     auto& codecs = WebProcess::singleton().libWebRTCCodecs();
     if (format.name == "H264")
-        return codecs.createDecoder(VideoCodecType::H264);
+        return { codecs.createDecoder(VideoCodecType::H264), false };
 
     if (format.name == "H265")
-        return codecs.createDecoder(VideoCodecType::H265);
+        return { codecs.createDecoder(VideoCodecType::H265), false };
 
     if (format.name == "VP9" && codecs.supportVP9VTB())
-        return codecs.createDecoder(VideoCodecType::VP9);
+        return { codecs.createDecoder(VideoCodecType::VP9), false };
 
-    return nullptr;
+#if !defined DISABLE_RTC_AV1
+    if (format.name == "AV1") {
+        auto av1Decoder = createLibWebRTCDav1dDecoder().moveToUniquePtr();
+        return { av1Decoder.release(), true };
+    }
+#endif
+
+    return { };
 }
 
 std::optional<VideoCodecType> LibWebRTCCodecs::videoCodecTypeFromWebCodec(const String& codec)
@@ -86,17 +97,17 @@ std::optional<VideoCodecType> LibWebRTCCodecs::videoCodecTypeFromWebCodec(const 
     return { };
 }
 
-static int32_t releaseVideoDecoder(webrtc::WebKitVideoDecoder decoder)
+static int32_t releaseVideoDecoder(webrtc::WebKitVideoDecoder::Value decoder)
 {
     return WebProcess::singleton().libWebRTCCodecs().releaseDecoder(*static_cast<LibWebRTCCodecs::Decoder*>(decoder));
 }
 
-static int32_t decodeVideoFrame(webrtc::WebKitVideoDecoder decoder, uint32_t timeStamp, const uint8_t* data, size_t size, uint16_t width,  uint16_t height)
+static int32_t decodeVideoFrame(webrtc::WebKitVideoDecoder::Value decoder, uint32_t timeStamp, const uint8_t* data, size_t size, uint16_t width,  uint16_t height)
 {
     return WebProcess::singleton().libWebRTCCodecs().decodeFrame(*static_cast<LibWebRTCCodecs::Decoder*>(decoder), timeStamp, data, size, width, height);
 }
 
-static int32_t registerDecodeCompleteCallback(webrtc::WebKitVideoDecoder decoder, void* decodedImageCallback)
+static int32_t registerDecodeCompleteCallback(webrtc::WebKitVideoDecoder::Value decoder, void* decodedImageCallback)
 {
     WebProcess::singleton().libWebRTCCodecs().registerDecodeFrameCallback(*static_cast<LibWebRTCCodecs::Decoder*>(decoder), decodedImageCallback);
     return 0;
