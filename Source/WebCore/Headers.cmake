@@ -145,6 +145,8 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/applicationmanifest/ApplicationManifest.h
     Modules/applicationmanifest/ApplicationManifestParser.h
 
+    Modules/audiosession/DOMAudioSession.h
+
     Modules/cache/CacheQueryOptions.h
     Modules/cache/CacheStorageConnection.h
     Modules/cache/DOMCacheEngine.h
