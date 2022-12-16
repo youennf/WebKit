@@ -86,6 +86,8 @@ public:
     void setStatusBarWasTappedCallback(Function<void(CompletionHandler<void()>&&)>&& callback) { m_statusBarWasTappedCallback = WTFMove(callback); }
 #endif
 
+    bool isUsingVPIO() const { return m_shouldUseVPIO; }
+
 private:
     static size_t preferredIOBufferSize();
 
@@ -164,6 +166,8 @@ private:
     std::unique_ptr<MediaCaptureStatusBarManager> m_statusBarManager;
     Function<void(CompletionHandler<void()>&&)> m_statusBarWasTappedCallback;
 #endif
+
+    bool m_shouldUseVPIO { true };
 };
 
 } // namespace WebCore
