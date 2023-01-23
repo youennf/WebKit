@@ -113,6 +113,8 @@ std::optional<PermissionName> Permissions::toPermissionName(const String& name)
         return PermissionName::Microphone;
     if (name == "notifications"_s)
         return PermissionName::Notifications;
+    if (name == "background-fetch"_s)
+        return PermissionName::BackgroundFetch;
     return std::nullopt;
 }
 

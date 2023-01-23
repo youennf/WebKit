@@ -664,6 +664,19 @@ AutomaticLiveResizeEnabled:
       "HAVE(UIKIT_WEBKIT_INTERNALS)": true
       default: false
 
+BackgroundFetchAPIEnabled:
+  type: bool
+  status: testable
+  humanReadableName: "Enable background-fetch API"
+  humanReadableDescription: "Enable background-fetch API"
+  exposed: [ WebKit ]
+  condition: ENABLE(SERVICE_WORKER)
+  defaultValue:
+    WebCore:
+      default: false
+    WebKit:
+      default: false
+
 BackgroundWebContentRunningBoardThrottlingEnabled:
   type: bool
   status: unstable

@@ -9065,6 +9065,9 @@ void WebPageProxy::queryPermission(const ClientOrigin& clientOrigin, const Permi
     } else if (descriptor.name == PermissionName::ScreenWakeLock) {
         name = "screen-wake-lock"_s;
         shouldChangeDeniedToPrompt = false;
+    } else if (descriptor.name == PermissionName::BackgroundFetch) {
+        completionHandler(PermissionState::Prompt);
+        return;
     }
 
     if (name.isNull()) {

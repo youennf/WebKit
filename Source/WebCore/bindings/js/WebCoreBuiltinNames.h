@@ -91,6 +91,11 @@ namespace WebCore {
     macro(AuthenticatorAssertionResponse) \
     macro(AuthenticatorAttestationResponse) \
     macro(AuthenticatorResponse) \
+    macro(BackgroundFetchEvent) \
+    macro(BackgroundFetchManager) \
+    macro(BackgroundFetchRecord) \
+    macro(BackgroundFetchRegistration) \
+    macro(BackgroundFetchUpdateUIEvent) \
     macro(BaseAudioContext) \
     macro(BiquadFilterNode) \
     macro(BlobEvent) \
@@ -549,6 +554,10 @@ namespace WebCore {
     macro(makeThisTypeError) \
     macro(matchingElementInFlatTree) \
     macro(mediaStreamTrackConstraints) \
+    macro(onbackgroundfetchsuccess) \
+    macro(onbackgroundfetchfail) \
+    macro(onbackgroundfetchabort) \
+    macro(onbackgroundfetchclick) \
     macro(onnotificationclick) \
     macro(onnotificationclose) \
     macro(onpush) \
