@@ -69,6 +69,12 @@ private:
     void setNavigationPreloadHeaderValue(ServiceWorkerRegistrationIdentifier, String&&, ExceptionOrVoidCallback&&) final;
     void getNavigationPreloadState(ServiceWorkerRegistrationIdentifier, ExceptionOrNavigationPreloadStateCallback&&) final;
 
+    void startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&&) final;
+    void backgroundFetchInformation(ServiceWorkerRegistrationIdentifier, const String&, ExceptionOrBackgroundFetchInformationCallback&&) final;
+    void backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&&) final;
+    void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) final;
+    void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) final;
+
     Ref<WorkerThread> m_thread;
 
     uint64_t m_lastRequestIdentifier { 0 };
@@ -83,6 +89,10 @@ private:
     HashMap<uint64_t, ExceptionOrVoidCallback> m_voidCallbacks;
     HashMap<uint64_t, ExceptionOrNavigationPreloadStateCallback> m_navigationPreloadStateCallbacks;
     HashMap<uint64_t, GetNotificationsCallback> m_getNotificationsCallbacks;
+    HashMap<uint64_t, ExceptionOrBackgroundFetchInformationCallback> m_backgroundFetchInformationCallbacks;
+    HashMap<uint64_t, BackgroundFetchIdentifiersCallback> m_backgroundFetchIdentifiersCallbacks;
+    HashMap<uint64_t, AbortBackgroundFetchCallback> m_abortBackgroundFetchCallbacks;
+    HashMap<uint64_t, MatchBackgroundFetchCallback> m_matchBackgroundFetchCallbacks;
 };
 
 } // namespace WebCore

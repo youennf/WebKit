@@ -28,15 +28,17 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchRecordInformation.h"
 #include "FetchRequest.h"
 #include "JSFetchResponse.h"
 
 namespace WebCore {
 
-BackgroundFetchRecord::BackgroundFetchRecord(Ref<FetchRequest>&& request)
+BackgroundFetchRecord::BackgroundFetchRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
     : m_responseReadyPromise(makeUniqueRef<ResponseReadyPromise>())
-    , m_request(WTFMove(request))
+    , m_request(FetchRequest::create(context, { }, FetchHeaders::create(information.guard, WTFMove(information.httpHeaders)), WTFMove(information.internalRequest), WTFMove(information.options), WTFMove(information.referrer)))
 {
+    // FIXME: We should provide a body to the request.
 }
 
 BackgroundFetchRecord::~BackgroundFetchRecord()

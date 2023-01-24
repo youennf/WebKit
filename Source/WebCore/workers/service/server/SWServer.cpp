@@ -28,6 +28,9 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchInformation.h"
+#include "BackgroundFetchRecordInformation.h"
+#include "BackgroundFetchRequest.h"
 #include "ExceptionCode.h"
 #include "ExceptionData.h"
 #include "Logging.h"
@@ -385,6 +388,36 @@ void SWServer::Connection::addServiceWorkerRegistrationInServer(ServiceWorkerReg
 void SWServer::Connection::removeServiceWorkerRegistrationInServer(ServiceWorkerRegistrationIdentifier identifier)
 {
     m_server.removeClientServiceWorkerRegistration(*this, identifier);
+}
+
+void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&& callback)
+{
+    // FIXME: To implement.
+    callback(makeUnexpected(ExceptionData { NotSupportedError, emptyString() }));
+}
+
+void SWServer::Connection::backgroundFetchInformation(ServiceWorkerRegistrationIdentifier, const String&, ExceptionOrBackgroundFetchInformationCallback&& callback)
+{
+    // FIXME: To implement.
+    callback({ });
+}
+
+void SWServer::Connection::backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&& callback)
+{
+    // FIXME: To implement.
+    callback({ });
+}
+
+void SWServer::Connection::abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&& callback)
+{
+    // FIXME: To implement.
+    callback(false);
+}
+
+void SWServer::Connection::matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&& callback)
+{
+    // FIXME: To implement.
+    callback({ });
 }
 
 SWServer::SWServer(UniqueRef<SWOriginStore>&& originStore, bool processTerminationDelayEnabled, String&& registrationDatabaseDirectory, PAL::SessionID sessionID, bool shouldRunServiceWorkersOnMainThreadForTesting, bool hasServiceWorkerEntitlement, std::optional<unsigned> overrideServiceWorkerRegistrationCountTestingValue, SoftUpdateCallback&& softUpdateCallback, CreateContextConnectionCallback&& callback, AppBoundDomainsCallback&& appBoundDomainsCallback, AddAllowedFirstPartyForCookiesCallback&& addAllowedFirstPartyForCookiesCallback)

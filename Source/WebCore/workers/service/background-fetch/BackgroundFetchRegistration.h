@@ -28,14 +28,17 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "ActiveDOMObject.h"
+#include "BackgroundFetchInformation.h"
 #include "BackgroundFetchResult.h"
 #include "BackgroundFetchFailureReason.h"
 #include "EventTarget.h"
 #include "JSDOMPromiseDeferred.h"
+#include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
+struct BackgroundFetchInformation;
 class BackgroundFetchRecord;
 struct CacheQueryOptions;
 class FetchRequest;
@@ -43,14 +46,14 @@ class FetchRequest;
 class BackgroundFetchRegistration : public RefCounted<BackgroundFetchRegistration>, public EventTarget, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED(BackgroundFetchRegistration);
 public:
-    static Ref<BackgroundFetchRegistration> create(ScriptExecutionContext& context) { return adoptRef(*new BackgroundFetchRegistration(context)); }
+    static Ref<BackgroundFetchRegistration> create(ScriptExecutionContext& context, BackgroundFetchInformation&& information) { return adoptRef(*new BackgroundFetchRegistration(context, WTFMove(information))); }
     ~BackgroundFetchRegistration();
 
-    String id() const { return m_id; }
-    uint64_t uploadTotal() const { return m_uploadTotal; }
-    uint64_t uploaded() const { return m_uploaded; }
-    uint64_t downloadTotal() const { return m_downloadTotal; }
-    uint64_t downloaded() const { return m_downloaded; }
+    String id() const { return m_information.identifier; }
+    uint64_t uploadTotal() const { return m_information.uploadTotal; }
+    uint64_t uploaded() const { return m_information.uploaded; }
+    uint64_t downloadTotal() const { return m_information.downloadTotal; }
+    uint64_t downloaded() const { return m_information.downloaded; }
 
     BackgroundFetchResult result();
     BackgroundFetchFailureReason failureReason();
@@ -58,15 +61,17 @@ public:
 
     using RequestInfo = std::variant<RefPtr<FetchRequest>, String>;
 
-    void abort(DOMPromiseDeferred<IDLBoolean>&&);
-    void match(RequestInfo&&, CacheQueryOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&&);
-    void matchAll(std::optional<RequestInfo>&&, CacheQueryOptions&&, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&&);
+    void abort(ScriptExecutionContext& context, DOMPromiseDeferred<IDLBoolean>&&);
+    void match(ScriptExecutionContext& context, RequestInfo&&, const CacheQueryOptions&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&&);
+    void matchAll(ScriptExecutionContext& context, std::optional<RequestInfo>&&, const CacheQueryOptions&, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&&);
 
     using RefCounted::ref;
     using RefCounted::deref;
 
 private:
-    explicit BackgroundFetchRegistration(ScriptExecutionContext&);
+    BackgroundFetchRegistration(ScriptExecutionContext&, BackgroundFetchInformation&&);
+
+    ServiceWorkerRegistrationIdentifier registrationIdentifier() const { return m_information.registrationIdentifier; }
 
     // EventTarget
     EventTargetInterface eventTargetInterface() const final { return BackgroundFetchRegistrationEventTargetInterfaceType; }
@@ -79,11 +84,7 @@ private:
     void stop() final;
     bool virtualHasPendingActivity() const final;
 
-    String m_id;
-    uint64_t m_uploadTotal { 0 };
-    uint64_t m_uploaded { 0 };
-    uint64_t m_downloadTotal { 0 };
-    uint64_t m_downloaded { 0 };
+    BackgroundFetchInformation m_information;
 };
 
 } // namespace WebCore

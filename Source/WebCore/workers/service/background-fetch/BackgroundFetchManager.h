@@ -28,26 +28,34 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "JSDOMPromiseDeferred.h"
+#include <wtf/RefCounted.h>
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
 class BackgroundFetchRegistration;
+struct BackgroundFetchRegistrationData;
 struct BackgroundFetchOptions;
 class FetchRequest;
 
-class BackgroundFetchManager : public RefCounted<BackgroundFetchManager> {
+class BackgroundFetchManager : public RefCounted<BackgroundFetchManager>, public CanMakeWeakPtr<BackgroundFetchManager> {
 public:
     static Ref<BackgroundFetchManager> create(ServiceWorkerRegistration& registration) { return adoptRef(*new BackgroundFetchManager(registration)); }
     ~BackgroundFetchManager();
 
-     using RequestInfo = std::variant<RefPtr<FetchRequest>, String>;
-     using Requests = std::variant<RefPtr<FetchRequest>, String, Vector<RequestInfo>>;
-     void fetch(const String&, Requests&&, BackgroundFetchOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRegistration>>&&);
-     void get(const String&, DOMPromiseDeferred<IDLNullable<IDLInterface<BackgroundFetchRegistration>>>&&);
-     void getIds(DOMPromiseDeferred<IDLSequence<IDLDOMString>>&&);
+    using RequestInfo = std::variant<RefPtr<FetchRequest>, String>;
+    using Requests = std::variant<RefPtr<FetchRequest>, String, Vector<RequestInfo>>;
+    void fetch(ScriptExecutionContext&, const String&, Requests&&, BackgroundFetchOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRegistration>>&&);
+    void get(ScriptExecutionContext&, const String&, DOMPromiseDeferred<IDLNullable<IDLInterface<BackgroundFetchRegistration>>>&&);
+    void getIds(ScriptExecutionContext&, DOMPromiseDeferred<IDLSequence<IDLDOMString>>&&);
 
 private:
     explicit BackgroundFetchManager(ServiceWorkerRegistration&);
+
+    Ref<BackgroundFetchRegistration> backgroundFetchRegistrationInstance(ScriptExecutionContext&, BackgroundFetchInformation&&);
+
+    ServiceWorkerRegistrationIdentifier m_identifier;
+    HashMap<String, Ref<BackgroundFetchRegistration>> m_backgroundFetchRegistrations;
 };
 
 } // namespace WebCore

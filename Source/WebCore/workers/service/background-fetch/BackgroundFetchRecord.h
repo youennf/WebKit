@@ -32,12 +32,14 @@
 
 namespace WebCore {
 
+struct BackgroundFetchRecordInformation;
 class FetchRequest;
 class FetchResponse;
+class ScriptExecutionContext;
 
 class BackgroundFetchRecord : public RefCounted<BackgroundFetchRecord> {
 public:
-    static Ref<BackgroundFetchRecord> create(Ref<FetchRequest>&& request) { return adoptRef(*new BackgroundFetchRecord(WTFMove(request))); }
+    static Ref<BackgroundFetchRecord> create(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information) { return adoptRef(*new BackgroundFetchRecord(context, WTFMove(information))); }
 
     ~BackgroundFetchRecord();
     
@@ -48,8 +50,8 @@ public:
     void resolveResponseReadyPromise(ExceptionOr<Ref<FetchResponse>>&&);
 
 private:
-    explicit BackgroundFetchRecord(Ref<FetchRequest>&&);
-    
+    BackgroundFetchRecord(ScriptExecutionContext&, BackgroundFetchRecordInformation&&);
+
     UniqueRef<ResponseReadyPromise> m_responseReadyPromise;
     Ref<FetchRequest> m_request;
 };

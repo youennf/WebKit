@@ -28,15 +28,16 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include "NotImplemented.h"
+#include "JSBackgroundFetchRecord.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(BackgroundFetchRegistration);
 
-BackgroundFetchRegistration::BackgroundFetchRegistration(ScriptExecutionContext& context)
+BackgroundFetchRegistration::BackgroundFetchRegistration(ScriptExecutionContext& context, BackgroundFetchInformation&& information)
     : ActiveDOMObject(&context)
+    , m_information(WTFMove(information))
 {
 }
 
@@ -59,23 +60,72 @@ bool BackgroundFetchRegistration::recordsAvailable()
     return false;
 }
 
-void BackgroundFetchRegistration::abort(DOMPromiseDeferred<IDLBoolean>&& promise)
+void BackgroundFetchRegistration::abort(ScriptExecutionContext& context, DOMPromiseDeferred<IDLBoolean>&& promise)
 {
-    notImplemented();
-    promise.reject(Exception { NotSupportedError });
+    SWClientConnection::fromScriptExecutionContext(context)->abortBackgroundFetch(registrationIdentifier(), id(), [promise = WTFMove(promise)](auto&& result) mutable {
+        promise.resolve(result);
+    });
 }
 
-void BackgroundFetchRegistration::match(RequestInfo&&, CacheQueryOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&& promise)
+static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& context, std::optional<BackgroundFetchRegistration::RequestInfo>&& info)
 {
-    notImplemented();
-    promise.reject(Exception { NotSupportedError });
+    if (!info)
+        return ResourceRequest { };
+
+    ResourceRequest resourceRequest;
+    auto requestOrException = FetchRequest::create(context, WTFMove(*info), { });
+    if (requestOrException.hasException())
+        return requestOrException.releaseException();
+
+    return requestOrException.releaseReturnValue()->resourceRequest();
 }
 
-void BackgroundFetchRegistration::matchAll(std::optional<RequestInfo>&&, CacheQueryOptions&&, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&& promise)
+void BackgroundFetchRegistration::match(ScriptExecutionContext& context, RequestInfo&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&& promise)
 {
-    notImplemented();
-    promise.reject(Exception { NotSupportedError });
+    auto requestOrException = requestFromInfo(context, WTFMove(info));
+    if (requestOrException.hasException()) {
+        promise.reject(requestOrException.releaseException());
+        return;
+    }
+
+    bool shouldRetrieveResponses = false;
+    RetrieveRecordsOptions retrieveOptions { requestOrException.releaseReturnValue(), context.crossOriginEmbedderPolicy(), *context.securityOrigin(), options.ignoreSearch, options.ignoreMethod, options.ignoreVary, shouldRetrieveResponses };
+
+    SWClientConnection::fromScriptExecutionContext(context)->matchBackgroundFetch(registrationIdentifier(), id(), WTFMove(retrieveOptions), [weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& results) mutable {
+        if (!weakContext)
+            return;
+
+        if (!results.size()) {
+            promise.reject(Exception { TypeError, "No matching record"_s });
+            return;
+        }
+
+        promise.resolve(BackgroundFetchRecord::create(*weakContext, WTFMove(results[0])));
+    });
 }
+
+void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std::optional<RequestInfo>&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&& promise)
+{
+    auto requestOrException = requestFromInfo(context, WTFMove(info));
+    if (requestOrException.hasException()) {
+        promise.reject(requestOrException.releaseException());
+        return;
+    }
+
+    bool shouldRetrieveResponses = false;
+    RetrieveRecordsOptions retrieveOptions { requestOrException.releaseReturnValue(), context.crossOriginEmbedderPolicy(), *context.securityOrigin(), options.ignoreSearch, options.ignoreMethod, options.ignoreVary, shouldRetrieveResponses };
+
+    SWClientConnection::fromScriptExecutionContext(context)->matchBackgroundFetch(registrationIdentifier(), id(), WTFMove(retrieveOptions), [weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& results) mutable {
+        if (!weakContext)
+            return;
+
+        auto records = WTF::map(results, [&weakContext](auto& result) {
+            return BackgroundFetchRecord::create(*weakContext, WTFMove(result));
+        });
+
+        promise.resolve(WTFMove(records));
+    });
+ }
 
 const char* BackgroundFetchRegistration::activeDOMObjectName() const
 {

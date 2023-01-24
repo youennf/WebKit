@@ -41,6 +41,10 @@
 
 namespace WebCore {
 
+struct BackgroundFetchInformation;
+struct BackgroundFetchRecordInformation;
+struct BackgroundFetchRequest;
+struct CacheQueryOptions;
 class ResourceError;
 class SecurityOrigin;
 class ScriptExecutionContext;
@@ -54,6 +58,7 @@ struct ClientOrigin;
 struct ExceptionData;
 struct MessageWithMessagePorts;
 struct NotificationData;
+struct RetrieveRecordsOptions;
 struct ServiceWorkerClientData;
 struct ServiceWorkerData;
 struct ServiceWorkerRegistrationData;
@@ -62,6 +67,8 @@ struct WorkerFetchResult;
 class SWClientConnection : public RefCounted<SWClientConnection> {
 public:
     WEBCORE_EXPORT virtual ~SWClientConnection();
+
+    static Ref<SWClientConnection> fromScriptExecutionContext(ScriptExecutionContext&);
 
     using RegistrationCallback = CompletionHandler<void(std::optional<ServiceWorkerRegistrationData>&&)>;
     virtual void matchRegistration(SecurityOriginData&& topOrigin, const URL& clientURL, RegistrationCallback&&) = 0;
@@ -117,6 +124,16 @@ public:
 
     WEBCORE_EXPORT void registerServiceWorkerClients();
     bool isClosed() const { return m_isClosed; }
+
+    using ExceptionOrBackgroundFetchInformationCallback = CompletionHandler<void(ExceptionOr<BackgroundFetchInformation>&&)>;
+    virtual void startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&&) = 0;
+    virtual void backgroundFetchInformation(ServiceWorkerRegistrationIdentifier, const String&, ExceptionOrBackgroundFetchInformationCallback&&) = 0;
+    using BackgroundFetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
+    virtual void backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&&) = 0;
+    using AbortBackgroundFetchCallback = CompletionHandler<void(bool)>;
+    virtual void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) = 0;
+    using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<BackgroundFetchRecordInformation>&&)>;
+    virtual void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) = 0;
 
 protected:
     WEBCORE_EXPORT SWClientConnection();

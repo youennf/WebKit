@@ -42,7 +42,7 @@ typedef (FetchRequest or USVString) RequestInfo;
 
     attribute EventHandler onprogress;
 
-    Promise<boolean> abort();
-    Promise<BackgroundFetchRecord> match(RequestInfo request, optional CacheQueryOptions options = {});
-    Promise<sequence<BackgroundFetchRecord>> matchAll(optional RequestInfo request, optional CacheQueryOptions options = {});
+    [CallWith=CurrentScriptExecutionContext] Promise<boolean> abort();
+    [CallWith=CurrentScriptExecutionContext] Promise<BackgroundFetchRecord> match(RequestInfo request, optional CacheQueryOptions options = {});
+    [CallWith=CurrentScriptExecutionContext] Promise<sequence<BackgroundFetchRecord>> matchAll(optional RequestInfo request, optional CacheQueryOptions options = {});
 };

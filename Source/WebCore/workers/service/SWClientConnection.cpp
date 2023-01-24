@@ -37,10 +37,13 @@
 #include "ServiceWorkerJobData.h"
 #include "ServiceWorkerRegistration.h"
 #include "SharedWorkerContextManager.h"
+#include "ServiceWorkerProvider.h"
 #include "SharedWorkerThread.h"
 #include "SharedWorkerThreadProxy.h"
 #include "Worker.h"
 #include "WorkerFetchResult.h"
+#include "WorkerGlobalScope.h"
+#include "WorkerSWClientConnection.h"
 #include <wtf/CrossThreadCopier.h>
 
 namespace WebCore {
@@ -54,6 +57,14 @@ static bool dispatchToContextThreadIfNecessary(const ServiceWorkerOrClientIdenti
     }, [&](ServiceWorkerIdentifier identifier) {
         return SWContextManager::singleton().postTaskToServiceWorker(identifier, WTFMove(task));
     });
+}
+
+Ref<SWClientConnection> SWClientConnection::fromScriptExecutionContext(ScriptExecutionContext& context)
+{
+    if (is<WorkerGlobalScope>(context))
+        return static_cast<SWClientConnection&>(downcast<WorkerGlobalScope>(context).swClientConnection());
+    ASSERT(isMainThread());
+    return ServiceWorkerProvider::singleton().serviceWorkerConnection();
 }
 
 SWClientConnection::SWClientConnection() = default;

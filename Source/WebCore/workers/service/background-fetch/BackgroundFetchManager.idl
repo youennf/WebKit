@@ -30,7 +30,7 @@ typedef (FetchRequest or USVString) RequestInfo;
     EnabledBySetting=ServiceWorkersEnabled&BackgroundFetchAPIEnabled,
     Exposed=(Window,Worker)
 ] interface BackgroundFetchManager {
-    Promise<BackgroundFetchRegistration> fetch(DOMString id, (RequestInfo or sequence<RequestInfo>) requests, optional BackgroundFetchOptions options = {});
-    Promise<BackgroundFetchRegistration?> get(DOMString id);
-    Promise<sequence<DOMString>> getIds();
+    [CallWith=CurrentScriptExecutionContext] Promise<BackgroundFetchRegistration> fetch(DOMString id, (RequestInfo or sequence<RequestInfo>) requests, optional BackgroundFetchOptions options = {});
+    [CallWith=CurrentScriptExecutionContext] Promise<BackgroundFetchRegistration?> get(DOMString id);
+    [CallWith=CurrentScriptExecutionContext] Promise<sequence<DOMString>> getIds();
 };
