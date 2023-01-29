@@ -28,6 +28,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchCache.h"
 #include "BackgroundFetchInformation.h"
 #include "BackgroundFetchRecordInformation.h"
 #include "BackgroundFetchRequest.h"
@@ -257,6 +258,8 @@ void SWServer::removeRegistration(ServiceWorkerRegistrationIdentifier registrati
     m_originStore->remove(registration->key().topOrigin());
     if (m_registrationStore)
         m_registrationStore->removeRegistration(registration->key());
+
+    backgroundFetchCache().remove(*registration);
 }
 
 Vector<ServiceWorkerRegistrationData> SWServer::getRegistrations(const SecurityOriginData& topOrigin, const URL& clientURL)
@@ -388,36 +391,6 @@ void SWServer::Connection::addServiceWorkerRegistrationInServer(ServiceWorkerReg
 void SWServer::Connection::removeServiceWorkerRegistrationInServer(ServiceWorkerRegistrationIdentifier identifier)
 {
     m_server.removeClientServiceWorkerRegistration(*this, identifier);
-}
-
-void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&& callback)
-{
-    // FIXME: To implement.
-    callback(makeUnexpected(ExceptionData { NotSupportedError, emptyString() }));
-}
-
-void SWServer::Connection::backgroundFetchInformation(ServiceWorkerRegistrationIdentifier, const String&, ExceptionOrBackgroundFetchInformationCallback&& callback)
-{
-    // FIXME: To implement.
-    callback({ });
-}
-
-void SWServer::Connection::backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&& callback)
-{
-    // FIXME: To implement.
-    callback({ });
-}
-
-void SWServer::Connection::abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&& callback)
-{
-    // FIXME: To implement.
-    callback(false);
-}
-
-void SWServer::Connection::matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&& callback)
-{
-    // FIXME: To implement.
-    callback({ });
 }
 
 SWServer::SWServer(UniqueRef<SWOriginStore>&& originStore, bool processTerminationDelayEnabled, String&& registrationDatabaseDirectory, PAL::SessionID sessionID, bool shouldRunServiceWorkersOnMainThreadForTesting, bool hasServiceWorkerEntitlement, std::optional<unsigned> overrideServiceWorkerRegistrationCountTestingValue, SoftUpdateCallback&& softUpdateCallback, CreateContextConnectionCallback&& callback, AppBoundDomainsCallback&& appBoundDomainsCallback, AddAllowedFirstPartyForCookiesCallback&& addAllowedFirstPartyForCookiesCallback)
@@ -1613,6 +1586,83 @@ void SWServer::fireFunctionalEvent(SWServerRegistration& registration, Completio
             callback(contextConnection);
         });
     });
+}
+
+BackgroundFetchCache& SWServer::backgroundFetchCache()
+{
+    if (!m_backgroundFetchCache)
+        m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+    return *m_backgroundFetchCache;
+}
+
+void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchCache::ExceptionOrBackgroundFetchInformationCallback&& callback)
+{
+    auto* registration = server().getRegistration(registrationIdentifier);
+    if (!registration) {
+        callback(makeUnexpected(ExceptionData { InvalidStateError, "No registration found"_s }));
+        return;
+    }
+
+    if (!server().m_backgroundFetchCache)
+        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+
+    server().backgroundFetchCache().startBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(callback));
+}
+
+void SWServer::Connection::backgroundFetchInformation(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, BackgroundFetchCache::ExceptionOrBackgroundFetchInformationCallback&& callback)
+{
+    auto* registration = server().getRegistration(registrationIdentifier);
+    if (!registration) {
+        callback(makeUnexpected(ExceptionData { InvalidStateError, "No registration found"_s }));
+        return;
+    }
+
+    if (!server().m_backgroundFetchCache)
+        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+
+    server().backgroundFetchCache().backgroundFetchInformation(*registration, backgroundFetchIdentifier, WTFMove(callback));
+}
+
+void SWServer::Connection::backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier registrationIdentifier, BackgroundFetchCache::BackgroundFetchIdentifiersCallback&& callback)
+{
+    auto* registration = server().getRegistration(registrationIdentifier);
+    if (!registration) {
+        callback({ });
+        return;
+    }
+
+    if (!server().m_backgroundFetchCache)
+        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+
+    server().backgroundFetchCache().backgroundFetchIdentifiers(*registration, WTFMove(callback));
+}
+
+void SWServer::Connection::abortBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, BackgroundFetchCache::AbortBackgroundFetchCallback&& callback)
+{
+    auto* registration = server().getRegistration(registrationIdentifier);
+    if (!registration) {
+        callback(false);
+        return;
+    }
+
+    if (!server().m_backgroundFetchCache)
+        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+
+    server().backgroundFetchCache().abortBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(callback));
+}
+
+void SWServer::Connection::matchBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, RetrieveRecordsOptions&& options, BackgroundFetchCache::MatchBackgroundFetchCallback&& callback)
+{
+    auto* registration = server().getRegistration(registrationIdentifier);
+    if (!registration) {
+        callback({ });
+        return;
+    }
+
+    if (!server().m_backgroundFetchCache)
+        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+
+    server().backgroundFetchCache().matchBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(options), WTFMove(callback));
 }
 
 } // namespace WebCore

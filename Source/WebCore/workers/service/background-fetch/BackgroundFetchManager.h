@@ -28,11 +28,13 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "JSDOMPromiseDeferred.h"
+#include "ServiceWorkerTypes.h"
 #include <wtf/RefCounted.h>
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
+struct BackgroundFetchInformation;
 class BackgroundFetchRegistration;
 struct BackgroundFetchRegistrationData;
 struct BackgroundFetchOptions;
