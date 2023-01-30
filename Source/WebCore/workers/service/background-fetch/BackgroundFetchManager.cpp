@@ -73,6 +73,13 @@ static ExceptionOr<Vector<Ref<FetchRequest>>> buildBackgroundFetchRequests(Scrip
             return result.releaseException();
         if (result.returnValue()->mode() == FetchOptions::Mode::NoCors)
             return Exception { TypeError, "Request has no-cors mode"_s };
+
+        // FIXME: Add support for readable stream bodies
+        if (result.returnValue()->isReadableStreamBody()) {
+            responseCallback(Exception { NotSupportedError, "ReadableStream uploading is not supported"_s });
+            return;
+        }
+
         requests.uncheckedAppend(result.releaseReturnValue());
     }
     return requests;
@@ -116,6 +123,11 @@ void BackgroundFetchManager::fetch(ScriptExecutionContext& context, const String
                 promise.reject(result.releaseException());
                 return;
             }
+            if (result.returnValue().identifier.isNull()) {
+                promise.reject(Exception { TypeError, "An internal error occured"_s });
+                return;
+            }
+
             promise.resolve(weakThis->backgroundFetchRegistrationInstance(context, result.releaseReturnValue()));
         });
 

@@ -35,6 +35,13 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(BackgroundFetchRegistration);
 
+Ref<BackgroundFetchRegistration> BackgroundFetchRegistration::create(ScriptExecutionContext& context, BackgroundFetchInformation&& information)
+{
+    auto registration = adoptRef(*new BackgroundFetchRegistration(context, WTFMove(information)));
+    registration->suspendIfNeeded();
+    return registration;
+}
+
 BackgroundFetchRegistration::BackgroundFetchRegistration(ScriptExecutionContext& context, BackgroundFetchInformation&& information)
     : ActiveDOMObject(&context)
     , m_information(WTFMove(information))

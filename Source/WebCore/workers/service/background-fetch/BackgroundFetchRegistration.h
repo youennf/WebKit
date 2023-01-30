@@ -46,7 +46,7 @@ class FetchRequest;
 class BackgroundFetchRegistration : public RefCounted<BackgroundFetchRegistration>, public EventTarget, public ActiveDOMObject {
     WTF_MAKE_ISO_ALLOCATED(BackgroundFetchRegistration);
 public:
-    static Ref<BackgroundFetchRegistration> create(ScriptExecutionContext& context, BackgroundFetchInformation&& information) { return adoptRef(*new BackgroundFetchRegistration(context, WTFMove(information))); }
+    static Ref<BackgroundFetchRegistration> create(ScriptExecutionContext&, BackgroundFetchInformation&&);
     ~BackgroundFetchRegistration();
 
     String id() const { return m_information.identifier; }

@@ -2230,6 +2230,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     workers/service/ServiceWorkerUpdateViaCache.h
 
     workers/service/background-fetch/BackgroundFetchCache.h
+    workers/service/background-fetch/BackgroundFetchCacheStore.h
     workers/service/background-fetch/BackgroundFetchInformation.h
     workers/service/background-fetch/BackgroundFetchRecordInformation.h
     workers/service/background-fetch/BackgroundFetchRequest.h

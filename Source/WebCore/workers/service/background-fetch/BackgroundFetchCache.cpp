@@ -28,9 +28,15 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchCacheMemoryStore.h"
 #include "ExceptionData.h"
 
 namespace WebCore {
+
+BackgroundFetchCache::BackgroundFetchCache()
+    : m_store(makeUniqueRef<BackgroundFetchCacheMemoryStore>())
+{
+}
 
 void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
@@ -56,20 +62,12 @@ void BackgroundFetchCache::backgroundFetchInformation(SWServerRegistration& regi
 
 void BackgroundFetchCache::backgroundFetchIdentifiers(SWServerRegistration& registration, BackgroundFetchIdentifiersCallback&& callback)
 {
-    m_store->getAll(registration, [callback = WTFMove(callback)](auto&& fetches) mutable {
-        callback(WTF::map(fetches, [](auto& fetch) {
-            return fetch->identifier();
-        }));
-    });
+    m_store->getIdentifiers(registration, WTFMove(callback));
 }
 
 void BackgroundFetchCache::abortBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, AbortBackgroundFetchCallback&& callback)
 {
-    m_store->get(registration, backgroundFetchIdentifier, [callback = WTFMove(callback)](auto&& fetch) mutable {
-        if (fetch)
-            fetch->abort();
-        callback(!!fetch);
-    });
+    m_store->abort(registration, backgroundFetchIdentifier, WTFMove(callback));
 }
 
 void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, RetrieveRecordsOptions&& options, MatchBackgroundFetchCallback&& callback)
@@ -85,10 +83,7 @@ void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registrati
 
 void BackgroundFetchCache::remove(SWServerRegistration& registration)
 {
-    m_store->getAll(registration, [](auto&& fetches) {
-        for (auto& fetch: fetches)
-            fetch->abort();
-    });
+    m_store->remove(registration);
 }
 
 } // namespace WebCore

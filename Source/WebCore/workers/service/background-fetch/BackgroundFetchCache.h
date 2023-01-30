@@ -27,45 +27,15 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include <wtf/CompletionHandler.h>
-#include <wtf/Expected.h>
-#include <wtf/Vector.h>
+#include "BackgroundFetchCacheStore.h"
 #include <wtf/UniqueRef.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
-
-struct BackgroundFetchInformation;
-struct BackgroundFetchRecordInformation;
-struct BackgroundFetchRequest;
-struct ExceptionData;
-struct RetrieveRecordsOptions;
-class SWServerRegistration;
 
 class BackgroundFetchCache {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    class Fetch : public CanMakeWeakPtr<Fetch> {
-    public:
-        virtual ~Fetch() = default;
-
-        virtual const String& identifier() const = 0;
-        virtual const BackgroundFetchInformation& information() const = 0;
-        virtual Vector<BackgroundFetchRecordInformation> match(const RetrieveRecordsOptions&) = 0;
-        virtual void abort() = 0;
-    };
-
-    class Store {
-    public:
-        virtual ~Store() = default;
-
-        using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;
-        virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrFetchCallback&&) = 0;
-        using FetchCallback = CompletionHandler<void(WeakPtr<Fetch>&&)>;
-        virtual void get(SWServerRegistration&, const String&, FetchCallback&&) = 0;
-        using FetchesCallback = CompletionHandler<void(Vector<WeakPtr<Fetch>>&&)>;
-        virtual void getAll(SWServerRegistration&, FetchesCallback &&) = 0;
-    };
+    BackgroundFetchCache();
 
     using ExceptionOrBackgroundFetchInformationCallback = CompletionHandler<void(Expected<BackgroundFetchInformation, ExceptionData>&&)>;
     void startBackgroundFetch(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&&);
@@ -80,7 +50,7 @@ public:
     void remove(SWServerRegistration&);
     
 private:
-    std::unique_ptr<Store> m_store;
+    UniqueRef<BackgroundFetchCacheStore> m_store;
 };
 
 } // namespace WebCore

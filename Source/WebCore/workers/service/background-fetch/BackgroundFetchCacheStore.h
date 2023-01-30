@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Apple Inc. All rights reserved.
+ * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,31 +22,49 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #pragma once
 
-#include <optional>
-#include <wtf/Forward.h>
-#include <wtf/RefCounted.h>
+#if ENABLE(SERVICE_WORKER)
 
-namespace WebKit {
+#include <wtf/CompletionHandler.h>
+#include <wtf/Expected.h>
+#include <wtf/Vector.h>
+#include <wtf/WeakPtr.h>
 
-struct CacheStorageRecord;
-struct CacheStorageRecordInformation;
+namespace WebCore {
 
-class CacheStorageStore : public RefCounted<CacheStorageStore> {
+struct BackgroundFetchInformation;
+struct BackgroundFetchRecordInformation;
+struct BackgroundFetchRequest;
+struct ExceptionData;
+struct RetrieveRecordsOptions;
+class SWServerRegistration;
+
+class BackgroundFetchCacheStore {
 public:
-    virtual ~CacheStorageStore() = default;
-    using ReadAllRecordInfosCallback = CompletionHandler<void(Vector<CacheStorageRecordInformation>&&)>;
-    using ReadRecordsCallback = CompletionHandler<void(Vector<std::optional<CacheStorageRecord>>&&)>;
-    using WriteRecordsCallback = CompletionHandler<void(bool)>;
-    virtual void readAllRecordInfos(ReadAllRecordInfosCallback&&) = 0;
-    virtual void readRecords(const Vector<CacheStorageRecordInformation>&, ReadRecordsCallback&&) = 0;
-    virtual void deleteRecords(const Vector<CacheStorageRecordInformation>&, WriteRecordsCallback&&) = 0;
-    virtual void writeRecords(Vector<CacheStorageRecord>&&, WriteRecordsCallback&&) = 0;
+    virtual ~BackgroundFetchCacheStore() = default;
 
-protected:
-    CacheStorageStore() = default;
+    class Fetch : public CanMakeWeakPtr<Fetch> {
+    public:
+        virtual ~Fetch() = default;
+
+        virtual String identifier() const = 0;
+        virtual BackgroundFetchInformation information() const = 0;
+        virtual Vector<BackgroundFetchRecordInformation> match(const RetrieveRecordsOptions&) = 0;
+    };
+
+    using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;
+    virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrFetchCallback&&) = 0;
+    using FetchCallback = CompletionHandler<void(WeakPtr<Fetch>&&)>;
+    virtual void get(SWServerRegistration&, const String&, FetchCallback&&) = 0;
+    using FetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
+    virtual void getIdentifiers(SWServerRegistration&, FetchIdentifiersCallback&&) = 0;
+    using AbortCallback = CompletionHandler<void(bool)>;
+    virtual void abort(SWServerRegistration&, const String&, AbortCallback&&) = 0;
+    virtual void remove(SWServerRegistration&) = 0;
 };
 
-} // namespace WebKit
+} // namespace WebCore
 
+#endif // ENABLE(SERVICE_WORKER)

@@ -2928,6 +2928,7 @@ workers/service/ServiceWorkerRegistrationOptions.cpp
 workers/service/ServiceWorkerWindowClient.cpp
 workers/service/WorkerSWClientConnection.cpp
 workers/service/background-fetch/BackgroundFetchCache.cpp
+workers/service/background-fetch/BackgroundFetchCacheMemoryStore.cpp
 workers/service/background-fetch/BackgroundFetchEvent.cpp
 workers/service/background-fetch/BackgroundFetchManager.cpp
 workers/service/background-fetch/BackgroundFetchRecord.cpp
