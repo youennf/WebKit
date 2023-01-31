@@ -96,7 +96,8 @@ void ConnectionToMachService<Traits>::sendWithReply(typename Traits::MessageType
     ASSERT(RunLoop::isMain());
     initializeConnectionIfNeeded();
 
-    Connection::sendWithReply(dictionaryFromMessage(messageType, WTFMove(message)).get(), [completionHandler = WTFMove(completionHandler)] (xpc_object_t reply) mutable {
+    Connection::sendWithReply(dictionaryFromMessage(messageType, WTFMove(message)).get(), [messageType, completionHandler = WTFMove(completionHandler)] (xpc_object_t reply) mutable {
+        UNUSED_PARAM(messageType);
         if (xpc_get_type(reply) != XPC_TYPE_DICTIONARY) {
             ASSERT_NOT_REACHED();
             return completionHandler({ });

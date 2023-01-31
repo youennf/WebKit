@@ -29,6 +29,7 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "BackgroundFetchInformation.h"
+#include "BackgroundFetchOptions.h"
 #include "BackgroundFetchRequest.h"
 #include "CacheQueryOptions.h"
 #include "NotificationData.h"
@@ -401,14 +402,14 @@ void WorkerSWClientConnection::getNavigationPreloadState(ServiceWorkerRegistrati
     });
 }
 
-void WorkerSWClientConnection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, ExceptionOrBackgroundFetchInformationCallback&& callback)
+void WorkerSWClientConnection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchOptions&& options, ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
     uint64_t requestIdentifier = ++m_lastRequestIdentifier;
     m_backgroundFetchInformationCallbacks.add(requestIdentifier, WTFMove(callback));
     
-    callOnMainThread([thread = m_thread, requestIdentifier, registrationIdentifier, backgroundFetchIdentifier = backgroundFetchIdentifier.isolatedCopy(), requests = crossThreadCopy(WTFMove(requests))]() mutable {
+    callOnMainThread([thread = m_thread, requestIdentifier, registrationIdentifier, backgroundFetchIdentifier = backgroundFetchIdentifier.isolatedCopy(), requests = crossThreadCopy(WTFMove(requests)), options = WTFMove(options).isolatedCopy()]() mutable {
         auto& connection = ServiceWorkerProvider::singleton().serviceWorkerConnection();
-        connection.startBackgroundFetch(registrationIdentifier, backgroundFetchIdentifier, WTFMove(requests), [thread = WTFMove(thread), requestIdentifier](auto&& result) {
+        connection.startBackgroundFetch(registrationIdentifier, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), [thread = WTFMove(thread), requestIdentifier](auto&& result) {
             thread->runLoop().postTaskForMode([requestIdentifier, result = crossThreadCopy(WTFMove(result))](auto& scope) mutable {
                 auto callback = downcast<WorkerGlobalScope>(scope).swClientConnection().m_backgroundFetchInformationCallbacks.take(requestIdentifier);
                 callback(WTFMove(result));

@@ -33,6 +33,9 @@
 namespace WebCore {
 
 struct ImageResource {
+    ImageResource isolatedCopy() const & { return { src.isolatedCopy(), sizes.isolatedCopy(), type.isolatedCopy(), label.isolatedCopy() }; }
+    ImageResource isolatedCopy() && { return { WTFMove(src).isolatedCopy(), WTFMove(sizes).isolatedCopy(), WTFMove(type).isolatedCopy(), WTFMove(label).isolatedCopy() }; }
+
     String src;
     String sizes;
     String type;

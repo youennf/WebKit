@@ -27,42 +27,36 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "BackgroundFetchCacheStore.h"
+#include "ResourceResponse.h"
+#include "SharedBuffer.h"
 #include <wtf/HashMap.h>
 
 namespace WebCore {
 
 class BackgroundFetchCacheMemoryStore :  public BackgroundFetchCacheStore {
-    WTF_MAKE_FAST_ALLOCATED;
 public:
+    static Ref<BackgroundFetchCacheMemoryStore> create() { return adoptRef(*new BackgroundFetchCacheMemoryStore()); }
+
+    void initialize(SWServerRegistration&, CompletionHandler<void()>&&) final;
+    void clearRecords(ServiceWorkerRegistrationKey, const String&, CompletionHandler<void()>&&) final;
+    void clearAllRecords(ServiceWorkerRegistrationKey, CompletionHandler<void()>&&) final;
+    void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) final;
+    void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) final;
+    void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, Span<const uint8_t>, CompletionHandler<void(StoreResult)>&&) final;
+
+private:
     BackgroundFetchCacheMemoryStore();
-    
-    class MemoryFetch : public Fetch {
+
+    struct Record {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        MemoryFetch(const String&, ServiceWorkerRegistrationIdentifier, Vector<BackgroundFetchRequest>&&);
-
-        void setUploadTotal(size_t uploadTotal) { uploadTotal = size_t m_uploadTotal; }
-
-    private:
-        String identifier() const final;
-        BackgroundFetchInformation information() const final;
-        Vector<BackgroundFetchRecordInformation> match(const RetrieveRecordsOptions&) final;
-
-        size_t m_uploadTotal { 0 };
-        String m_identifier;
-        ServiceWorkerRegistrationIdentifier m_registrationIdentifier;
-        Vector<BackgroundFetchRequest> m_requests;
+        ResourceResponse response;
+        SharedBufferBuilder buffer;
     };
-
-    void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrFetchCallback&&) final;
-    void get(SWServerRegistration&, const String&, FetchCallback&&) final;
-    void getIdentifiers(SWServerRegistration&, FetchIdentifiersCallback&&) final;
-    void remove(SWServerRegistration&) final;
-    using AbortBackgroundFetchCallback = CompletionHandler<void(bool)>;
-    void abort(SWServerRegistration&, const String&, AbortBackgroundFetchCallback&&);
-
-    using FetchesMap = HashMap<String, std::unique_ptr<Fetch>>;
-    HashMap<ServiceWorkerRegistrationKey, FetchesMap> m_fetches;
+    
+    using RecordMap = HashMap<size_t, std::unique_ptr<Record>>;
+    using EntriesMap = HashMap<String, RecordMap>;
+    HashMap<ServiceWorkerRegistrationKey, EntriesMap> m_entries;
 };
 
 } // namespace WebCore

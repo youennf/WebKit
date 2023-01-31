@@ -30,6 +30,7 @@
 
 #include "BackgroundFetchCache.h"
 #include "BackgroundFetchInformation.h"
+#include "BackgroundFetchOptions.h"
 #include "BackgroundFetchRecordInformation.h"
 #include "BackgroundFetchRequest.h"
 #include "ExceptionCode.h"
@@ -1595,7 +1596,7 @@ BackgroundFetchCache& SWServer::backgroundFetchCache()
     return *m_backgroundFetchCache;
 }
 
-void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchCache::ExceptionOrBackgroundFetchInformationCallback&& callback)
+void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchOptions&& options, BackgroundFetchCache::ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
     auto* registration = server().getRegistration(registrationIdentifier);
     if (!registration) {
@@ -1606,7 +1607,7 @@ void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentif
     if (!server().m_backgroundFetchCache)
         server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
 
-    server().backgroundFetchCache().startBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(callback));
+    server().backgroundFetchCache().startBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), WTFMove(callback));
 }
 
 void SWServer::Connection::backgroundFetchInformation(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, BackgroundFetchCache::ExceptionOrBackgroundFetchInformationCallback&& callback)

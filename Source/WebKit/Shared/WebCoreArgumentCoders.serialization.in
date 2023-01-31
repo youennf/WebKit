@@ -3099,6 +3099,9 @@ struct WebCore::BackgroundFetchInformation {
     uint64_t uploaded;
     uint64_t downloadTotal;
     uint64_t downloaded;
+    WebCore::BackgroundFetchResult result;
+    WebCore::BackgroundFetchFailureReason failureReason;
+    bool recordsAvailable;
 };
 #endif
 
@@ -3121,7 +3124,25 @@ struct WebCore::BackgroundFetchRecordInformation {
     String referrer;
 };
 #endif
-        
+
+#if ENABLE(SERVICE_WORKER)
+struct WebCore::BackgroundFetchOptions {
+    Vector<WebCore::ImageResource> icons;
+    String title;
+    uint64_t downloadTotal;
+};
+#endif
+
+
+#if ENABLE(SERVICE_WORKER)
+struct WebCore::ImageResource {
+    String src;
+    String sizes;
+    String type;
+    String label;
+};
+#endif // ENABLE(SERVICE_WORKER)
+
 using WebCore::SharedStringHash = uint32_t
 
 struct WebCore::FourCC {

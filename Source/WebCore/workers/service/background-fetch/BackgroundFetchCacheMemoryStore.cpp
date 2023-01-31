@@ -28,6 +28,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchOptions.h"
 #include "BackgroundFetchRecordInformation.h"
 #include "DOMCacheEngine.h"
 #include "SWServerRegistration.h"
@@ -38,103 +39,72 @@ BackgroundFetchCacheMemoryStore::BackgroundFetchCacheMemoryStore()
 {
 }
 
-void BackgroundFetchCacheMemoryStore::add(SWServerRegistration& registration, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, ExceptionOrFetchCallback&& callback)
+void BackgroundFetchCacheMemoryStore::initialize(SWServerRegistration&, CompletionHandler<void()>&& callback)
 {
-    auto& fetches = m_fetches.ensure(registration.key(), [] { return FetchesMap(); }).iterator->value;
-    auto result = fetches.ensure(backgroundFetchIdentifier, [&]() mutable {
-        return makeUnique<MemoryFetch>(backgroundFetchIdentifier, registration.identifier(), WTFMove(requests));
-    });
-    if (!result.isNewEntry) {
-        callback(makeUnexpected(ExceptionData { TypeError, "A background fetch registration already exists"_s }));
+    callback();
+}
+
+void BackgroundFetchCacheMemoryStore::clearRecords(ServiceWorkerRegistrationKey key, const String& identifier, CompletionHandler<void()>&& callback)
+{
+    // FIXME: reduce quota usage.
+
+    auto iterator = m_entries.find(key);
+    if (iterator != m_entries.end())
+        iterator->value.remove(identifier);
+    callback();
+}
+
+void BackgroundFetchCacheMemoryStore::clearAllRecords(ServiceWorkerRegistrationKey key, CompletionHandler<void()>&& callback)
+{
+    // FIXME: reduce quota usage.
+
+    m_entries.remove(key);
+    callback();
+}
+
+void BackgroundFetchCacheMemoryStore::storeNewRecord(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&& callback)
+{
+    // FIXME: check quota and increase quota usage.
+
+    auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
+    auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
+    ASSERT(!recordMap.contains(index + 1));
+    recordMap.add(index + 1, makeUnique<Record>());
+    callback(StoreResult::OK);
+}
+
+void BackgroundFetchCacheMemoryStore::storeRecordResponse(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, ResourceResponse&& response, CompletionHandler<void(StoreResult)>&& callback)
+{
+    // FIXME: check quota and increase quota usage.
+
+    auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
+    auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
+    ASSERT(recordMap.contains(index));
+
+    auto iterator = recordMap.find(index + 1);
+    if (iterator == recordMap.end()) {
+        callback(StoreResult::InternalError);
+        return;
+    }
+    iterator->value->response = WTFMove(response);
+    callback(StoreResult::OK);
+}
+
+void BackgroundFetchCacheMemoryStore::storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, Span<const uint8_t> data, CompletionHandler<void(StoreResult)>&& callback)
+{
+    // FIXME: check quota and increase quota usage.
+
+    auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
+    auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
+
+    auto iterator = recordMap.find(index + 1);
+    if (iterator == recordMap.end()) {
+        callback(StoreResult::InternalError);
         return;
     }
 
-    size_t uploadTotal = 0;
-    for (auto& request : m_requests) {
-        if (auto body = request.httpBody())
-            uploadTotal += body->lengthInBytes();
-    }
-    // FIXME: we should do a quota check with uploadTotal.
-
-    callback(WeakPtr { *result.iterator->value });
-}
-
-void BackgroundFetchCacheMemoryStore::get(SWServerRegistration& registration, const String& backgroundFetchIdentifier, FetchCallback&& callback)
-{
-    auto iterator = m_fetches.find(registration.key());
-    if (iterator == m_fetches.end()) {
-        callback({ });
-        return;
-    }
-    auto& map = iterator->value;
-    auto fetchIterator = map.find(backgroundFetchIdentifier);
-    if (fetchIterator == map.end()) {
-        callback(nullptr);
-        return;
-    }
-    callback(fetchIterator->value.get());
-}
-
-void BackgroundFetchCacheMemoryStore::getIdentifiers(SWServerRegistration& registration, FetchIdentifiersCallback&& callback)
-{
-    auto iterator = m_fetches.find(registration.key());
-    if (iterator == m_fetches.end()) {
-        callback({ });
-        return;
-    }
-    callback(copyToVector(iterator->value.keys()));
-}
-
-void BackgroundFetchCacheMemoryStore::remove(SWServerRegistration& registration)
-{
-    m_fetches.take(registration.key());
-}
-
-void BackgroundFetchCacheMemoryStore::abort(SWServerRegistration& registration, const String& backgroundFetchIdentifier, AbortCallback&& callback)
-{
-    auto iterator = m_fetches.find(registration.key());
-    if (iterator == m_fetches.end()) {
-        callback(false);
-        return;
-    }
-    auto& map = iterator->value;
-    auto fetchIterator = map.find(backgroundFetchIdentifier);
-    if (fetchIterator == map.end()) {
-        callback(false);
-        return;
-    }
-    map.remove(fetchIterator);
-    callback(true);
-}
-
-BackgroundFetchCacheMemoryStore::MemoryFetch::MemoryFetch(const String& backgroundFetchIdentifier, ServiceWorkerRegistrationIdentifier registrationIdentifier, Vector<BackgroundFetchRequest>&& requests)
-    : m_identifier(backgroundFetchIdentifier)
-    , m_registrationIdentifier(registrationIdentifier)
-    , m_requests(WTFMove(requests))
-{
-}
-
-String BackgroundFetchCacheMemoryStore::MemoryFetch::identifier() const
-{
-    return m_identifier;
-}
-
-BackgroundFetchInformation BackgroundFetchCacheMemoryStore::MemoryFetch::information() const
-{
-    return { m_registrationIdentifier, m_identifier, 0, 0, 0, 0 };
-}
-
-Vector<BackgroundFetchRecordInformation> BackgroundFetchCacheMemoryStore::MemoryFetch::match(const RetrieveRecordsOptions& options)
-{
-    WebCore::CacheQueryOptions queryOptions { options.ignoreSearch, options.ignoreMethod, options.ignoreVary };
-    
-    Vector<BackgroundFetchRecordInformation> records;
-    for (auto& request : m_requests) {
-        if (DOMCacheEngine::queryCacheMatch(options.request, request.internalRequest, { }, queryOptions))
-            records.append(BackgroundFetchRecordInformation { request.internalRequest, request.options, request.guard, request.httpHeaders, request.referrer });
-    }
-
-    return records;
+    iterator->value->buffer.append(data);
+    callback(StoreResult::OK);
 }
 
 } // namespace WebCore

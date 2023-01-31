@@ -27,6 +27,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "ServiceWorkerRegistrationKey.h"
 #include <wtf/CompletionHandler.h>
 #include <wtf/Expected.h>
 #include <wtf/Vector.h>
@@ -35,27 +36,29 @@
 namespace WebCore {
 
 struct BackgroundFetchInformation;
+struct BackgroundFetchOptions;
 struct BackgroundFetchRecordInformation;
 struct BackgroundFetchRequest;
 struct ExceptionData;
 struct RetrieveRecordsOptions;
 class SWServerRegistration;
 
-class BackgroundFetchCacheStore {
+class BackgroundFetchCacheStore : public RefCounted<BackgroundFetchCacheStore> {
 public:
     virtual ~BackgroundFetchCacheStore() = default;
+    
+    virtual void initialize(SWServerRegistration&, CompletionHandler<void()>&&) = 0;
+    virtual void clearRecords(ServiceWorkerRegistrationKey, const String&, CompletionHandler<void()>&& = [] { }) = 0;
+    virtual void clearAllRecords(ServiceWorkerRegistrationKey, CompletionHandler<void()>&& = [] { }) = 0;
 
-    class Fetch : public CanMakeWeakPtr<Fetch> {
-    public:
-        virtual ~Fetch() = default;
-
-        virtual String identifier() const = 0;
-        virtual BackgroundFetchInformation information() const = 0;
-        virtual Vector<BackgroundFetchRecordInformation> match(const RetrieveRecordsOptions&) = 0;
-    };
-
+    enum class StoreResult { OK, QuotaError, InternalError };
+    virtual void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, Span<const uint8_t>, CompletionHandler<void(StoreResult)>&&) = 0;
+/*
+    
     using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;
-    virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrFetchCallback&&) = 0;
+    virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrFetchCallback&&) = 0;
     using FetchCallback = CompletionHandler<void(WeakPtr<Fetch>&&)>;
     virtual void get(SWServerRegistration&, const String&, FetchCallback&&) = 0;
     using FetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
@@ -63,6 +66,7 @@ public:
     using AbortCallback = CompletionHandler<void(bool)>;
     virtual void abort(SWServerRegistration&, const String&, AbortCallback&&) = 0;
     virtual void remove(SWServerRegistration&) = 0;
+*/
 };
 
 } // namespace WebCore

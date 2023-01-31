@@ -330,9 +330,9 @@ void WebSWClientConnection::getNavigationPreloadState(WebCore::ServiceWorkerRegi
     });
 }
 
-void WebSWClientConnection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, ExceptionOrBackgroundFetchInformationCallback&& callback)
+void WebSWClientConnection::startBackgroundFetch(ServiceWorkerRegistrationIdentifier registrationIdentifier, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchOptions&& options, ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
-    sendWithAsyncReply(Messages::WebSWServerConnection::StartBackgroundFetch { registrationIdentifier, backgroundFetchIdentifier, requests }, [callback = WTFMove(callback)](auto&& result) mutable {
+    sendWithAsyncReply(Messages::WebSWServerConnection::StartBackgroundFetch { registrationIdentifier, backgroundFetchIdentifier, requests, options }, [callback = WTFMove(callback)](auto&& result) mutable {
         callExceptionOrResultCallback(WTFMove(callback), WTFMove(result));
     });
 }

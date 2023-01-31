@@ -28,7 +28,12 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchRecordInformation.h"
+#include "CacheQueryOptions.h"
+#include "FetchRequest.h"
 #include "JSBackgroundFetchRecord.h"
+#include "RetrieveRecordsOptions.h"
+#include "SWClientConnection.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
@@ -50,21 +55,6 @@ BackgroundFetchRegistration::BackgroundFetchRegistration(ScriptExecutionContext&
 
 BackgroundFetchRegistration::~BackgroundFetchRegistration()
 {
-}
-
-BackgroundFetchResult BackgroundFetchRegistration::result()
-{
-    return { };
-}
-
-BackgroundFetchFailureReason BackgroundFetchRegistration::failureReason()
-{
-    return { };
-}
-
-bool BackgroundFetchRegistration::recordsAvailable()
-{
-    return false;
 }
 
 void BackgroundFetchRegistration::abort(ScriptExecutionContext& context, DOMPromiseDeferred<IDLBoolean>&& promise)
@@ -89,6 +79,11 @@ static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& cont
 
 void BackgroundFetchRegistration::match(ScriptExecutionContext& context, RequestInfo&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&& promise)
 {
+    if (!recordsAvailable()) {
+        promise.reject(Exception { InvalidStateError, "Records are not available"_s });
+        return;
+    }
+
     auto requestOrException = requestFromInfo(context, WTFMove(info));
     if (requestOrException.hasException()) {
         promise.reject(requestOrException.releaseException());
@@ -113,6 +108,11 @@ void BackgroundFetchRegistration::match(ScriptExecutionContext& context, Request
 
 void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std::optional<RequestInfo>&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&& promise)
 {
+    if (!recordsAvailable()) {
+        promise.reject(Exception { InvalidStateError, "Records are not available"_s });
+        return;
+    }
+
     auto requestOrException = requestFromInfo(context, WTFMove(info));
     if (requestOrException.hasException()) {
         promise.reject(requestOrException.releaseException());
@@ -132,7 +132,21 @@ void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std:
 
         promise.resolve(WTFMove(records));
     });
- }
+}
+
+void BackgroundFetchRegistration::updateInformation(const BackgroundFetchInformation& information)
+{
+    ASSERT(m_information.registrationIdentifier == information.registrationIdentifier);
+    ASSERT(m_information.identifier == information.identifier);
+
+    m_information.uploadTotal = information.uploadTotal;
+    m_information.uploaded = information.uploaded;
+    m_information.downloadTotal = information.downloadTotal;
+    m_information.downloaded = information.downloaded;
+    m_information.result = information.result;
+    m_information.failureReason = information.failureReason;
+    m_information.recordsAvailable = information.recordsAvailable;
+}
 
 const char* BackgroundFetchRegistration::activeDOMObjectName() const
 {

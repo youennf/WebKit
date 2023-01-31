@@ -32,6 +32,7 @@
 #include "BackgroundFetchRequest.h"
 #include "FetchRequest.h"
 #include "JSBackgroundFetchRegistration.h"
+#include "SWClientConnection.h"
 #include "ServiceWorkerProvider.h"
 
 namespace WebCore {
@@ -75,10 +76,8 @@ static ExceptionOr<Vector<Ref<FetchRequest>>> buildBackgroundFetchRequests(Scrip
             return Exception { TypeError, "Request has no-cors mode"_s };
 
         // FIXME: Add support for readable stream bodies
-        if (result.returnValue()->isReadableStreamBody()) {
-            responseCallback(Exception { NotSupportedError, "ReadableStream uploading is not supported"_s });
-            return;
-        }
+        if (result.returnValue()->isReadableStreamBody())
+            return Exception { NotSupportedError, "ReadableStream uploading is not supported"_s };
 
         requests.uncheckedAppend(result.releaseReturnValue());
     }
@@ -88,12 +87,17 @@ static ExceptionOr<Vector<Ref<FetchRequest>>> buildBackgroundFetchRequests(Scrip
 Ref<BackgroundFetchRegistration> BackgroundFetchManager::backgroundFetchRegistrationInstance(ScriptExecutionContext& context, BackgroundFetchInformation&& data)
 {
     auto identifier = data.identifier;
-    return m_backgroundFetchRegistrations.ensure(identifier, [data = WTFMove(data), &context]() mutable {
+    auto result = m_backgroundFetchRegistrations.ensure(identifier, [data = WTFMove(data), &context]() mutable {
         return BackgroundFetchRegistration::create(context, WTFMove(data));
-    }).iterator->value;
+    });
+
+    auto registration = result.iterator->value;
+    if (!result.isNewEntry)
+        registration->updateInformation(data);
+    return registration;
 }
 
-void BackgroundFetchManager::fetch(ScriptExecutionContext& context, const String& identifier, Requests&& backgroundFetchRequests, BackgroundFetchOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRegistration>>&& promise)
+void BackgroundFetchManager::fetch(ScriptExecutionContext& context, const String& identifier, Requests&& backgroundFetchRequests, BackgroundFetchOptions&& options, DOMPromiseDeferred<IDLInterface<BackgroundFetchRegistration>>&& promise)
 {
     UNUSED_PARAM(identifier);
 
@@ -112,7 +116,7 @@ void BackgroundFetchManager::fetch(ScriptExecutionContext& context, const String
         // FIXME: use request.
         return { };
     });
-    SWClientConnection::fromScriptExecutionContext(context)->startBackgroundFetch(m_identifier, identifier, WTFMove(requests), [weakThis = WeakPtr { *this }, weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& result) mutable {
+    SWClientConnection::fromScriptExecutionContext(context)->startBackgroundFetch(m_identifier, identifier, WTFMove(requests), WTFMove(options), [weakThis = WeakPtr { *this }, weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& result) mutable {
         if (!weakContext)
             return;
         weakContext->postTask([weakThis = WTFMove(weakThis), promise = WTFMove(promise), result = WTFMove(result)](auto& context) mutable {

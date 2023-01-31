@@ -54,16 +54,17 @@ public:
     uint64_t uploaded() const { return m_information.uploaded; }
     uint64_t downloadTotal() const { return m_information.downloadTotal; }
     uint64_t downloaded() const { return m_information.downloaded; }
-
-    BackgroundFetchResult result();
-    BackgroundFetchFailureReason failureReason();
-    bool recordsAvailable();
+    BackgroundFetchResult result() { return m_information.result; }
+    BackgroundFetchFailureReason failureReason() { return m_information.failureReason; }
+    bool recordsAvailable() { return m_information.recordsAvailable; }
 
     using RequestInfo = std::variant<RefPtr<FetchRequest>, String>;
 
     void abort(ScriptExecutionContext& context, DOMPromiseDeferred<IDLBoolean>&&);
     void match(ScriptExecutionContext& context, RequestInfo&&, const CacheQueryOptions&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&&);
     void matchAll(ScriptExecutionContext& context, std::optional<RequestInfo>&&, const CacheQueryOptions&, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&&);
+
+    void updateInformation(const BackgroundFetchInformation&);
 
     using RefCounted::ref;
     using RefCounted::deref;

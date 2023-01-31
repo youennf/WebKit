@@ -42,6 +42,7 @@
 namespace WebCore {
 
 struct BackgroundFetchInformation;
+struct BackgroundFetchOptions;
 struct BackgroundFetchRecordInformation;
 struct BackgroundFetchRequest;
 struct CacheQueryOptions;
@@ -126,7 +127,7 @@ public:
     bool isClosed() const { return m_isClosed; }
 
     using ExceptionOrBackgroundFetchInformationCallback = CompletionHandler<void(ExceptionOr<BackgroundFetchInformation>&&)>;
-    virtual void startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&&) = 0;
+    virtual void startBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrBackgroundFetchInformationCallback&&) = 0;
     virtual void backgroundFetchInformation(ServiceWorkerRegistrationIdentifier, const String&, ExceptionOrBackgroundFetchInformationCallback&&) = 0;
     using BackgroundFetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
     virtual void backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&&) = 0;

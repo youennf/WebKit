@@ -27,7 +27,10 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include <wtf/text/WTFString.h>
+#include "FetchHeadersGuard.h"
+#include "FetchOptions.h"
+#include "HTTPHeaderMap.h"
+#include "ResourceRequest.h"
 
 namespace WebCore {
 

@@ -34,56 +34,154 @@
 namespace WebCore {
 
 BackgroundFetchCache::BackgroundFetchCache()
-    : m_store(makeUniqueRef<BackgroundFetchCacheMemoryStore>())
+    : m_store(BackgroundFetchCacheMemoryStore::create())
 {
 }
 
-void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, ExceptionOrBackgroundFetchInformationCallback&& callback)
+void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, Vector<BackgroundFetchRequest>&& requests, BackgroundFetchOptions&& options, ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
-    m_store->add(registration, backgroundFetchIdentifier, WTFMove(requests), [callback = WTFMove(callback)](auto&& fetchOrError) mutable {
-        if (!fetchOrError.has_value()) {
-            callback(makeUnexpected(WTFMove(fetchOrError.error())));
-            return;
-        }
-        callback(fetchOrError.value()->information());
+    auto iterator = m_fetches.find(registration.key());
+    if (iterator == m_fetches.end()) {
+        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, requests = WTFMove(requests), options = WTFMove(options), callback = WTFMove(callback)]() mutable {
+            if (!weakThis || !registration) {
+                callback(makeUnexpected(ExceptionData { NotSupportedError, "BackgroundFetchCache is gone"_s }));
+                return;
+            }
+            weakThis->m_fetches.ensure(registration->key(), [] {
+                return FetchesMap();
+            });
+            weakThis->startBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), WTFMove(callback));
+        });
+        return;
+    }
+
+    auto result = iterator->value.ensure(backgroundFetchIdentifier, [&]() mutable {
+        return makeUnique<BackgroundFetch>(registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), Ref { m_store }, [](auto, auto&&) {
+            // Handle notification.
+        });
     });
+    if (!result.isNewEntry) {
+        callback(makeUnexpected(ExceptionData { TypeError, "A background fetch registration already exists"_s }));
+        return;
+    }
+
+    // FIXME: we should do a quota check with uploadTotal.
+    callback(result.iterator->value->information());
 }
 
 void BackgroundFetchCache::backgroundFetchInformation(SWServerRegistration& registration, const String& backgroundFetchIdentifier, ExceptionOrBackgroundFetchInformationCallback&& callback)
 {
-    m_store->get(registration, backgroundFetchIdentifier, [callback = WTFMove(callback)](auto&& fetch) mutable {
-        if (!fetch) {
-            callback({ });
-            return;
-        }
-        callback(fetch->information());
-    });
+    auto iterator = m_fetches.find(registration.key());
+    if (iterator == m_fetches.end()) {
+        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
+            if (!weakThis || !registration) {
+                callback(makeUnexpected(ExceptionData { NotSupportedError, "BackgroundFetchCache is gone"_s }));
+                return;
+            }
+            weakThis->m_fetches.ensure(registration->key(), [] {
+                return FetchesMap();
+            });
+            weakThis->backgroundFetchInformation(*registration, backgroundFetchIdentifier, WTFMove(callback));
+        });
+        return;
+    }
+
+    auto& map = iterator->value;
+    auto fetchIterator = map.find(backgroundFetchIdentifier);
+    if (fetchIterator == map.end()) {
+        callback(BackgroundFetchInformation { });
+        return;
+    }
+    callback(fetchIterator->value->information());
 }
 
 void BackgroundFetchCache::backgroundFetchIdentifiers(SWServerRegistration& registration, BackgroundFetchIdentifiersCallback&& callback)
 {
-    m_store->getIdentifiers(registration, WTFMove(callback));
+    auto iterator = m_fetches.find(registration.key());
+    if (iterator == m_fetches.end()) {
+        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, callback = WTFMove(callback)]() mutable {
+            if (!weakThis || !registration) {
+                callback({ });
+                return;
+            }
+            weakThis->m_fetches.ensure(registration->key(), [] {
+                return FetchesMap();
+            });
+            weakThis->backgroundFetchIdentifiers(*registration, WTFMove(callback));
+        });
+        return;
+    }
+
+    Vector<String> identifiers;
+    identifiers.reserveInitialCapacity(iterator->value.size());
+    for (auto& keyValue : iterator->value) {
+        if (keyValue.value->isActive())
+            identifiers.uncheckedAppend(keyValue.key);
+    }
+    callback(WTFMove(identifiers));
 }
 
 void BackgroundFetchCache::abortBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, AbortBackgroundFetchCallback&& callback)
 {
-    m_store->abort(registration, backgroundFetchIdentifier, WTFMove(callback));
+    auto iterator = m_fetches.find(registration.key());
+    if (iterator == m_fetches.end()) {
+        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
+            if (!weakThis || !registration) {
+                callback(false);
+                return;
+            }
+            weakThis->m_fetches.ensure(registration->key(), [] {
+                return FetchesMap();
+            });
+            weakThis->abortBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(callback));
+        });
+        return;
+    }
+
+    auto& map = iterator->value;
+    auto fetchIterator = map.find(backgroundFetchIdentifier);
+    if (fetchIterator == map.end()) {
+        callback(false);
+        return;
+    }
+    fetchIterator->value->abort();
+    map.remove(fetchIterator);
+    callback(true);
 }
 
 void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, RetrieveRecordsOptions&& options, MatchBackgroundFetchCallback&& callback)
 {
-    m_store->get(registration, backgroundFetchIdentifier, [options = WTFMove(options).isolatedCopy(), callback = WTFMove(callback)](auto&& fetch) mutable {
-        if (!fetch) {
-            callback({ });
-            return;
-        }
-        callback(fetch->match(options));
-    });
+    auto iterator = m_fetches.find(registration.key());
+    if (iterator == m_fetches.end()) {
+        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, options = WTFMove(options), callback = WTFMove(callback)]() mutable {
+            if (!weakThis || !registration) {
+                callback({ });
+                return;
+            }
+            weakThis->m_fetches.ensure(registration->key(), [] {
+                return FetchesMap();
+            });
+            weakThis->matchBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(options), WTFMove(callback));
+        });
+        return;
+    }
+
+    auto& map = iterator->value;
+    auto fetchIterator = map.find(backgroundFetchIdentifier);
+    if (fetchIterator == map.end()) {
+        callback({ });
+        return;
+    }
+    fetchIterator->value->match(options, WTFMove(callback));
 }
 
 void BackgroundFetchCache::remove(SWServerRegistration& registration)
 {
-    m_store->remove(registration);
+    // FIXME: We skip the initialization step, which might invalidate some results, maybe we should have a specific handling here.
+    auto fetches = m_fetches.take(registration.key());
+    for (auto& fetch : fetches.values())
+        fetch->abort();
+    m_store->clearAllRecords(registration.key());
 }
 
 } // namespace WebCore

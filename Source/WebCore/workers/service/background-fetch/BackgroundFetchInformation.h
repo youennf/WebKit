@@ -27,13 +27,15 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchFailureReason.h"
+#include "BackgroundFetchResult.h"
 #include "ServiceWorkerTypes.h"
 
 namespace WebCore {
 
 struct BackgroundFetchInformation {
-    BackgroundFetchInformation isolatedCopy() const & { return { registrationIdentifier, identifier.isolatedCopy(), uploadTotal, uploaded, downloadTotal, downloaded }; }
-    BackgroundFetchInformation isolatedCopy() && { return { registrationIdentifier, WTFMove(identifier).isolatedCopy(), uploadTotal, uploaded, downloadTotal, downloaded }; }
+    BackgroundFetchInformation isolatedCopy() const & { return { registrationIdentifier, identifier.isolatedCopy(), uploadTotal, uploaded, downloadTotal, downloaded, result, failureReason, recordsAvailable }; }
+    BackgroundFetchInformation isolatedCopy() && { return { registrationIdentifier, WTFMove(identifier).isolatedCopy(), uploadTotal, uploaded, downloadTotal, downloaded, result, failureReason, recordsAvailable }; }
 
     ServiceWorkerRegistrationIdentifier registrationIdentifier;
     String identifier;
@@ -41,6 +43,9 @@ struct BackgroundFetchInformation {
     uint64_t uploaded { 0 };
     uint64_t downloadTotal { 0 };
     uint64_t downloaded { 0 };
+    BackgroundFetchResult result { BackgroundFetchResult::EmptyString };
+    BackgroundFetchFailureReason failureReason { BackgroundFetchFailureReason::EmptyString };
+    bool recordsAvailable { true };
 };
 
 

@@ -27,18 +27,19 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include "BackgroundFetchCacheStore.h"
-#include <wtf/UniqueRef.h>
+#include "BackgroundFetch.h"
 
 namespace WebCore {
 
-class BackgroundFetchCache {
+class BackgroundFetchCacheStore;
+
+class BackgroundFetchCache : public CanMakeWeakPtr<BackgroundFetchCache> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     BackgroundFetchCache();
-
+    
     using ExceptionOrBackgroundFetchInformationCallback = CompletionHandler<void(Expected<BackgroundFetchInformation, ExceptionData>&&)>;
-    void startBackgroundFetch(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, ExceptionOrBackgroundFetchInformationCallback&&);
+    void startBackgroundFetch(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrBackgroundFetchInformationCallback&&);
     void backgroundFetchInformation(SWServerRegistration&, const String&, ExceptionOrBackgroundFetchInformationCallback&&);
     using BackgroundFetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
     void backgroundFetchIdentifiers(SWServerRegistration&, BackgroundFetchIdentifiersCallback&&);
@@ -46,11 +47,14 @@ public:
     void abortBackgroundFetch(SWServerRegistration&, const String&, AbortBackgroundFetchCallback&&);
     using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<BackgroundFetchRecordInformation>&&)>;
     void matchBackgroundFetch(SWServerRegistration&, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&);
-    
+
     void remove(SWServerRegistration&);
-    
+
 private:
-    UniqueRef<BackgroundFetchCacheStore> m_store;
+    Ref<BackgroundFetchCacheStore> m_store;
+
+    using FetchesMap = HashMap<String, std::unique_ptr<BackgroundFetch>>;
+    HashMap<ServiceWorkerRegistrationKey, FetchesMap> m_fetches;
 };
 
 } // namespace WebCore
