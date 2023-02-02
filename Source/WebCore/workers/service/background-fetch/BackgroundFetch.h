@@ -67,8 +67,8 @@ public:
 
 private:
     void storeResponse(size_t, ResourceResponse&&);
-    void storeResponseBodyChunk(size_t, Span<const uint8_t>);
-    void handleError(size_t, ResourceError&&);
+    void storeResponseBodyChunk(size_t, const SharedBuffer&);
+    void didFinishRecord(size_t, const ResourceError&);
 
     void recordIsCompleted(size_t);
     void handleStoreResult(BackgroundFetchCacheStore::StoreResult);
@@ -90,9 +90,10 @@ private:
         BackgroundFetchRecordInformation information() const;
 
     private:
-        void onResponse(ResourceResponse&&) final;
-        void onResponseBodyChunk(Span<const uint8_t>) final;
-        void onError(ResourceError&&) final;
+        void didSendData(uint64_t) final;
+        void didReceiveResponse(ResourceResponse&&) final;
+        void didReceiveResponseBodyChunk(const SharedBuffer&) final;
+        void didFinish(const ResourceError&) final;
 
         WeakPtr<BackgroundFetch> m_fetch;
         BackgroundFetchRequest m_request;

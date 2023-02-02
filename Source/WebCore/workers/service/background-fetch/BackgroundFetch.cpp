@@ -110,14 +110,9 @@ void BackgroundFetch::storeResponse(size_t index, ResourceResponse&& response)
     });
 }
 
-void BackgroundFetch::storeResponseBodyChunk(size_t index, Span<const uint8_t> data)
+void BackgroundFetch::storeResponseBodyChunk(size_t index, const SharedBuffer& data)
 {
     ASSERT(index < m_records.size());
-    if (!data.size()) {
-        recordIsCompleted(index);
-        return;
-    }
-
     m_currentDownloadSize += data.size();
     if (m_currentDownloadSize >= m_downloadTotal) {
         updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::DownloadTotalExceeded);
@@ -131,9 +126,13 @@ void BackgroundFetch::storeResponseBodyChunk(size_t index, Span<const uint8_t> d
     });
 }
 
-void BackgroundFetch::handleError(size_t index, ResourceError&&)
+void BackgroundFetch::didFinishRecord(size_t index, const ResourceError& error)
 {
     ASSERT(index < m_records.size());
+    if (error.isNull()) {
+        recordIsCompleted(index);
+        return;
+    }
     // FIXME: We probably want to handle recoverable errors. For now, all errors are terminal.
     // We could use NetworkStateNotifier.
     updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::FetchError);
@@ -212,22 +211,26 @@ void BackgroundFetch::Record::abort()
     m_loader = nullptr;
 }
 
-void BackgroundFetch::Record::onResponse(ResourceResponse&& response)
+void BackgroundFetch::Record::didSendData(uint64_t)
+{
+    // FIXME: notify registration
+}
+
+void BackgroundFetch::Record::didReceiveResponse(ResourceResponse&& response)
 {
     m_fetch->storeResponse(m_index, WTFMove(response));
 }
 
-void BackgroundFetch::Record::onResponseBodyChunk(Span<const uint8_t> data)
+void BackgroundFetch::Record::didReceiveResponseBodyChunk(const SharedBuffer& data)
 {
     m_responseDataSize += data.size();
     m_fetch->storeResponseBodyChunk(m_index, WTFMove(data));
 }
 
-void BackgroundFetch::Record::onError(ResourceError&& error)
+void BackgroundFetch::Record::didFinish(const ResourceError& error)
 {
-    m_fetch->handleError(m_index, WTFMove(error));
+    m_fetch->didFinishRecord(m_index, error);
 }
-
 
 } // namespace WebCore
 

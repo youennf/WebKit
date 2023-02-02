@@ -33,8 +33,9 @@
 
 namespace WebCore {
 
-BackgroundFetchCache::BackgroundFetchCache()
-    : m_store(BackgroundFetchCacheMemoryStore::create())
+BackgroundFetchCache::BackgroundFetchCache(SWServer& server)
+    : m_server(server)
+    , m_store(BackgroundFetchCacheMemoryStore::create())
 {
 }
 
@@ -56,8 +57,10 @@ void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registrati
     }
 
     auto result = iterator->value.ensure(backgroundFetchIdentifier, [&]() mutable {
-        return makeUnique<BackgroundFetch>(registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), Ref { m_store }, [](auto, auto&&) {
+        return makeUnique<BackgroundFetch>(registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), Ref { m_store }, [weakThis = WeakPtr { *this }](auto, auto&&) {
             // Handle notification.
+ //           if (weakThis)
+   //             weakThis->updateBackgroundFetchRegistration(key, WTFMove(identifier));
         });
     });
     if (!result.isNewEntry) {

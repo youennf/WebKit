@@ -90,7 +90,7 @@ void BackgroundFetchCacheMemoryStore::storeRecordResponse(ServiceWorkerRegistrat
     callback(StoreResult::OK);
 }
 
-void BackgroundFetchCacheMemoryStore::storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, Span<const uint8_t> data, CompletionHandler<void(StoreResult)>&& callback)
+void BackgroundFetchCacheMemoryStore::storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, const SharedBuffer& data, CompletionHandler<void(StoreResult)>&& callback)
 {
     // FIXME: check quota and increase quota usage.
 

@@ -42,7 +42,7 @@ public:
     void clearAllRecords(ServiceWorkerRegistrationKey, CompletionHandler<void()>&&) final;
     void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) final;
     void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) final;
-    void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, Span<const uint8_t>, CompletionHandler<void(StoreResult)>&&) final;
+    void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) final;
 
 private:
     BackgroundFetchCacheMemoryStore();

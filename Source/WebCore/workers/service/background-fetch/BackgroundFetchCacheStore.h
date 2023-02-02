@@ -54,7 +54,7 @@ public:
     enum class StoreResult { OK, QuotaError, InternalError };
     virtual void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) = 0;
     virtual void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) = 0;
-    virtual void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, Span<const uint8_t>, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) = 0;
 /*
     
     using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;

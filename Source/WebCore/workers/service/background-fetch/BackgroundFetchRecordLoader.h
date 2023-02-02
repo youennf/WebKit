@@ -34,24 +34,23 @@ namespace WebCore {
 
 class ResourceError;
 class ResourceResponse;
+class SharedBuffer;
 
 class BackgroundFetchRecordLoader {
 public:
     virtual ~BackgroundFetchRecordLoader() = default;
 
-    class Client {
+    class Client : public CanMakeWeakPtr<Client> {
     public:
-        virtual ~Client() { }
+        virtual ~Client() = default;
 
-        virtual void onResponse(ResourceResponse&&) = 0;
-        virtual void onResponseBodyChunk(Span<const uint8_t>) = 0;
-        virtual void onError(ResourceError&&) = 0;
+        virtual void didSendData(uint64_t) = 0;
+        virtual void didReceiveResponse(ResourceResponse&&) = 0;
+        virtual void didReceiveResponseBodyChunk(const SharedBuffer&) = 0;
+        virtual void didFinish(const ResourceError&) = 0;
     };
 
     virtual void abort() = 0;
-
-private:
-    WeakPtr<Client> m_client;
 };
 
 } // namespace WebCore

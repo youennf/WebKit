@@ -33,55 +33,32 @@
 #include "NetworkLoadChecker.h"
 #include "NetworkProcess.h"
 #include "WebErrors.h"
+#include <WebCore/ClientOrigin.h>
 
-#define PING_RELEASE_LOG(fmt, ...) RELEASE_LOG(Network, "%p - BackgroundFetchLoad::" fmt, this, ##__VA_ARGS__)
+#define BGLOAD_RELEASE_LOG(fmt, ...) RELEASE_LOG(Network, "%p - BackgroundFetchLoad::" fmt, this, ##__VA_ARGS__)
 
 namespace WebKit {
 
 using namespace WebCore;
 
-BackgroundFetchLoad::BackgroundFetchLoad(NetworkProcess& networkProcess, PAL::SessionID sessionID, NetworkResourceLoadParameters&& parameters, CompletionHandler<void(const ResourceError&, const ResourceResponse&)>&& completionHandler)
-    : m_sessionID(sessionID)
-    , m_parameters(WTFMove(parameters))
-    , m_completionHandler(WTFMove(completionHandler))
-    , m_timeoutTimer(*this, &BackgroundFetchLoad::timeoutTimerFired)
-    , m_networkLoadChecker(makeUniqueRef<NetworkLoadChecker>(networkProcess, nullptr, nullptr, FetchOptions { m_parameters.options }, m_sessionID, m_parameters.webPageProxyID, WTFMove(m_parameters.originalRequestHeaders), URL { m_parameters.request.url() }, URL { m_parameters.documentURL }, m_parameters.sourceOrigin.copyRef(), m_parameters.topOrigin.copyRef(), m_parameters.parentOrigin(), m_parameters.preflightPolicy, m_parameters.request.httpReferrer(), m_parameters.allowPrivacyProxy, m_parameters.networkConnectionIntegrityPolicy))
+static Ref<SecurityOrigin> toSecurityOrigin(const SecurityOriginData& data)
 {
-    initialize(networkProcess);
+    return SecurityOrigin::create(data.protocol, data.host, data.port);
 }
 
-BackgroundFetchLoad::BackgroundFetchLoad(NetworkConnectionToWebProcess& connection, NetworkResourceLoadParameters&& parameters, CompletionHandler<void(const ResourceError&, const ResourceResponse&)>&& completionHandler)
-    : m_sessionID(connection.sessionID())
-    , m_parameters(WTFMove(parameters))
-    , m_completionHandler(WTFMove(completionHandler))
-    , m_timeoutTimer(*this, &BackgroundFetchLoad::timeoutTimerFired)
-    , m_networkLoadChecker(makeUniqueRef<NetworkLoadChecker>(connection.networkProcess(), nullptr,  &connection.schemeRegistry(), FetchOptions { m_parameters.options }, m_sessionID, m_parameters.webPageProxyID, WTFMove(m_parameters.originalRequestHeaders), URL { m_parameters.request.url() }, URL { m_parameters.documentURL }, m_parameters.sourceOrigin.copyRef(), m_parameters.topOrigin.copyRef(), m_parameters.parentOrigin(), m_parameters.preflightPolicy, m_parameters.request.httpReferrer(), m_parameters.allowPrivacyProxy, m_parameters.networkConnectionIntegrityPolicy))
-    , m_blobFiles(connection.resolveBlobReferences(m_parameters))
+BackgroundFetchLoad::BackgroundFetchLoad(NetworkProcess& networkProcess, PAL::SessionID sessionID, Client& client,ResourceRequest&& request, FetchOptions&& options, const ClientOrigin& clientOrigin)
+    : m_sessionID(WTFMove(sessionID))
+    , m_client(client)
+    , m_request(WTFMove(request))
+    , m_networkLoadChecker(makeUniqueRef<NetworkLoadChecker>(networkProcess, nullptr, nullptr, WTFMove(options), m_sessionID, WebPageProxyIdentifier { }, WebCore::HTTPHeaderMap { }, URL { m_request.url() }, URL { }, toSecurityOrigin(clientOrigin.clientOrigin), toSecurityOrigin(clientOrigin.topOrigin), RefPtr<SecurityOrigin> { }, PreflightPolicy::Consider, m_request.httpReferrer(), true, OptionSet<NetworkConnectionIntegrity> { }))
 {
-    for (auto& file : m_blobFiles) {
-        if (file)
-            file->prepareForFileAccess();
-    }
-
-    initialize(connection.networkProcess());
+    initialize(networkProcess);
 }
 
 void BackgroundFetchLoad::initialize(NetworkProcess& networkProcess)
 {
     m_networkLoadChecker->enableContentExtensionsCheck();
-    if (m_parameters.cspResponseHeaders)
-        m_networkLoadChecker->setCSPResponseHeaders(WTFMove(m_parameters.cspResponseHeaders.value()));
-    m_networkLoadChecker->setParentCrossOriginEmbedderPolicy(m_parameters.parentCrossOriginEmbedderPolicy);
-    m_networkLoadChecker->setCrossOriginEmbedderPolicy(m_parameters.crossOriginEmbedderPolicy);
-#if ENABLE(CONTENT_EXTENSIONS)
-    m_networkLoadChecker->setContentExtensionController(WTFMove(m_parameters.mainDocumentURL), WTFMove(m_parameters.frameURL), m_parameters.userContentControllerIdentifier);
-#endif
-
-    // If the server never responds, this object will hang around forever.
-    // Set a very generous timeout, just in case.
-    m_timeoutTimer.startOneShot(60000_s);
-
-    m_networkLoadChecker->check(ResourceRequest { m_parameters.request }, nullptr, [this, weakThis = WeakPtr { *this }, networkProcess = Ref { networkProcess }] (auto&& result) {
+    m_networkLoadChecker->check(ResourceRequest { m_request }, nullptr, [this, weakThis = WeakPtr { *this }, networkProcess = Ref { networkProcess }] (auto&& result) {
         if (!weakThis)
             return;
         WTF::switchOn(result,
@@ -114,13 +91,12 @@ BackgroundFetchLoad::~BackgroundFetchLoad()
 
 void BackgroundFetchLoad::didFinish(const ResourceError& error, const ResourceResponse& response)
 {
-    m_completionHandler(error, response);
-    delete this;
+    m_client->didFinish(error);
 }
 
 void BackgroundFetchLoad::loadRequest(NetworkProcess& networkProcess, ResourceRequest&& request)
 {
-    PING_RELEASE_LOG("startNetworkLoad");
+    BGLOAD_RELEASE_LOG("startNetworkLoad");
     if (auto* networkSession = networkProcess.networkSession(m_sessionID)) {
         auto loadParameters = m_parameters;
         loadParameters.request = WTFMove(request);
@@ -151,9 +127,9 @@ void BackgroundFetchLoad::willPerformHTTPRedirection(ResourceResponse&& redirect
 
 void BackgroundFetchLoad::didReceiveChallenge(AuthenticationChallenge&& challenge, NegotiatedLegacyTLS negotiatedLegacyTLS, ChallengeCompletionHandler&& completionHandler)
 {
-    PING_RELEASE_LOG("didReceiveChallenge");
+    BGLOAD_RELEASE_LOG("didReceiveChallenge");
     if (challenge.protectionSpace().authenticationScheme() == ProtectionSpace::AuthenticationScheme::ServerTrustEvaluationRequested) {
-        m_networkLoadChecker->networkProcess().authenticationManager().didReceiveAuthenticationChallenge(m_sessionID, m_parameters.webPageProxyID,  m_parameters.topOrigin ? &m_parameters.topOrigin->data() : nullptr, challenge, negotiatedLegacyTLS, WTFMove(completionHandler));
+        m_networkLoadChecker->networkProcess().authenticationManager().didReceiveAuthenticationChallenge(m_sessionID, { },  m_parameters.topOrigin ? &m_parameters.topOrigin->data() : nullptr, challenge, negotiatedLegacyTLS, WTFMove(completionHandler));
         return;
     }
     WeakPtr weakThis { *this };
@@ -165,62 +141,72 @@ void BackgroundFetchLoad::didReceiveChallenge(AuthenticationChallenge&& challeng
 
 void BackgroundFetchLoad::didReceiveResponse(ResourceResponse&& response, NegotiatedLegacyTLS, PrivateRelayed, ResponseCompletionHandler&& completionHandler)
 {
-    PING_RELEASE_LOG("didReceiveResponse - httpStatusCode=%d", response.httpStatusCode());
+    BGLOAD_RELEASE_LOG("didReceiveResponse - httpStatusCode=%d", response.httpStatusCode());
+    
+    auto error = m_networkLoadChecker->validateResponse(m_request, response);
+    if (!error.isNull()) {
+        BGLOAD_RELEASE_LOG("didReceiveResponse: NetworkLoadChecker::validateResponse returned an error (error.domain=%" PUBLIC_LOG_STRING ", error.code=%d)", error.domain().utf8().data(), error.errorCode());
+        
+        WeakPtr weakThis { *this };
+        completionHandler(PolicyAction::Ignore);
+        if (!weakThis)
+            return;
+        
+        didFinish(error);
+        return;
+    }
+    
     WeakPtr weakThis { *this };
-    completionHandler(PolicyAction::Ignore);
+    completionHandler(PolicyAction::Use);
     if (!weakThis)
         return;
-    didFinish({ }, response);
+
+    m_client->didReceiveResponse(WTFMove(response));
 }
 
-void BackgroundFetchLoad::didReceiveData(const SharedBuffer&)
+void BackgroundFetchLoad::didReceiveData(const SharedBuffer& data)
 {
-    PING_RELEASE_LOG("didReceiveData");
-    ASSERT_NOT_REACHED();
+    BGLOAD_RELEASE_LOG("didReceiveData");
+    m_client->didReceiveResponseBodyChunk(data);
 }
 
 void BackgroundFetchLoad::didCompleteWithError(const ResourceError& error, const NetworkLoadMetrics&)
 {
     if (error.isNull())
-        PING_RELEASE_LOG("didComplete");
+        BGLOAD_RELEASE_LOG("didComplete");
     else
-        PING_RELEASE_LOG("didCompleteWithError, error_code=%d", error.errorCode());
+        BGLOAD_RELEASE_LOG("didCompleteWithError, error_code=%d", error.errorCode());
 
     didFinish(error);
 }
 
 void BackgroundFetchLoad::didSendData(uint64_t totalBytesSent, uint64_t totalBytesExpectedToSend)
 {
+    m_client->didSendData(totalBytesSent);
 }
 
 void BackgroundFetchLoad::wasBlocked()
 {
-    PING_RELEASE_LOG("wasBlocked");
+    BGLOAD_RELEASE_LOG("wasBlocked");
     didFinish(blockedError(ResourceRequest { currentURL() }));
 }
 
 void BackgroundFetchLoad::cannotShowURL()
 {
-    PING_RELEASE_LOG("cannotShowURL");
+    BGLOAD_RELEASE_LOG("cannotShowURL");
     didFinish(cannotShowURLError(ResourceRequest { currentURL() }));
 }
 
 void BackgroundFetchLoad::wasBlockedByRestrictions()
 {
-    PING_RELEASE_LOG("wasBlockedByRestrictions");
+    BGLOAD_RELEASE_LOG("wasBlockedByRestrictions");
     didFinish(wasBlockedByRestrictionsError(ResourceRequest { currentURL() }));
 }
 
 void BackgroundFetchLoad::wasBlockedByDisabledFTP()
 {
-    PING_RELEASE_LOG("wasBlockedByDisabledFTP");
+    BGLOAD_RELEASE_LOG("wasBlockedByDisabledFTP");
     didFinish(ftpDisabledError(ResourceRequest(currentURL())));
-}
-
-void BackgroundFetchLoad::timeoutTimerFired()
-{
-    PING_RELEASE_LOG("timeoutTimerFired");
-    didFinish(ResourceError { String(), 0, currentURL(), "Load timed out"_s, ResourceError::Type::Timeout });
 }
 
 const URL& BackgroundFetchLoad::currentURL() const
@@ -230,4 +216,4 @@ const URL& BackgroundFetchLoad::currentURL() const
 
 } // namespace WebKit
 
-#undef PING_RELEASE_LOG
+#undef BGLOAD_RELEASE_LOG

@@ -32,11 +32,12 @@
 namespace WebCore {
 
 class BackgroundFetchCacheStore;
+class SWServer;
 
 class BackgroundFetchCache : public CanMakeWeakPtr<BackgroundFetchCache> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    BackgroundFetchCache();
+    explicit BackgroundFetchCache(SWServer&);
     
     using ExceptionOrBackgroundFetchInformationCallback = CompletionHandler<void(Expected<BackgroundFetchInformation, ExceptionData>&&)>;
     void startBackgroundFetch(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrBackgroundFetchInformationCallback&&);
@@ -51,6 +52,7 @@ public:
     void remove(SWServerRegistration&);
 
 private:
+    WeakPtr<SWServer> m_server;
     Ref<BackgroundFetchCacheStore> m_store;
 
     using FetchesMap = HashMap<String, std::unique_ptr<BackgroundFetch>>;

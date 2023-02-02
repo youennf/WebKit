@@ -28,10 +28,17 @@
 #include "NetworkDataTask.h"
 #include "NetworkResourceLoadParameters.h"
 #include <WebCore/ResourceError.h>
-#include <WebCore/ResourceResponse.h>
+#include <WebCore/ResourceRequest.h>
+#include <WebCore/BackgroundFetchRecordLoader.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/WeakPtr.h>
+
+namespace WebCore {
+struct ClientOrigin;
+struct FetchOptions;
+class ResourceRequest;
+};
 
 namespace WebKit {
 
@@ -40,10 +47,9 @@ class NetworkLoadChecker;
 class NetworkProcess;
 class NetworkSchemeRegistry;
 
-class BackgroundFetchLoad final : public CanMakeWeakPtr<BackgroundFetchLoad>, private NetworkDataTaskClient {
+class BackgroundFetchLoad final : public WebCore::BackgroundFetchRecordLoader, public CanMakeWeakPtr<BackgroundFetchLoad>, private NetworkDataTaskClient {
 public:
-    BackgroundFetchLoad(NetworkProcess&, PAL::SessionID, NetworkResourceLoadParameters&&, CompletionHandler<void(const WebCore::ResourceError&, const WebCore::ResourceResponse&)>&&);
-    BackgroundFetchLoad(NetworkConnectionToWebProcess&, NetworkResourceLoadParameters&&, CompletionHandler<void(const WebCore::ResourceError&, const WebCore::ResourceResponse&)>&&);
+    BackgroundFetchLoad(NetworkProcess&, PAL::SessionID, Client&, WebCore::ResourceRequest&&, WebCore::FetchOptions&&, const WebCore::ClientOrigin&);
 
 private:
     ~BackgroundFetchLoad();
@@ -51,6 +57,7 @@ private:
 
     const URL& currentURL() const;
 
+    // NetworkDataTaskClient
     void willPerformHTTPRedirection(WebCore::ResourceResponse&&, WebCore::ResourceRequest&&, RedirectCompletionHandler&&) final;
     void didReceiveChallenge(WebCore::AuthenticationChallenge&&, NegotiatedLegacyTLS, ChallengeCompletionHandler&&) final;
     void didReceiveResponse(WebCore::ResourceResponse&&, NegotiatedLegacyTLS, PrivateRelayed, ResponseCompletionHandler&&) final;
@@ -61,17 +68,19 @@ private:
     void cannotShowURL() final;
     void wasBlockedByRestrictions() final;
     void wasBlockedByDisabledFTP() final;
-    void timeoutTimerFired();
+
+    // WebCore::BackgroundFetchRecordLoader
+    void abort() final;
 
     void loadRequest(NetworkProcess&, WebCore::ResourceRequest&&);
 
     void didFinish(const WebCore::ResourceError& = { }, const WebCore::ResourceResponse& response = { });
-    
+
     PAL::SessionID m_sessionID;
+    WeakPtr<Client> m_client;
+    WebCore::ResourceRequest m_request;
     NetworkResourceLoadParameters m_parameters;
-    CompletionHandler<void(const WebCore::ResourceError&, const WebCore::ResourceResponse&)> m_completionHandler;
     RefPtr<NetworkDataTask> m_task;
-    WebCore::Timer m_timeoutTimer;
     UniqueRef<NetworkLoadChecker> m_networkLoadChecker;
     Vector<RefPtr<WebCore::BlobDataFileReference>> m_blobFiles;
 };
