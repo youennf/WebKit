@@ -394,14 +394,11 @@ void SWServer::Connection::removeServiceWorkerRegistrationInServer(ServiceWorker
     m_server.removeClientServiceWorkerRegistration(*this, identifier);
 }
 
-SWServer::SWServer(UniqueRef<SWOriginStore>&& originStore, bool processTerminationDelayEnabled, String&& registrationDatabaseDirectory, PAL::SessionID sessionID, bool shouldRunServiceWorkersOnMainThreadForTesting, bool hasServiceWorkerEntitlement, std::optional<unsigned> overrideServiceWorkerRegistrationCountTestingValue, SoftUpdateCallback&& softUpdateCallback, CreateContextConnectionCallback&& callback, AppBoundDomainsCallback&& appBoundDomainsCallback, AddAllowedFirstPartyForCookiesCallback&& addAllowedFirstPartyForCookiesCallback)
-    : m_originStore(WTFMove(originStore))
+SWServer::SWServer(SWServerDelegate& delegate, UniqueRef<SWOriginStore>&& originStore, bool processTerminationDelayEnabled, String&& registrationDatabaseDirectory, PAL::SessionID sessionID, bool shouldRunServiceWorkersOnMainThreadForTesting, bool hasServiceWorkerEntitlement, std::optional<unsigned> overrideServiceWorkerRegistrationCountTestingValue)
+    : m_delegate(delegate)
+    , m_originStore(WTFMove(originStore))
     , m_sessionID(sessionID)
     , m_isProcessTerminationDelayEnabled(processTerminationDelayEnabled)
-    , m_createContextConnectionCallback(WTFMove(callback))
-    , m_softUpdateCallback(WTFMove(softUpdateCallback))
-    , m_appBoundDomainsCallback(WTFMove(appBoundDomainsCallback))
-    , m_addAllowedFirstPartyForCookiesCallback(WTFMove(addAllowedFirstPartyForCookiesCallback))
     , m_shouldRunServiceWorkersOnMainThreadForTesting(shouldRunServiceWorkersOnMainThreadForTesting)
     , m_hasServiceWorkerEntitlement(hasServiceWorkerEntitlement)
     , m_overrideServiceWorkerRegistrationCountTestingValue(overrideServiceWorkerRegistrationCountTestingValue)
@@ -443,7 +440,7 @@ void SWServer::validateRegistrationDomain(WebCore::RegistrableDomain domain, Ser
         return;
     }
 
-    m_appBoundDomainsCallback([this, weakThis = WeakPtr { *this }, domain = WTFMove(domain), jobTypeAllowed, completionHandler = WTFMove(completionHandler)](auto&& appBoundDomains) mutable {
+    m_delegate->appBoundDomains([this, weakThis = WeakPtr { *this }, domain = WTFMove(domain), jobTypeAllowed, completionHandler = WTFMove(completionHandler)](auto&& appBoundDomains) mutable {
         if (!weakThis)
             return;
         m_hasReceivedAppBoundDomains = true;
@@ -578,7 +575,7 @@ void SWServer::startScriptFetch(const ServiceWorkerJobData& jobData, SWServerReg
         // This is a soft-update job, create directly a network load to fetch the script.
         auto request = createScriptRequest(jobData.scriptURL, jobData, registration);
         request.setHTTPHeaderField(HTTPHeaderName::ServiceWorker, "script"_s);
-        m_softUpdateCallback(ServiceWorkerJobData { jobData }, shouldRefreshCache, WTFMove(request), [weakThis = WeakPtr { *this }, jobDataIdentifier = jobData.identifier(), registrationKey = jobData.registrationKey()](auto&& result) {
+        m_delegate->softUpdate(ServiceWorkerJobData { jobData }, shouldRefreshCache, WTFMove(request), [weakThis = WeakPtr { *this }, jobDataIdentifier = jobData.identifier(), registrationKey = jobData.registrationKey()](auto&& result) {
             std::optional<ProcessIdentifier> requestingProcessIdentifier;
             if (weakThis)
                 weakThis->scriptFetchFinished(jobDataIdentifier, registrationKey, requestingProcessIdentifier, WTFMove(result));
@@ -636,7 +633,7 @@ void SWServer::refreshImportedScripts(const ServiceWorkerJobData& jobData, SWSer
     bool shouldRefreshCache = registration.updateViaCache() == ServiceWorkerUpdateViaCache::None || (registration.getNewestWorker() && registration.isStale());
     auto handler = RefreshImportedScriptsHandler::create(urls.size(), WTFMove(callback));
     for (auto& url : urls) {
-        m_softUpdateCallback(ServiceWorkerJobData { jobData }, shouldRefreshCache, createScriptRequest(url, jobData, registration), [handler, url, size = urls.size()](auto&& result) {
+        m_delegate->softUpdate(ServiceWorkerJobData { jobData }, shouldRefreshCache, createScriptRequest(url, jobData, registration), [handler, url, size = urls.size()](auto&& result) {
             handler->add(url, WTFMove(result));
         });
     }
@@ -847,14 +844,14 @@ void SWServer::tryInstallContextData(const std::optional<ProcessIdentifier>& req
         return;
     }
 
-    m_addAllowedFirstPartyForCookiesCallback(connection->webProcessIdentifier(), requestingProcessIdentifier, data.registration.key.firstPartyForCookies());
+    m_delegate->addAllowedFirstPartyForCookies(connection->webProcessIdentifier(), requestingProcessIdentifier, data.registration.key.firstPartyForCookies());
     installContextData(data);
 }
 
 void SWServer::contextConnectionCreated(SWServerToContextConnection& contextConnection)
 {
     auto requestingProcessIdentifier = contextConnection.webProcessIdentifier();
-    m_addAllowedFirstPartyForCookiesCallback(contextConnection.webProcessIdentifier(), requestingProcessIdentifier, RegistrableDomain(contextConnection.registrableDomain()));
+    m_delegate->addAllowedFirstPartyForCookies(contextConnection.webProcessIdentifier(), requestingProcessIdentifier, RegistrableDomain(contextConnection.registrableDomain()));
 
     for (auto& connection : m_connections.values())
         connection->contextConnectionCreated(contextConnection);
@@ -862,7 +859,7 @@ void SWServer::contextConnectionCreated(SWServerToContextConnection& contextConn
     auto pendingContextDatas = m_pendingContextDatas.take(contextConnection.registrableDomain());
     for (auto& data : pendingContextDatas) {
         // FIXME: Add a check that the process this firstPartyForCookies came from was allowed to use it as a firstPartyForCookies.
-        m_addAllowedFirstPartyForCookiesCallback(contextConnection.webProcessIdentifier(), requestingProcessIdentifier, data.registration.key.firstPartyForCookies());
+        m_delegate->addAllowedFirstPartyForCookies(contextConnection.webProcessIdentifier(), requestingProcessIdentifier, data.registration.key.firstPartyForCookies());
         installContextData(data);
     }
 
@@ -1392,7 +1389,7 @@ void SWServer::createContextConnection(const RegistrableDomain& registrableDomai
     }
 
     m_pendingConnectionDomains.add(registrableDomain);
-    m_createContextConnectionCallback(registrableDomain, requestingProcessIdentifier, serviceWorkerPageIdentifier, [this, weakThis = WeakPtr { *this }, registrableDomain, serviceWorkerPageIdentifier] {
+    m_delegate->createContextConnection(registrableDomain, requestingProcessIdentifier, serviceWorkerPageIdentifier, [this, weakThis = WeakPtr { *this }, registrableDomain, serviceWorkerPageIdentifier] {
         if (!weakThis)
             return;
 
@@ -1592,7 +1589,7 @@ void SWServer::fireFunctionalEvent(SWServerRegistration& registration, Completio
 BackgroundFetchCache& SWServer::backgroundFetchCache()
 {
     if (!m_backgroundFetchCache)
-        m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
+        m_backgroundFetchCache = makeUnique<BackgroundFetchCache>(*this);
     return *m_backgroundFetchCache;
 }
 
@@ -1603,9 +1600,6 @@ void SWServer::Connection::startBackgroundFetch(ServiceWorkerRegistrationIdentif
         callback(makeUnexpected(ExceptionData { InvalidStateError, "No registration found"_s }));
         return;
     }
-
-    if (!server().m_backgroundFetchCache)
-        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
 
     server().backgroundFetchCache().startBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), WTFMove(callback));
 }
@@ -1618,9 +1612,6 @@ void SWServer::Connection::backgroundFetchInformation(ServiceWorkerRegistrationI
         return;
     }
 
-    if (!server().m_backgroundFetchCache)
-        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
-
     server().backgroundFetchCache().backgroundFetchInformation(*registration, backgroundFetchIdentifier, WTFMove(callback));
 }
 
@@ -1631,9 +1622,6 @@ void SWServer::Connection::backgroundFetchIdentifiers(ServiceWorkerRegistrationI
         callback({ });
         return;
     }
-
-    if (!server().m_backgroundFetchCache)
-        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
 
     server().backgroundFetchCache().backgroundFetchIdentifiers(*registration, WTFMove(callback));
 }
@@ -1646,9 +1634,6 @@ void SWServer::Connection::abortBackgroundFetch(ServiceWorkerRegistrationIdentif
         return;
     }
 
-    if (!server().m_backgroundFetchCache)
-        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
-
     server().backgroundFetchCache().abortBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(callback));
 }
 
@@ -1659,9 +1644,6 @@ void SWServer::Connection::matchBackgroundFetch(ServiceWorkerRegistrationIdentif
         callback({ });
         return;
     }
-
-    if (!server().m_backgroundFetchCache)
-        server().m_backgroundFetchCache = makeUnique<BackgroundFetchCache>();
 
     server().backgroundFetchCache().matchBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(options), WTFMove(callback));
 }
