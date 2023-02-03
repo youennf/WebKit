@@ -68,6 +68,7 @@ void BackgroundFetchCacheMemoryStore::storeNewRecord(ServiceWorkerRegistrationKe
 
     auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
     auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
+
     ASSERT(!recordMap.contains(index + 1));
     recordMap.add(index + 1, makeUnique<Record>());
     callback(StoreResult::OK);
@@ -79,8 +80,8 @@ void BackgroundFetchCacheMemoryStore::storeRecordResponse(ServiceWorkerRegistrat
 
     auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
     auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
-    ASSERT(recordMap.contains(index));
 
+    ASSERT(recordMap.contains(index + 1));
     auto iterator = recordMap.find(index + 1);
     if (iterator == recordMap.end()) {
         callback(StoreResult::InternalError);
