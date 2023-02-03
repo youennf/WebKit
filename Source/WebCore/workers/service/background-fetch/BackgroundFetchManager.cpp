@@ -112,9 +112,8 @@ void BackgroundFetchManager::fetch(ScriptExecutionContext& context, const String
         return;
     }
 
-    auto requests = map(generatedRequests.releaseReturnValue(), [](auto&&) -> BackgroundFetchRequest {
-        // FIXME: use request.
-        return { };
+    auto requests = map(generatedRequests.releaseReturnValue(), [](auto&& fetchRequest) -> BackgroundFetchRequest {
+        return { fetchRequest->resourceRequest(), fetchRequest->fetchOptions(), fetchRequest->headers().guard(), fetchRequest->headers().internalHeaders(), fetchRequest->internalRequestReferrer() };
     });
     SWClientConnection::fromScriptExecutionContext(context)->startBackgroundFetch(m_identifier, identifier, WTFMove(requests), WTFMove(options), [weakThis = WeakPtr { *this }, weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& result) mutable {
         if (!weakContext)
