@@ -45,16 +45,14 @@ BackgroundFetch::BackgroundFetch(SWServerRegistration& registration, const Strin
     , m_origin { m_registrationKey.topOrigin(), SecurityOriginData::fromURL(m_registrationKey.scope()) }
 {
     size_t index = 0;
-    for (auto& request : m_requests) {
-        m_store->storeNewRecord(m_registrationKey, m_identifier, index++, request, [weakThis = WeakPtr { *this }](auto result) {
+    m_records.reserveInitialCapacity(requests.size());
+    for (auto& request : requests) {
+        m_store->storeNewRecord(m_registrationKey, m_identifier, index, request, [weakThis = WeakPtr { *this }](auto result) {
             if (weakThis)
                 weakThis->handleStoreResult(result);
         });
+        m_records.uncheckedAppend(makeUniqueRef<Record>(*this, WTFMove(request), index++));
     }
-
-    m_records = WTF::map(requests, [&](auto& request) -> UniqueRef<Record> {
-        return makeUniqueRef<Record>(*this, WTFMove(request), index++);
-    });
 }
 
 BackgroundFetch::~BackgroundFetch()
