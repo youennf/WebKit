@@ -89,6 +89,7 @@ void BackgroundFetchLoad::abort()
     ASSERT(m_task->client() == this);
     m_task->clearClient();
     m_task->cancel();
+    m_task = nullptr;
 }
 
 void BackgroundFetchLoad::didFinish(const ResourceError& error, const ResourceResponse& response)
