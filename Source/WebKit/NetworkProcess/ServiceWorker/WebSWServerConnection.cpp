@@ -705,7 +705,13 @@ std::optional<SWServer::GatheredClientData> WebSWServerConnection::gatherClientD
 
     return server().gatherClientData(iterator->value, clientIdentifier);
 }
+/*
+void WebSWServerConnection::updateBackgroundFetchRegistration(const WebCore::BackgroundFetchInformation& information)
+{
+    send(Messages::WebSWClientConnection::UpdateBackgroundFetchRegistration(information));
 
+}
+*/
 } // namespace WebKit
 
 #undef CONNECTION_MESSAGE_CHECK_COMPLETION

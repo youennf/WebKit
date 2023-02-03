@@ -52,6 +52,8 @@ public:
     void remove(SWServerRegistration&);
 
 private:
+    void notifyBackgroundFetchUpdate(BackgroundFetchInformation&&);
+
     WeakPtr<SWServer> m_server;
     Ref<BackgroundFetchCacheStore> m_store;
 

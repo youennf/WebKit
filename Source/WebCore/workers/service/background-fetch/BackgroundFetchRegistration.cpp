@@ -28,17 +28,30 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchManager.h"
 #include "BackgroundFetchRecordInformation.h"
 #include "CacheQueryOptions.h"
+#include "EventNames.h"
 #include "FetchRequest.h"
 #include "JSBackgroundFetchRecord.h"
 #include "RetrieveRecordsOptions.h"
+#include "ServiceWorkerContainer.h"
+#include "ServiceWorkerRegistrationBackgroundFetchAPI.h"
 #include "SWClientConnection.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(BackgroundFetchRegistration);
+
+void BackgroundFetchRegistration::updateIfExisting(ScriptExecutionContext& context, const BackgroundFetchInformation& information)
+{
+    RefPtr container = context.serviceWorkerContainer();
+    RefPtr registration = container ? container->registration(information.registrationIdentifier) : nullptr;
+    RefPtr manager = registration ? ServiceWorkerRegistrationBackgroundFetchAPI::backgroundFetchIfCreated(*registration) : nullptr;
+    if (auto backgroundFetrchRegistration = manager ? manager->existingBackgroundFetchRegistration(information.identifier) : nullptr)
+        backgroundFetrchRegistration->updateInformation(information);
+}
 
 Ref<BackgroundFetchRegistration> BackgroundFetchRegistration::create(ScriptExecutionContext& context, BackgroundFetchInformation&& information)
 {
@@ -138,7 +151,10 @@ void BackgroundFetchRegistration::updateInformation(const BackgroundFetchInforma
 {
     ASSERT(m_information.registrationIdentifier == information.registrationIdentifier);
     ASSERT(m_information.identifier == information.identifier);
-
+    
+    if (m_information.downloaded == information.downloaded && m_information.uploaded == information.uploaded && m_information.result == information.result && m_information.failureReason == information.failureReason)
+        return;
+    
     m_information.uploadTotal = information.uploadTotal;
     m_information.uploaded = information.uploaded;
     m_information.downloadTotal = information.downloadTotal;
@@ -146,6 +162,8 @@ void BackgroundFetchRegistration::updateInformation(const BackgroundFetchInforma
     m_information.result = information.result;
     m_information.failureReason = information.failureReason;
     m_information.recordsAvailable = information.recordsAvailable;
+    
+    dispatchEvent(Event::create(eventNames().progressEvent, Event::CanBubble::No, Event::IsCancelable::No));
 }
 
 const char* BackgroundFetchRegistration::activeDOMObjectName() const

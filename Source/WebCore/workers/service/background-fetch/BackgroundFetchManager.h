@@ -39,6 +39,7 @@ class BackgroundFetchRegistration;
 struct BackgroundFetchRegistrationData;
 struct BackgroundFetchOptions;
 class FetchRequest;
+class ServiceWorkerRegistration;
 
 class BackgroundFetchManager : public RefCounted<BackgroundFetchManager>, public CanMakeWeakPtr<BackgroundFetchManager> {
 public:
@@ -50,6 +51,8 @@ public:
     void fetch(ScriptExecutionContext&, const String&, Requests&&, BackgroundFetchOptions&&, DOMPromiseDeferred<IDLInterface<BackgroundFetchRegistration>>&&);
     void get(ScriptExecutionContext&, const String&, DOMPromiseDeferred<IDLNullable<IDLInterface<BackgroundFetchRegistration>>>&&);
     void getIds(ScriptExecutionContext&, DOMPromiseDeferred<IDLSequence<IDLDOMString>>&&);
+
+    RefPtr<BackgroundFetchRegistration> existingBackgroundFetchRegistration(const String& identifier) { return m_backgroundFetchRegistrations.get(identifier); }
 
 private:
     explicit BackgroundFetchManager(ServiceWorkerRegistration&);

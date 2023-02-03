@@ -33,6 +33,7 @@
 #include "BackgroundFetchRecordLoader.h"
 #include "BackgroundFetchRequest.h"
 #include "BackgroundFetchResult.h"
+#include "ClientOrigin.h"
 #include "ResourceResponse.h"
 #include "ServiceWorkerRegistrationKey.h"
 #include <wtf/WeakPtr.h>
@@ -46,7 +47,7 @@ struct CacheQueryOptions;
 class BackgroundFetch : public CanMakeWeakPtr<BackgroundFetch> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    using NotificationCallback = Function<void(ServiceWorkerRegistrationKey, String&&)>;
+    using NotificationCallback = Function<void(BackgroundFetchInformation&&)>;
     BackgroundFetch(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, Ref<BackgroundFetchCacheStore>&&, NotificationCallback&&);
     ~BackgroundFetch();
 
@@ -58,7 +59,7 @@ public:
 
     void abort();
 
-    using CreateLoaderCallback = Function<std::unique_ptr<BackgroundFetchRecordLoader>(BackgroundFetchRequest&&, uint64_t)>;
+    using CreateLoaderCallback = Function<std::unique_ptr<BackgroundFetchRecordLoader>(BackgroundFetchRecordLoader::Client&, ResourceRequest&&, FetchOptions&&, const ClientOrigin&)>;
     void perform(const CreateLoaderCallback&);
 
     bool isActive() const { return m_isActive; }
@@ -120,6 +121,7 @@ private:
     uint64_t m_currentDownloadSize { 0 };
     Ref<BackgroundFetchCacheStore> m_store;
     NotificationCallback m_notificationCallback;
+    ClientOrigin m_origin;
 };
 
 } // namespace WebCore

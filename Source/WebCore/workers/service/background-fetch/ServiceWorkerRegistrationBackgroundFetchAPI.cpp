@@ -48,6 +48,11 @@ BackgroundFetchManager& ServiceWorkerRegistrationBackgroundFetchAPI::backgroundF
     return ServiceWorkerRegistrationBackgroundFetchAPI::from(serviceWorkerRegistration)->backgroundFetchManager();
 }
 
+RefPtr<BackgroundFetchManager> ServiceWorkerRegistrationBackgroundFetchAPI::backgroundFetchIfCreated(ServiceWorkerRegistration& serviceWorkerRegistration)
+{
+    return ServiceWorkerRegistrationBackgroundFetchAPI::from(serviceWorkerRegistration)->m_backgroundFetchManager.get();
+}
+
 BackgroundFetchManager& ServiceWorkerRegistrationBackgroundFetchAPI::backgroundFetchManager()
 {
     if (!m_backgroundFetchManager)

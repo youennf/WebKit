@@ -46,7 +46,7 @@ static Ref<SecurityOrigin> toSecurityOrigin(const SecurityOriginData& data)
     return SecurityOrigin::create(data.protocol, data.host, data.port);
 }
 
-BackgroundFetchLoad::BackgroundFetchLoad(NetworkProcess& networkProcess, PAL::SessionID sessionID, Client& client,ResourceRequest&& request, FetchOptions&& options, const ClientOrigin& clientOrigin)
+BackgroundFetchLoad::BackgroundFetchLoad(NetworkProcess& networkProcess, PAL::SessionID sessionID, Client& client, ResourceRequest&& request, FetchOptions&& options, const ClientOrigin& clientOrigin)
     : m_sessionID(WTFMove(sessionID))
     , m_client(client)
     , m_request(WTFMove(request))
@@ -78,15 +78,17 @@ void BackgroundFetchLoad::initialize(NetworkProcess& networkProcess)
 
 BackgroundFetchLoad::~BackgroundFetchLoad()
 {
-    if (m_task) {
-        ASSERT(m_task->client() == this);
-        m_task->clearClient();
-        m_task->cancel();
-    }
-    for (auto& file : m_blobFiles) {
-        if (file)
-            file->revokeFileAccess();
-    }
+    abort();
+}
+
+void BackgroundFetchLoad::abort()
+{
+    if (!m_task)
+        return;
+
+    ASSERT(m_task->client() == this);
+    m_task->clearClient();
+    m_task->cancel();
 }
 
 void BackgroundFetchLoad::didFinish(const ResourceError& error, const ResourceResponse& response)
@@ -97,13 +99,25 @@ void BackgroundFetchLoad::didFinish(const ResourceError& error, const ResourceRe
 void BackgroundFetchLoad::loadRequest(NetworkProcess& networkProcess, ResourceRequest&& request)
 {
     BGLOAD_RELEASE_LOG("startNetworkLoad");
-    if (auto* networkSession = networkProcess.networkSession(m_sessionID)) {
-        auto loadParameters = m_parameters;
-        loadParameters.request = WTFMove(request);
-        m_task = NetworkDataTask::create(*networkSession, *this, WTFMove(loadParameters));
-        m_task->resume();
-    } else
-        ASSERT_NOT_REACHED();
+    auto* networkSession = networkProcess.networkSession(m_sessionID);
+    ASSERT(networkSession);
+    if (!networkSession)
+        return;
+
+    NetworkLoadParameters loadParameters;
+    loadParameters.request = WTFMove(request);
+    loadParameters.topOrigin = m_networkLoadChecker->topOrigin();
+    loadParameters.sourceOrigin = m_networkLoadChecker->topOrigin();
+//    loadParameters.storedCredentialsPolicy = == FetchOptions::Credentials::Include) ? StoredCredentialsPolicy::Use : StoredCredentialsPolicy::DoNotUse;
+
+    /*
+     RefPtr<WebCore::SecurityOrigin> topOrigin;
+     RefPtr<WebCore::SecurityOrigin> ;
+     WebCore::StoredCredentialsPolicy storedCredentialsPolicy { WebCore::StoredCredentialsPolicy::DoNotUse };
+     WebCore::ClientCredentialPolicy clientCredentialPolicy { WebCore::ClientCredentialPolicy::CannotAskClientForCredentials };
+     */
+    m_task = NetworkDataTask::create(*networkSession, *this, WTFMove(loadParameters));
+    m_task->resume();
 }
 
 void BackgroundFetchLoad::willPerformHTTPRedirection(ResourceResponse&& redirectResponse, ResourceRequest&& request, RedirectCompletionHandler&& completionHandler)

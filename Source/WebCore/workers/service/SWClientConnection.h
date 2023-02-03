@@ -149,6 +149,7 @@ protected:
     WEBCORE_EXPORT void setRegistrationLastUpdateTime(ServiceWorkerRegistrationIdentifier, WallTime);
     WEBCORE_EXPORT void setRegistrationUpdateViaCache(ServiceWorkerRegistrationIdentifier, ServiceWorkerUpdateViaCache);
     WEBCORE_EXPORT void notifyClientsOfControllerChange(const HashSet<ScriptExecutionContextIdentifier>& contextIdentifiers, ServiceWorkerData&& newController);
+    WEBCORE_EXPORT void updateBackgroundFetchRegistration(const BackgroundFetchInformation&);
 
     WEBCORE_EXPORT void clearPendingJobs();
     void setIsClosed() { m_isClosed = true; }

@@ -57,10 +57,9 @@ void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registrati
     }
 
     auto result = iterator->value.ensure(backgroundFetchIdentifier, [&]() mutable {
-        return makeUnique<BackgroundFetch>(registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), Ref { m_store }, [weakThis = WeakPtr { *this }](auto, auto&&) {
-            // Handle notification.
- //           if (weakThis)
-   //             weakThis->updateBackgroundFetchRegistration(key, WTFMove(identifier));
+        return makeUnique<BackgroundFetch>(registration, backgroundFetchIdentifier, WTFMove(requests), WTFMove(options), Ref { m_store }, [weakThis = WeakPtr { *this }](auto&& information) {
+            if (weakThis)
+                weakThis->notifyBackgroundFetchUpdate(WTFMove(information));
         });
     });
     if (!result.isNewEntry) {
@@ -68,8 +67,63 @@ void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registrati
         return;
     }
 
+    auto fetch = WeakPtr { *result.iterator->value };
+
+    fetch->perform([this](auto& client, auto&& request, auto&& options, auto& origin) mutable {
+        return m_server->createBackgroundFetchRecordLoader(client, WTFMove(request), WTFMove(options), origin);
+    });
+
     // FIXME: we should do a quota check with uploadTotal.
-    callback(result.iterator->value->information());
+    callback(fetch->information());
+}
+
+void BackgroundFetchCache::notifyBackgroundFetchUpdate(BackgroundFetchInformation&& information)
+{
+    auto* registration = m_server->getRegistration(information.registrationIdentifier);
+    if (!registration)
+        return;
+
+    // Progress event.
+    registration->forEachConnection([&](auto& connection) {
+        connection.updateBackgroundFetchRegistration(information);
+    });
+/*
+    if (information.result == BackgroundFetchResult::EmptyString)
+        return;
+
+    RefPtr worker = registration->activeWorker();
+    if (!worker) {
+        RELEASE_LOG_ERROR(Push, "Cannot process background fetch update message: No active worker for scope %" PRIVATE_LOG_STRING, registration.key().scope().string().utf8().data());
+        callback(true);
+        return;
+    }
+
+    m_server->fireFunctionalEvent(*registration, [worker = worker.releaseNonNull()](auto&& connectionOrStatus) mutable {
+        if (!connectionOrStatus.has_value()) {
+            callback(connectionOrStatus.error() == ShouldSkipEvent::Yes);
+            return;
+        }
+
+        auto serviceWorkerIdentifier = worker->identifier();
+
+        worker->incrementFunctionalEventCounter();
+        auto terminateWorkerTimer = makeUnique<Timer>([worker] {
+            RELEASE_LOG_ERROR(ServiceWorker, "Service worker is taking too much time to process a background fetch event");
+            worker->decrementFunctionalEventCounter();
+        });
+        terminateWorkerTimer->startOneShot(weakThis && weakThis->m_isProcessTerminationDelayEnabled ? defaultTerminationDelay : defaultFunctionalEventDuration);
+        connectionOrStatus.value()->fireBackgroundFetchEvent(serviceWorkerIdentifier, data, [callback = WTFMove(callback), terminateWorkerTimer = WTFMove(terminateWorkerTimer), worker = WTFMove(worker)](bool succeeded) mutable {
+            if (!succeeded)
+                RELEASE_LOG(Push, "Background fetch event was not successfully handled");
+            if (terminateWorkerTimer->isActive()) {
+                worker->decrementFunctionalEventCounter();
+                terminateWorkerTimer->stop();
+            }
+
+            callback(succeeded);
+        });
+    });
+*/
 }
 
 void BackgroundFetchCache::backgroundFetchInformation(SWServerRegistration& registration, const String& backgroundFetchIdentifier, ExceptionOrBackgroundFetchInformationCallback&& callback)

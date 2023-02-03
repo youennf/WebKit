@@ -108,9 +108,10 @@ public:
         virtual void notifyClientsOfControllerChange(const HashSet<ScriptExecutionContextIdentifier>& contextIdentifiers, const ServiceWorkerData& newController) = 0;
         virtual void postMessageToServiceWorkerClient(ScriptExecutionContextIdentifier, const MessageWithMessagePorts&, ServiceWorkerIdentifier, const String& sourceOrigin) = 0;
         virtual void focusServiceWorkerClient(ScriptExecutionContextIdentifier, CompletionHandler<void(std::optional<ServiceWorkerClientData>&&)>&&) = 0;
-        
+
         virtual void contextConnectionCreated(SWServerToContextConnection&) = 0;
-        
+        virtual void updateBackgroundFetchRegistration(const BackgroundFetchInformation&) { };
+
         SWServer& server() { return m_server; }
         const SWServer& server() const { return m_server; }
         
@@ -265,7 +266,9 @@ public:
         String userAgent;
     };
     WEBCORE_EXPORT std::optional<GatheredClientData> gatherClientData(const ClientOrigin&, ScriptExecutionContextIdentifier);
-    
+
+    std::unique_ptr<BackgroundFetchRecordLoader> createBackgroundFetchRecordLoader(BackgroundFetchRecordLoader::Client& client, ResourceRequest&& request, FetchOptions&& options, const WebCore::ClientOrigin& origin) { return m_delegate->createBackgroundFetchRecordLoader(client, WTFMove(request), WTFMove(options), origin); }
+
 private:
     unsigned maxRegistrationCount();
     bool allowLoopbackIPAddress(const String&);

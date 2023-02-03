@@ -121,6 +121,7 @@ private:
     void postMessageToServiceWorkerClient(WebCore::ScriptExecutionContextIdentifier destinationContextIdentifier, const WebCore::MessageWithMessagePorts&, WebCore::ServiceWorkerIdentifier sourceServiceWorkerIdentifier, const String& sourceOrigin) final;
 
     void contextConnectionCreated(WebCore::SWServerToContextConnection&) final;
+//    void updateBackgroundFetchRegistration(const WebCore::BackgroundFetchInformation&) final;
 
     bool isThrottleable() const { return m_isThrottleable; }
     bool hasMatchingClient(const WebCore::RegistrableDomain&) const;

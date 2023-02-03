@@ -31,8 +31,9 @@ messages -> WebSWClientConnection {
     UpdateWorkerState(WebCore::ServiceWorkerIdentifier serviceWorkerIdentifier, enum:uint8_t WebCore::ServiceWorkerState state)
     FireUpdateFoundEvent(WebCore::ServiceWorkerRegistrationIdentifier identifier)
     SetRegistrationLastUpdateTime(WebCore::ServiceWorkerRegistrationIdentifier identifier, WallTime lastUpdateTime)
-    SetRegistrationUpdateViaCache(WebCore::ServiceWorkerRegistrationIdentifier identifier, enum:uint8_t WebCore::ServiceWorkerUpdateViaCache updateViaCache);
+    SetRegistrationUpdateViaCache(WebCore::ServiceWorkerRegistrationIdentifier identifier, enum:uint8_t WebCore::ServiceWorkerUpdateViaCache updateViaCache)
     NotifyClientsOfControllerChange(HashSet<WebCore::ScriptExecutionContextIdentifier> contextIdentifiers, struct WebCore::ServiceWorkerData newController)
+    UpdateBackgroundFetchRegistration(struct WebCore::BackgroundFetchInformation information)
 
     SetSWOriginTableIsImported()
     SetSWOriginTableSharedMemory(WebKit::SharedMemory::Handle handle)

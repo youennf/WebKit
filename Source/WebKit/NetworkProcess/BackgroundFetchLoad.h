@@ -48,11 +48,12 @@ class NetworkProcess;
 class NetworkSchemeRegistry;
 
 class BackgroundFetchLoad final : public WebCore::BackgroundFetchRecordLoader, public CanMakeWeakPtr<BackgroundFetchLoad>, private NetworkDataTaskClient {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     BackgroundFetchLoad(NetworkProcess&, PAL::SessionID, Client&, WebCore::ResourceRequest&&, WebCore::FetchOptions&&, const WebCore::ClientOrigin&);
+    ~BackgroundFetchLoad();
 
 private:
-    ~BackgroundFetchLoad();
     void initialize(NetworkProcess&);
 
     const URL& currentURL() const;

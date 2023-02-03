@@ -28,6 +28,8 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchInformation.h"
+#include "BackgroundFetchRegistration.h"
 #include "Document.h"
 #include "ExceptionData.h"
 #include "MessageEvent.h"
@@ -36,6 +38,7 @@
 #include "ServiceWorkerGlobalScope.h"
 #include "ServiceWorkerJobData.h"
 #include "ServiceWorkerRegistration.h"
+#include "ServiceWorkerRegistrationBackgroundFetchAPI.h"
 #include "SharedWorkerContextManager.h"
 #include "ServiceWorkerProvider.h"
 #include "SharedWorkerThread.h"
@@ -242,6 +245,18 @@ void SWClientConnection::setRegistrationUpdateViaCache(ServiceWorkerRegistration
                 if (auto* registration = container->registration(identifier))
                     registration->setUpdateViaCache(updateViaCache);
             }
+        };
+    });
+}
+
+void SWClientConnection::updateBackgroundFetchRegistration(const BackgroundFetchInformation& information)
+{
+    for (auto* document : Document::allDocuments())
+        BackgroundFetchRegistration::updateIfExisting(*document, information);
+
+    forAllWorkers([information] {
+        return [information = crossThreadCopy(information)] (auto& context) {
+            BackgroundFetchRegistration::updateIfExisting(context, information);
         };
     });
 }

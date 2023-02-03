@@ -42,6 +42,7 @@ BackgroundFetch::BackgroundFetch(SWServerRegistration& registration, const Strin
     , m_registrationIdentifier(registration.identifier())
     , m_store(WTFMove(store))
     , m_notificationCallback(WTFMove(notificationCallback))
+    , m_origin { m_registrationKey.topOrigin(), SecurityOriginData::fromURL(m_registrationKey.scope()) }
 {
     size_t index = 0;
     for (auto& request : requests) {
@@ -169,7 +170,7 @@ void BackgroundFetch::updateBackgroundFetchStatus(BackgroundFetchResult result, 
     m_isActive = false;
     m_result = result;
     m_failureReason = failureReason;
-    m_notificationCallback(m_registrationKey, String { m_identifier });
+    m_notificationCallback(information());
 }
 
 void BackgroundFetch::unsetRecordsAvailableFlag()
@@ -177,7 +178,7 @@ void BackgroundFetch::unsetRecordsAvailableFlag()
     ASSERT(m_recordsAvailableFlag);
     m_recordsAvailableFlag = false;
     m_store->clearRecords(m_registrationKey, m_identifier);
-    m_notificationCallback(m_registrationKey, String { m_identifier });
+    m_notificationCallback(information());
 }
 
 BackgroundFetch::Record::Record(BackgroundFetch& fetch, BackgroundFetchRequest&& request, size_t index)
@@ -200,7 +201,8 @@ BackgroundFetchRecordInformation BackgroundFetch::Record::information() const
 void BackgroundFetch::Record::complete(const CreateLoaderCallback& createLoaderCallback)
 {
     ASSERT(!m_loader);
-    m_loader = createLoaderCallback(BackgroundFetchRequest { m_request }, m_responseDataSize);
+    // FIXME: Handle Range headers
+    m_loader = createLoaderCallback(*this, ResourceRequest { m_request.internalRequest }, FetchOptions { m_request.options }, m_fetch->m_origin);
 }
 
 void BackgroundFetch::Record::abort()
