@@ -45,7 +45,7 @@ BackgroundFetch::BackgroundFetch(SWServerRegistration& registration, const Strin
     , m_origin { m_registrationKey.topOrigin(), SecurityOriginData::fromURL(m_registrationKey.scope()) }
 {
     size_t index = 0;
-    for (auto& request : requests) {
+    for (auto& request : m_requests) {
         m_store->storeNewRecord(m_registrationKey, m_identifier, index++, request, [weakThis = WeakPtr { *this }](auto result) {
             if (weakThis)
                 weakThis->handleStoreResult(result);
