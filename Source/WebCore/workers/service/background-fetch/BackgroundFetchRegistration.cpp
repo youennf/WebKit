@@ -158,7 +158,8 @@ void BackgroundFetchRegistration::updateInformation(const BackgroundFetchInforma
 {
     ASSERT(m_information.registrationIdentifier == information.registrationIdentifier);
     ASSERT(m_information.identifier == information.identifier);
-    
+    ASSERT(m_information.recordsAvailable);
+
     if (m_information.downloaded == information.downloaded && m_information.uploaded == information.uploaded && m_information.result == information.result && m_information.failureReason == information.failureReason)
         return;
     
@@ -184,7 +185,7 @@ void BackgroundFetchRegistration::stop()
 
 bool BackgroundFetchRegistration::virtualHasPendingActivity() const
 {
-    return false;
+    return m_information.recordsAvailable;
 }
 
 } // namespace WebCore
