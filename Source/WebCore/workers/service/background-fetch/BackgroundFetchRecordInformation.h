@@ -27,6 +27,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchRecordIdentifier.h"
 #include "FetchOptions.h"
 #include "FetchHeadersGuard.h"
 #include "HTTPHeaderMap.h"
@@ -36,14 +37,15 @@
 namespace WebCore {
 
 struct BackgroundFetchRecordInformation {
+    BackgroundFetchRecordIdentifier identifier;
     ResourceRequest internalRequest;
     FetchOptions options;
     FetchHeadersGuard guard { FetchHeadersGuard::None };
     HTTPHeaderMap httpHeaders;
     String referrer;
 
-    BackgroundFetchRecordInformation isolatedCopy() const & { return { internalRequest.isolatedCopy(), options.isolatedCopy(), guard, httpHeaders.isolatedCopy(), referrer.isolatedCopy() }; }
-    BackgroundFetchRecordInformation isolatedCopy() && { return { WTFMove(internalRequest).isolatedCopy(), WTFMove(options).isolatedCopy(), guard, WTFMove(httpHeaders).isolatedCopy(), WTFMove(referrer).isolatedCopy() }; }
+    BackgroundFetchRecordInformation isolatedCopy() const & { return { identifier, internalRequest.isolatedCopy(), options.isolatedCopy(), guard, httpHeaders.isolatedCopy(), referrer.isolatedCopy() }; }
+    BackgroundFetchRecordInformation isolatedCopy() && { return { identifier, WTFMove(internalRequest).isolatedCopy(), WTFMove(options).isolatedCopy(), guard, WTFMove(httpHeaders).isolatedCopy(), WTFMove(referrer).isolatedCopy() }; }
 };
 
 } // namespace WebCore

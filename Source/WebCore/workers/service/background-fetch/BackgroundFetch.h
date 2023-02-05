@@ -29,6 +29,7 @@
 
 #include "BackgroundFetchCacheStore.h"
 #include "BackgroundFetchFailureReason.h"
+#include "BackgroundFetchRecordIdentifier.h"
 #include "BackgroundFetchOptions.h"
 #include "BackgroundFetchRecordLoader.h"
 #include "BackgroundFetchRequest.h"
@@ -98,6 +99,7 @@ private:
         void didFinish(const ResourceError&) final;
 
         WeakPtr<BackgroundFetch> m_fetch;
+        BackgroundFetchRecordIdentifier m_identifier;
         BackgroundFetchRequest m_request;
         size_t m_index { 0 };
         ResourceResponse m_response;

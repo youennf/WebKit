@@ -190,6 +190,7 @@ void BackgroundFetch::unsetRecordsAvailableFlag()
 
 BackgroundFetch::Record::Record(BackgroundFetch& fetch, BackgroundFetchRequest&& request, size_t index)
     : m_fetch(fetch)
+    , m_identifier(BackgroundFetchRecordIdentifier::generate())
     , m_request(WTFMove(request))
     , m_index(index)
 {
@@ -202,7 +203,7 @@ bool BackgroundFetch::Record::isMatching(const ResourceRequest& request, const C
 
 BackgroundFetchRecordInformation BackgroundFetch::Record::information() const
 {
-    return BackgroundFetchRecordInformation { m_request.internalRequest, m_request.options, m_request.guard, m_request.httpHeaders, m_request.referrer };
+    return BackgroundFetchRecordInformation { m_identifier, m_request.internalRequest, m_request.options, m_request.guard, m_request.httpHeaders, m_request.referrer };
 }
 
 void BackgroundFetch::Record::complete(const CreateLoaderCallback& createLoaderCallback)
