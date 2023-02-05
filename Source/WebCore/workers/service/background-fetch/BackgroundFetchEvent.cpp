@@ -50,6 +50,12 @@ BackgroundFetchEvent::~BackgroundFetchEvent()
 {
 }
 
+RefPtr<BackgroundFetchRegistration> BackgroundFetchEvent::registration() const
+{
+    fprintf(stderr, "BackgroundFetchEvent::registration\n");
+    return m_registration;
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

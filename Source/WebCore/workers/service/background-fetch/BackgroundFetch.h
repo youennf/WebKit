@@ -67,6 +67,7 @@ public:
     void unsetRecordsAvailableFlag();
 
 private:
+    void didSendData(uint64_t);
     void storeResponse(size_t, ResourceResponse&&);
     void storeResponseBodyChunk(size_t, const SharedBuffer&);
     void didFinishRecord(size_t, const ResourceError&);
@@ -119,6 +120,7 @@ private:
 
     bool m_isActive { true };
     uint64_t m_currentDownloadSize { 0 };
+    uint64_t m_currentUploadSize { 0 };
     Ref<BackgroundFetchCacheStore> m_store;
     NotificationCallback m_notificationCallback;
     ClientOrigin m_origin;

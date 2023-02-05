@@ -1543,6 +1543,36 @@ void SWServer::processNotificationEvent(NotificationData&& data, NotificationEve
     });
 }
 
+void SWServer::fireBackgroundFetchEvent(SWServerRegistration& registration, BackgroundFetchInformation&& info)
+{
+    RefPtr worker = registration.activeWorker();
+    if (!worker) {
+        RELEASE_LOG_ERROR(ServiceWorker, "Cannot process background fetch update message: No active worker for scope %" PRIVATE_LOG_STRING, registration.key().scope().string().utf8().data());
+        return;
+    }
+
+    fireFunctionalEvent(registration, [weakThis = WeakPtr { *this }, worker = worker.releaseNonNull(), info = WTFMove(info)](auto&& connectionOrStatus) mutable {
+        if (!connectionOrStatus.has_value())
+            return;
+
+        auto serviceWorkerIdentifier = worker->identifier();
+
+        worker->incrementFunctionalEventCounter();
+        auto terminateWorkerTimer = makeUnique<Timer>([worker] {
+            RELEASE_LOG_ERROR(ServiceWorker, "Service worker is taking too much time to process a background fetch event");
+            worker->decrementFunctionalEventCounter();
+        });
+        terminateWorkerTimer->startOneShot(weakThis && weakThis->m_isProcessTerminationDelayEnabled ? defaultTerminationDelay : defaultFunctionalEventDuration);
+        connectionOrStatus.value()->fireBackgroundFetchEvent(serviceWorkerIdentifier, info, [terminateWorkerTimer = WTFMove(terminateWorkerTimer), worker = WTFMove(worker)](bool succeeded) mutable {
+            RELEASE_LOG_ERROR_IF(!succeeded, ServiceWorker, "Background fetch event was not successfully handled");
+            if (terminateWorkerTimer->isActive()) {
+                worker->decrementFunctionalEventCounter();
+                terminateWorkerTimer->stop();
+            }
+        });
+    });
+}
+
 // https://w3c.github.io/ServiceWorker/#fire-functional-event-algorithm, just for push right now.
 void SWServer::fireFunctionalEvent(SWServerRegistration& registration, CompletionHandler<void(Expected<SWServerToContextConnection*, ShouldSkipEvent>)>&& callback)
 {

@@ -62,7 +62,7 @@ BackgroundFetch::~BackgroundFetch()
 
 BackgroundFetchInformation BackgroundFetch::information() const
 {
-    return { m_registrationIdentifier, m_identifier, m_uploadTotal, 0, m_downloadTotal, 0 };
+    return { m_registrationIdentifier, m_identifier, m_uploadTotal, m_currentUploadSize, m_downloadTotal, m_currentDownloadSize, m_result, m_failureReason, m_recordsAvailableFlag };
 }
 
 void BackgroundFetch::match(const RetrieveRecordsOptions& options, MatchBackgroundFetchCallback&& callback)
@@ -71,8 +71,7 @@ void BackgroundFetch::match(const RetrieveRecordsOptions& options, MatchBackgrou
     
     Vector<BackgroundFetchRecordInformation> records;
     for (auto& record : m_records) {
-        // FIXME: use record response if available.
-        if (record->isMatching(options.request, queryOptions))
+        if (options.request.url().isNull() || record->isMatching(options.request, queryOptions))
             records.append(record->information());
     }
 
@@ -82,10 +81,14 @@ void BackgroundFetch::match(const RetrieveRecordsOptions& options, MatchBackgrou
 void BackgroundFetch::abort()
 {
     m_abortFlag = true;
-    m_store->clearRecords(m_registrationKey, m_identifier, [] { });
-    auto records = std::exchange(m_records, { });
-    for (auto& record : records)
+    m_isActive = false;
+//    m_store->clearRecords(m_registrationKey, m_identifier, [] { });
+//    auto records = std::exchange(m_records, { });
+//    for (auto& record : records)
+    for (auto& record : m_records)
         record->abort();
+
+    updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::Aborted);
 }
 
 void BackgroundFetch::perform(const CreateLoaderCallback& createLoaderCallback)
@@ -113,16 +116,22 @@ void BackgroundFetch::storeResponseBodyChunk(size_t index, const SharedBuffer& d
 {
     ASSERT(index < m_records.size());
     m_currentDownloadSize += data.size();
-    if (m_currentDownloadSize >= m_downloadTotal) {
+    if (m_downloadTotal && m_currentDownloadSize >= m_downloadTotal) {
         updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::DownloadTotalExceeded);
         return;
     }
 
-    // FIXME: We need to send a notification to fire a progress event.
+    updateBackgroundFetchStatus(m_result, m_failureReason);
     m_store->storeRecordResponseBodyChunk(m_registrationKey, m_identifier, index, data, [weakThis = WeakPtr { *this }](auto result) {
         if (weakThis)
             weakThis->handleStoreResult(result);
     });
+}
+
+void BackgroundFetch::didSendData(uint64_t size)
+{
+    m_currentUploadSize += size;
+    updateBackgroundFetchStatus(m_result, m_failureReason);
 }
 
 void BackgroundFetch::didFinishRecord(size_t index, const ResourceError& error)
@@ -211,9 +220,9 @@ void BackgroundFetch::Record::abort()
     m_loader = nullptr;
 }
 
-void BackgroundFetch::Record::didSendData(uint64_t)
+void BackgroundFetch::Record::didSendData(uint64_t size)
 {
-    // FIXME: notify registration
+    m_fetch->didSendData(size);
 }
 
 void BackgroundFetch::Record::didReceiveResponse(ResourceResponse&& response)

@@ -53,11 +53,10 @@ public:
     void getIds(ScriptExecutionContext&, DOMPromiseDeferred<IDLSequence<IDLDOMString>>&&);
 
     RefPtr<BackgroundFetchRegistration> existingBackgroundFetchRegistration(const String& identifier) { return m_backgroundFetchRegistrations.get(identifier); }
+    Ref<BackgroundFetchRegistration> backgroundFetchRegistrationInstance(ScriptExecutionContext&, BackgroundFetchInformation&&);
 
 private:
     explicit BackgroundFetchManager(ServiceWorkerRegistration&);
-
-    Ref<BackgroundFetchRegistration> backgroundFetchRegistrationInstance(ScriptExecutionContext&, BackgroundFetchInformation&&);
 
     ServiceWorkerRegistrationIdentifier m_identifier;
     HashMap<String, Ref<BackgroundFetchRegistration>> m_backgroundFetchRegistrations;

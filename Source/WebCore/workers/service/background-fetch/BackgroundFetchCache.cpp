@@ -29,7 +29,9 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "BackgroundFetchCacheMemoryStore.h"
+#include "SWServerToContextConnection.h"
 #include "ExceptionData.h"
+#include "Logging.h"
 
 namespace WebCore {
 
@@ -87,43 +89,11 @@ void BackgroundFetchCache::notifyBackgroundFetchUpdate(BackgroundFetchInformatio
     registration->forEachConnection([&](auto& connection) {
         connection.updateBackgroundFetchRegistration(information);
     });
-/*
+
     if (information.result == BackgroundFetchResult::EmptyString)
         return;
 
-    RefPtr worker = registration->activeWorker();
-    if (!worker) {
-        RELEASE_LOG_ERROR(Push, "Cannot process background fetch update message: No active worker for scope %" PRIVATE_LOG_STRING, registration.key().scope().string().utf8().data());
-        callback(true);
-        return;
-    }
-
-    m_server->fireFunctionalEvent(*registration, [worker = worker.releaseNonNull()](auto&& connectionOrStatus) mutable {
-        if (!connectionOrStatus.has_value()) {
-            callback(connectionOrStatus.error() == ShouldSkipEvent::Yes);
-            return;
-        }
-
-        auto serviceWorkerIdentifier = worker->identifier();
-
-        worker->incrementFunctionalEventCounter();
-        auto terminateWorkerTimer = makeUnique<Timer>([worker] {
-            RELEASE_LOG_ERROR(ServiceWorker, "Service worker is taking too much time to process a background fetch event");
-            worker->decrementFunctionalEventCounter();
-        });
-        terminateWorkerTimer->startOneShot(weakThis && weakThis->m_isProcessTerminationDelayEnabled ? defaultTerminationDelay : defaultFunctionalEventDuration);
-        connectionOrStatus.value()->fireBackgroundFetchEvent(serviceWorkerIdentifier, data, [callback = WTFMove(callback), terminateWorkerTimer = WTFMove(terminateWorkerTimer), worker = WTFMove(worker)](bool succeeded) mutable {
-            if (!succeeded)
-                RELEASE_LOG(Push, "Background fetch event was not successfully handled");
-            if (terminateWorkerTimer->isActive()) {
-                worker->decrementFunctionalEventCounter();
-                terminateWorkerTimer->stop();
-            }
-
-            callback(succeeded);
-        });
-    });
-*/
+    m_server->fireBackgroundFetchEvent(*registration, WTFMove(information));
 }
 
 void BackgroundFetchCache::backgroundFetchInformation(SWServerRegistration& registration, const String& backgroundFetchIdentifier, ExceptionOrBackgroundFetchInformationCallback&& callback)
@@ -202,7 +172,6 @@ void BackgroundFetchCache::abortBackgroundFetch(SWServerRegistration& registrati
         return;
     }
     fetchIterator->value->abort();
-    map.remove(fetchIterator);
     callback(true);
 }
 

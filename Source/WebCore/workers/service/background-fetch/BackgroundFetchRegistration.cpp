@@ -92,6 +92,7 @@ static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& cont
 
 void BackgroundFetchRegistration::match(ScriptExecutionContext& context, RequestInfo&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&& promise)
 {
+    fprintf(stderr, "BackgroundFetchEvent::match 1\n");
     if (!recordsAvailable()) {
         promise.reject(Exception { InvalidStateError, "Records are not available"_s });
         return;
@@ -105,22 +106,27 @@ void BackgroundFetchRegistration::match(ScriptExecutionContext& context, Request
 
     bool shouldRetrieveResponses = false;
     RetrieveRecordsOptions retrieveOptions { requestOrException.releaseReturnValue(), context.crossOriginEmbedderPolicy(), *context.securityOrigin(), options.ignoreSearch, options.ignoreMethod, options.ignoreVary, shouldRetrieveResponses };
+    fprintf(stderr, "BackgroundFetchEvent::match 0.1\n");
 
     SWClientConnection::fromScriptExecutionContext(context)->matchBackgroundFetch(registrationIdentifier(), id(), WTFMove(retrieveOptions), [weakContext = WeakPtr { context }, promise = WTFMove(promise)](auto&& results) mutable {
         if (!weakContext)
             return;
 
+        fprintf(stderr, "BackgroundFetchEvent::match 2\n");
         if (!results.size()) {
             promise.reject(Exception { TypeError, "No matching record"_s });
             return;
         }
 
+        fprintf(stderr, "BackgroundFetchEvent::match 3\n");
         promise.resolve(BackgroundFetchRecord::create(*weakContext, WTFMove(results[0])));
     });
 }
 
 void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std::optional<RequestInfo>&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLSequence<IDLInterface<BackgroundFetchRecord>>>&& promise)
 {
+    fprintf(stderr, "BackgroundFetchEvent::matchAll\n");
+
     if (!recordsAvailable()) {
         promise.reject(Exception { InvalidStateError, "Records are not available"_s });
         return;
@@ -139,6 +145,7 @@ void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std:
         if (!weakContext)
             return;
 
+        fprintf(stderr, "BackgroundFetchEvent::matchAll %d\n", (int)results.size());
         auto records = WTF::map(results, [&weakContext](auto& result) {
             return BackgroundFetchRecord::create(*weakContext, WTFMove(result));
         });

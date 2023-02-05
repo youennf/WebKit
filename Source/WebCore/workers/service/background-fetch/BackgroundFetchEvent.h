@@ -42,7 +42,7 @@ public:
 
     EventInterface eventInterface() const override { return BackgroundFetchEventInterfaceType; }
 
-    RefPtr<BackgroundFetchRegistration> registration() { return m_registration; }
+    RefPtr<BackgroundFetchRegistration> registration() const;
 
 protected:
     BackgroundFetchEvent(const AtomString&, ExtendableEventInit&&, RefPtr<BackgroundFetchRegistration>&&, IsTrusted);

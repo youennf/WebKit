@@ -247,7 +247,8 @@ public:
     
     enum class ShouldSkipEvent : bool { No, Yes };
     void fireFunctionalEvent(SWServerRegistration&, CompletionHandler<void(Expected<SWServerToContextConnection*, ShouldSkipEvent>)>&&);
-    
+    void fireBackgroundFetchEvent(SWServerRegistration&, BackgroundFetchInformation&&);
+
     ScriptExecutionContextIdentifier clientIdFromVisibleClientId(const String& visibleIdentifier) const { return m_visibleClientIdToInternalClientIdMap.get(visibleIdentifier); }
     
     void forEachServiceWorker(const Function<bool(const SWServerWorker&)>&) const;
