@@ -47,7 +47,7 @@ public:
     ResponseReadyPromise& responseReady() { return m_responseReadyPromise; }
     Ref<FetchRequest> request();
 
-    void resolveResponseReadyPromise(ExceptionOr<Ref<FetchResponse>>&&);
+    void settleResponseReadyPromise(ExceptionOr<Ref<FetchResponse>>&&);
 
 private:
     BackgroundFetchRecord(ScriptExecutionContext&, BackgroundFetchRecordInformation&&);

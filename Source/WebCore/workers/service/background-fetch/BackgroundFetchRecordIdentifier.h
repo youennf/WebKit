@@ -23,44 +23,14 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "BackgroundFetchRecord.h"
+#pragma once
 
-#if ENABLE(SERVICE_WORKER)
-
-#include "BackgroundFetchRecordInformation.h"
-#include "FetchRequest.h"
-#include "JSFetchResponse.h"
+#include <wtf/ObjectIdentifier.h>
 
 namespace WebCore {
 
-BackgroundFetchRecord::BackgroundFetchRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
-    : m_responseReadyPromise(makeUniqueRef<ResponseReadyPromise>())
-    , m_request(FetchRequest::create(context, { }, FetchHeaders::create(information.guard, WTFMove(information.httpHeaders)), WTFMove(information.internalRequest), WTFMove(information.options), WTFMove(information.referrer)))
-{
-    // FIXME: We should provide a body to the request.
-}
-
-BackgroundFetchRecord::~BackgroundFetchRecord()
-{
-}
-
-Ref<FetchRequest> BackgroundFetchRecord::request()
-{
-    return m_request;
-}
-
-void BackgroundFetchRecord::settleResponseReadyPromise(ExceptionOr<Ref<FetchResponse>>&& result)
-{
-    if (result.hasException()) {
-        m_responseReadyPromise->reject(result.releaseException());
-        return;
-    }
-    m_responseReadyPromise->resolveWithNewlyCreated(result.releaseReturnValue());
-}
+enum BackgroundFetchRecordIdentifierType { };
+using BackgroundFetchRecordIdentifier = ObjectIdentifier<BackgroundFetchRecordIdentifierType>;
 
 } // namespace WebCore
-
-#endif // ENABLE(SERVICE_WORKER)
-
 

@@ -90,6 +90,15 @@ static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& cont
     return requestOrException.releaseReturnValue()->resourceRequest();
 }
 
+void BackgroundFetchRegistration::createRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
+{
+    auto record = BackgroundFetchRecord::create(*weakContext, WTFMove(information));
+    SWClientConnection::fromScriptExecutionContext(context)->registerRecordResponse(record->identifier(), [record](auto&& result) {
+        record->settleResponseReadyPromise(WTFMove(result));
+    });
+    return record;
+}
+
 void BackgroundFetchRegistration::match(ScriptExecutionContext& context, RequestInfo&& info, const CacheQueryOptions& options, DOMPromiseDeferred<IDLInterface<BackgroundFetchRecord>>&& promise)
 {
     fprintf(stderr, "BackgroundFetchEvent::match 1\n");
@@ -119,7 +128,7 @@ void BackgroundFetchRegistration::match(ScriptExecutionContext& context, Request
         }
 
         fprintf(stderr, "BackgroundFetchEvent::match 3\n");
-        promise.resolve(BackgroundFetchRecord::create(*weakContext, WTFMove(results[0])));
+        promise.resolve(createRecord(*weakContext, WTFMove(results[0])));
     });
 }
 
@@ -146,8 +155,8 @@ void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std:
             return;
 
         fprintf(stderr, "BackgroundFetchEvent::matchAll %d\n", (int)results.size());
-        auto records = WTF::map(results, [&weakContext](auto& result) {
-            return BackgroundFetchRecord::create(*weakContext, WTFMove(result));
+        auto records = WTF::map(results, [this, &weakContext](auto& result) {
+            return createRecord(*weakContext, WTFMove(result));
         });
 
         promise.resolve(WTFMove(records));

@@ -27,6 +27,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchRecordIdentifier.h"
 #include "ExceptionOr.h"
 #include "NavigationPreloadState.h"
 #include "NotificationData.h"
@@ -135,7 +136,8 @@ public:
     virtual void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) = 0;
     using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<BackgroundFetchRecordInformation>&&)>;
     virtual void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) = 0;
-
+    using RegisterRecordResponseCallback = CompletionHandler<void(ExceptionOr<BackgroundFetchRecordInformation>&&)>;
+    virtual void registerRecordResponse(BackgroundFetchRecordIdentifier, RegisterRecordResponseCallback&&) = 0;
 protected:
     WEBCORE_EXPORT SWClientConnection();
 

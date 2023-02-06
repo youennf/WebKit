@@ -40,6 +40,7 @@ namespace WebCore {
 
 struct BackgroundFetchInformation;
 class BackgroundFetchRecord;
+struct BackgroundFetchRecordInformation;
 struct CacheQueryOptions;
 class FetchRequest;
 
@@ -75,6 +76,7 @@ private:
     BackgroundFetchRegistration(ScriptExecutionContext&, BackgroundFetchInformation&&);
 
     ServiceWorkerRegistrationIdentifier registrationIdentifier() const { return m_information.registrationIdentifier; }
+    void createRecord(ScriptExecutionContext&, BackgroundFetchRecordInformation&&);
 
     // EventTarget
     EventTargetInterface eventTargetInterface() const final { return BackgroundFetchRegistrationEventTargetInterfaceType; }
