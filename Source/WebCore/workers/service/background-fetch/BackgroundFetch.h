@@ -54,13 +54,53 @@ public:
 
     String identifier() const { return m_identifier; }
     BackgroundFetchInformation information() const;
+
+    using RetrieveRecordResponseCallback = CompletionHandler<void(Expected<ResourceResponse, ExceptionData>&&)>;
+    using CreateLoaderCallback = Function<std::unique_ptr<BackgroundFetchRecordLoader>(BackgroundFetchRecordLoader::Client&, ResourceRequest&&, FetchOptions&&, const ClientOrigin&)>;
+
+    class Record : public BackgroundFetchRecordLoader::Client, public RefCounted<Record> {
+        WTF_MAKE_FAST_ALLOCATED;
+    public:
+        static Ref<Record> create(BackgroundFetch& fetch, BackgroundFetchRequest&& request, size_t size) { return adoptRef(*new Record(fetch, WTFMove(request), size)); }
+        ~Record();
+
+        void complete(const CreateLoaderCallback&);
+        void abort();
+
+        void setAsCompleted() { m_isCompleted = true; }
+        bool isCompleted() const { return m_isCompleted; }
+
+        uint64_t responseDataSize() const { return m_responseDataSize; }
+        bool isMatching(const ResourceRequest&, const CacheQueryOptions&) const;
+        BackgroundFetchRecordInformation information() const;
+
+        void retrieveResponse(RetrieveRecordResponseCallback&&);
+
+    private:
+        Record(BackgroundFetch&, BackgroundFetchRequest&&, size_t);
+
+        void didSendData(uint64_t) final;
+        void didReceiveResponse(ResourceResponse&&) final;
+        void didReceiveResponseBodyChunk(const SharedBuffer&) final;
+        void didFinish(const ResourceError&) final;
+
+        WeakPtr<BackgroundFetch> m_fetch;
+        BackgroundFetchRecordIdentifier m_identifier;
+        BackgroundFetchRequest m_request;
+        size_t m_index { 0 };
+        ResourceResponse m_response;
+        std::unique_ptr<BackgroundFetchRecordLoader> m_loader;
+        uint64_t m_responseDataSize { 0 };
+        bool m_isCompleted { false };
+        bool m_isAborted { false };
+        RetrieveRecordResponseCallback m_callback;
+    };
     
-    using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<BackgroundFetchRecordInformation>&&)>;
+    using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<Ref<Record>>&&)>;
     void match(const RetrieveRecordsOptions&, MatchBackgroundFetchCallback&&);
 
-    void abort();
+    bool abort();
 
-    using CreateLoaderCallback = Function<std::unique_ptr<BackgroundFetchRecordLoader>(BackgroundFetchRecordLoader::Client&, ResourceRequest&&, FetchOptions&&, const ClientOrigin&)>;
     void perform(const CreateLoaderCallback&);
 
     bool isActive() const { return m_isActive; }
@@ -77,39 +117,8 @@ private:
     void handleStoreResult(BackgroundFetchCacheStore::StoreResult);
     void updateBackgroundFetchStatus(BackgroundFetchResult, BackgroundFetchFailureReason);
 
-    class Record : public BackgroundFetchRecordLoader::Client {
-        WTF_MAKE_FAST_ALLOCATED;
-    public:
-        Record(BackgroundFetch&, BackgroundFetchRequest&&, size_t);
-
-        void complete(const CreateLoaderCallback&);
-        void abort();
-
-        void setAsCompleted() { m_isCompleted = true; }
-        bool isCompleted() const { return m_isCompleted; }
-
-        uint64_t responseDataSize() const { return m_responseDataSize; }
-        bool isMatching(const ResourceRequest&, const CacheQueryOptions&) const;
-        BackgroundFetchRecordInformation information() const;
-
-    private:
-        void didSendData(uint64_t) final;
-        void didReceiveResponse(ResourceResponse&&) final;
-        void didReceiveResponseBodyChunk(const SharedBuffer&) final;
-        void didFinish(const ResourceError&) final;
-
-        WeakPtr<BackgroundFetch> m_fetch;
-        BackgroundFetchRecordIdentifier m_identifier;
-        BackgroundFetchRequest m_request;
-        size_t m_index { 0 };
-        ResourceResponse m_response;
-        std::unique_ptr<BackgroundFetchRecordLoader> m_loader;
-        uint64_t m_responseDataSize { 0 };
-        bool m_isCompleted { false };
-    };
-    
     String m_identifier;
-    Vector<UniqueRef<Record>> m_records;
+    Vector<Ref<Record>> m_records;
     BackgroundFetchOptions m_options;
     uint64_t m_downloadTotal { 0 };
     uint64_t m_uploadTotal { 0 };

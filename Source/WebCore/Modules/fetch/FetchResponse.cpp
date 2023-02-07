@@ -64,6 +64,13 @@ Ref<FetchResponse> FetchResponse::create(ScriptExecutionContext* context, std::o
     return fetchResponse;
 }
 
+Ref<FetchResponse> FetchResponse::create(ScriptExecutionContext& context, FetchHeaders::Guard guard)
+{
+    auto response = adoptRef(*new FetchResponse(&context, FetchBody { }, FetchHeaders::create(guard), { }));
+    response->suspendIfNeeded();
+    return response;
+}
+
 ExceptionOr<Ref<FetchResponse>> FetchResponse::create(ScriptExecutionContext& context, std::optional<FetchBody::Init>&& body, Init&& init)
 {
     // 1. If init’s status member is not in the range 200 to 599, inclusive, then throw a RangeError.

@@ -98,7 +98,8 @@ public:
         WEBCORE_EXPORT void backgroundFetchIdentifiers(ServiceWorkerRegistrationIdentifier, BackgroundFetchCache::BackgroundFetchIdentifiersCallback&&);
         WEBCORE_EXPORT void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, BackgroundFetchCache::AbortBackgroundFetchCallback&&);
         WEBCORE_EXPORT void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, BackgroundFetchCache::MatchBackgroundFetchCallback&&);
-        
+        WEBCORE_EXPORT void retrieveRecordResponse(BackgroundFetchRecordIdentifier, BackgroundFetchCache::RetrieveRecordResponseCallback&&);
+
         // Messages to the client WebProcess
         virtual void updateRegistrationStateInClient(ServiceWorkerRegistrationIdentifier, ServiceWorkerRegistrationState, const std::optional<ServiceWorkerData>&) = 0;
         virtual void updateWorkerStateInClient(ServiceWorkerIdentifier, ServiceWorkerState) = 0;

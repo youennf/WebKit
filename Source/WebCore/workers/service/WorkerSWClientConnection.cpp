@@ -91,22 +91,26 @@ WorkerSWClientConnection::~WorkerSWClientConnection()
     auto getNotificationsCallbacks = WTFMove(m_getNotificationsCallbacks);
     for (auto& callback : getNotificationsCallbacks.values())
         callback(Exception { AbortError, "context stopped"_s });
-    
+
     auto backgroundFetchInformationCallbacks = std::exchange(m_backgroundFetchInformationCallbacks, { });
     for (auto& callback : backgroundFetchInformationCallbacks.values())
         callback(Exception { AbortError, "context stopped"_s });
-    
+
     auto backgroundFetchIdentifiersCallbacks = std::exchange(m_backgroundFetchIdentifiersCallbacks, { });
     for (auto& callback : backgroundFetchIdentifiersCallbacks.values())
         callback({ });
-    
+
     auto abortBackgroundFetchCallbacks = std::exchange(m_abortBackgroundFetchCallbacks, { });
     for (auto& callback : m_abortBackgroundFetchCallbacks.values())
         callback(false);
-    
+
     auto matchBackgroundFetchCallbacks = std::exchange(m_matchBackgroundFetchCallbacks, { });
     for (auto& callback : matchBackgroundFetchCallbacks.values())
         callback({ });
+
+    auto retrieveRecordResponseCallbacks = std::exchange(m_retrieveRecordResponseCallbacks, { });
+    for (auto& callback : retrieveRecordResponseCallbacks.values())
+        callback(Exception { AbortError, "context stopped"_s });
 }
 
 void WorkerSWClientConnection::matchRegistration(SecurityOriginData&& topOrigin, const URL& clientURL, RegistrationCallback&& callback)
@@ -477,6 +481,37 @@ void WorkerSWClientConnection::matchBackgroundFetch(ServiceWorkerRegistrationIde
             thread->runLoop().postTaskForMode([requestIdentifier, result = crossThreadCopy(WTFMove(result))](auto& scope) mutable {
                 auto callback = downcast<WorkerGlobalScope>(scope).swClientConnection().m_matchBackgroundFetchCallbacks.take(requestIdentifier);
                 callback(WTFMove(result));
+            }, WorkerRunLoop::defaultMode());
+        });
+    });
+}
+
+using CrossThreadResponseDataOrException = ExceptionOr<ResourceResponse::CrossThreadData>;
+static CrossThreadResponseDataOrException toCrossThreadData(ExceptionOr<ResourceResponse>&& data)
+{
+    if (data.hasException())
+        return data.releaseException().isolatedCopy();
+    return data.releaseReturnValue().crossThreadData();
+}
+
+static ExceptionOr<ResourceResponse> fromCrossThreadData(CrossThreadResponseDataOrException&& data)
+{
+    if (data.hasException())
+        return data.releaseException();
+    return ResourceResponse::fromCrossThreadData(data.releaseReturnValue());
+}
+
+void WorkerSWClientConnection::retrieveRecordResponse(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseCallback&& callback)
+{
+    uint64_t requestIdentifier = ++m_lastRequestIdentifier;
+    m_retrieveRecordResponseCallbacks.add(requestIdentifier, WTFMove(callback));
+
+    callOnMainThread([thread = m_thread, requestIdentifier, recordIdentifier]() mutable {
+        auto& connection = ServiceWorkerProvider::singleton().serviceWorkerConnection();
+        connection.retrieveRecordResponse(recordIdentifier, [thread = WTFMove(thread), requestIdentifier](auto&& result) {
+            thread->runLoop().postTaskForMode([requestIdentifier, result = toCrossThreadData(WTFMove(result))](auto& scope) mutable {
+                auto callback = downcast<WorkerGlobalScope>(scope).swClientConnection().m_retrieveRecordResponseCallbacks.take(requestIdentifier);
+                callback(fromCrossThreadData(WTFMove(result)));
             }, WorkerRunLoop::defaultMode());
         });
     });

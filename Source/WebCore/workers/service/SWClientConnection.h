@@ -48,6 +48,7 @@ struct BackgroundFetchRecordInformation;
 struct BackgroundFetchRequest;
 struct CacheQueryOptions;
 class ResourceError;
+class ResourceResponse;
 class SecurityOrigin;
 class ScriptExecutionContext;
 class SerializedScriptValue;
@@ -136,8 +137,9 @@ public:
     virtual void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) = 0;
     using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<BackgroundFetchRecordInformation>&&)>;
     virtual void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) = 0;
-    using RegisterRecordResponseCallback = CompletionHandler<void(ExceptionOr<BackgroundFetchRecordInformation>&&)>;
-    virtual void registerRecordResponse(BackgroundFetchRecordIdentifier, RegisterRecordResponseCallback&&) = 0;
+    using RetrieveRecordResponseCallback = CompletionHandler<void(ExceptionOr<ResourceResponse>&&)>;
+    virtual void retrieveRecordResponse(BackgroundFetchRecordIdentifier, RetrieveRecordResponseCallback&&) = 0;
+
 protected:
     WEBCORE_EXPORT SWClientConnection();
 

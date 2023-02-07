@@ -33,6 +33,7 @@
 #include "CacheQueryOptions.h"
 #include "EventNames.h"
 #include "FetchRequest.h"
+#include "FetchResponse.h"
 #include "JSBackgroundFetchRecord.h"
 #include "RetrieveRecordsOptions.h"
 #include "ServiceWorkerContainer.h"
@@ -90,11 +91,26 @@ static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& cont
     return requestOrException.releaseReturnValue()->resourceRequest();
 }
 
-void BackgroundFetchRegistration::createRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
+static Ref<BackgroundFetchRecord> createRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
 {
-    auto record = BackgroundFetchRecord::create(*weakContext, WTFMove(information));
-    SWClientConnection::fromScriptExecutionContext(context)->registerRecordResponse(record->identifier(), [record](auto&& result) {
-        record->settleResponseReadyPromise(WTFMove(result));
+    auto record = BackgroundFetchRecord::create(context, WTFMove(information));
+    fprintf(stderr, "BackgroundFetchEvent::createRecord %d %p\n", (int)information.identifier.toUInt64(), record.ptr());
+    SWClientConnection::fromScriptExecutionContext(context)->retrieveRecordResponse(information.identifier, [weakContext = WeakPtr { context }, record](auto&& result) {
+        fprintf(stderr, "BackgroundFetchEvent::createRecord 1 %p\n", record.ptr());
+
+        if (!weakContext)
+            return;
+
+        if (result.hasException()) {
+            record->settleResponseReadyPromise(result.releaseException());
+            return;
+        }
+
+        fprintf(stderr, "BackgroundFetchEvent::createRecord 2\n");
+        auto response = FetchResponse::create(*weakContext, FetchHeaders::Guard::Immutable);
+        // FIXME: We need to pass down Credentials option and we need a way to get the body.
+        response->setReceivedInternalResponse(result.releaseReturnValue(), FetchOptions::Credentials::Omit);
+        record->settleResponseReadyPromise(WTFMove(response));
     });
     return record;
 }
@@ -154,8 +170,8 @@ void BackgroundFetchRegistration::matchAll(ScriptExecutionContext& context, std:
         if (!weakContext)
             return;
 
-        fprintf(stderr, "BackgroundFetchEvent::matchAll %d\n", (int)results.size());
-        auto records = WTF::map(results, [this, &weakContext](auto& result) {
+        fprintf(stderr, "BackgroundFetchEvent::matchAll size=%d\n", (int)results.size());
+        auto records = WTF::map(results, [&weakContext](auto& result) {
             return createRecord(*weakContext, WTFMove(result));
         });
 

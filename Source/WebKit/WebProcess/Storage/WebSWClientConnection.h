@@ -107,6 +107,7 @@ private:
     void backgroundFetchIdentifiers(WebCore::ServiceWorkerRegistrationIdentifier, BackgroundFetchIdentifiersCallback&&) final;
     void abortBackgroundFetch(WebCore::ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) final;
     void matchBackgroundFetch(WebCore::ServiceWorkerRegistrationIdentifier, const String&, WebCore::RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) final;
+    void retrieveRecordResponse(WebCore::BackgroundFetchRecordIdentifier, RetrieveRecordResponseCallback&&) final;
 
     void focusServiceWorkerClient(WebCore::ScriptExecutionContextIdentifier, CompletionHandler<void(std::optional<WebCore::ServiceWorkerClientData>&&)>&&);
 

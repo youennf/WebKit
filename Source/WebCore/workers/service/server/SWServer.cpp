@@ -1678,6 +1678,11 @@ void SWServer::Connection::matchBackgroundFetch(ServiceWorkerRegistrationIdentif
     server().backgroundFetchCache().matchBackgroundFetch(*registration, backgroundFetchIdentifier, WTFMove(options), WTFMove(callback));
 }
 
+void SWServer::Connection::retrieveRecordResponse(BackgroundFetchRecordIdentifier recordIdentifier, BackgroundFetchCache::RetrieveRecordResponseCallback&& callback)
+{
+    server().backgroundFetchCache().retrieveRecordResponse(recordIdentifier, WTFMove(callback));
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

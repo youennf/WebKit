@@ -359,6 +359,13 @@ void WebSWClientConnection::matchBackgroundFetch(ServiceWorkerRegistrationIdenti
     sendWithAsyncReply(Messages::WebSWServerConnection::MatchBackgroundFetch { registrationIdentifier, backgroundFetchIdentifier, recordOptions }, WTFMove(callback));
 }
 
+void WebSWClientConnection::retrieveRecordResponse(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseCallback&& callback)
+{
+    sendWithAsyncReply(Messages::WebSWServerConnection::RetrieveRecordResponse { recordIdentifier }, [callback = WTFMove(callback)](auto&& result) mutable {
+        callExceptionOrResultCallback(WTFMove(callback), WTFMove(result));
+    });
+}
+
 void WebSWClientConnection::focusServiceWorkerClient(ScriptExecutionContextIdentifier clientIdentifier, CompletionHandler<void(std::optional<ServiceWorkerClientData>&&)>&& callback)
 {
     auto* client = Document::allDocumentsMap().get(clientIdentifier);

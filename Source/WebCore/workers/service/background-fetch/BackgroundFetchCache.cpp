@@ -171,8 +171,7 @@ void BackgroundFetchCache::abortBackgroundFetch(SWServerRegistration& registrati
         callback(false);
         return;
     }
-    fetchIterator->value->abort();
-    callback(true);
+    callback(fetchIterator->value->abort());
 }
 
 void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registration, const String& backgroundFetchIdentifier, RetrieveRecordsOptions&& options, MatchBackgroundFetchCallback&& callback)
@@ -198,7 +197,21 @@ void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registrati
         callback({ });
         return;
     }
-    fetchIterator->value->match(options, WTFMove(callback));
+    fetchIterator->value->match(options, [weakThis = WeakPtr { *this }, callback = WTFMove(callback)](auto&& records) mutable {
+        if (!weakThis) {
+            callback({ });
+            return;
+        }
+        Vector<BackgroundFetchRecordInformation> recordsInformation;
+        recordsInformation.reserveInitialCapacity(records.size());
+        for (auto& record : records) {
+            // FIXME: We need a way to remove the record from m_records.
+            auto information = record->information();
+            weakThis->m_records.add(information.identifier, WTFMove(record));
+            recordsInformation.uncheckedAppend(WTFMove(information));
+        }
+        callback(WTFMove(recordsInformation));
+    });
 }
 
 void BackgroundFetchCache::remove(SWServerRegistration& registration)
@@ -208,6 +221,16 @@ void BackgroundFetchCache::remove(SWServerRegistration& registration)
     for (auto& fetch : fetches.values())
         fetch->abort();
     m_store->clearAllRecords(registration.key());
+}
+
+void BackgroundFetchCache::retrieveRecordResponse(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseCallback&& callback)
+{
+    auto record = m_records.get(recordIdentifier);
+    if (!record) {
+        callback(makeUnexpected(ExceptionData { InvalidStateError, "Record not found"_s }));
+        return;
+    }
+    record->retrieveResponse(WTFMove(callback));
 }
 
 } // namespace WebCore

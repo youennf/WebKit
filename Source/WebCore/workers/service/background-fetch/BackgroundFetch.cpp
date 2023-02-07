@@ -31,6 +31,7 @@
 #include "BackgroundFetchInformation.h"
 #include "BackgroundFetchRecordInformation.h"
 #include "CacheQueryOptions.h"
+#include "ExceptionData.h"
 #include "SWServerRegistration.h"
 
 namespace WebCore {
@@ -51,7 +52,7 @@ BackgroundFetch::BackgroundFetch(SWServerRegistration& registration, const Strin
             if (weakThis)
                 weakThis->handleStoreResult(result);
         });
-        m_records.uncheckedAppend(makeUniqueRef<Record>(*this, WTFMove(request), index++));
+        m_records.uncheckedAppend(Record::create(*this, WTFMove(request), index++));
     }
 }
 
@@ -69,26 +70,30 @@ void BackgroundFetch::match(const RetrieveRecordsOptions& options, MatchBackgrou
 {
     WebCore::CacheQueryOptions queryOptions { options.ignoreSearch, options.ignoreMethod, options.ignoreVary };
     
-    Vector<BackgroundFetchRecordInformation> records;
+    Vector<Ref<Record>> records;
     for (auto& record : m_records) {
         if (options.request.url().isNull() || record->isMatching(options.request, queryOptions))
-            records.append(record->information());
+            records.append(record);
     }
 
     callback(WTFMove(records));
 }
 
-void BackgroundFetch::abort()
+bool BackgroundFetch::abort()
 {
+    if (m_abortFlag)
+        return false;
+    
     m_abortFlag = true;
     m_isActive = false;
-//    m_store->clearRecords(m_registrationKey, m_identifier, [] { });
-//    auto records = std::exchange(m_records, { });
-//    for (auto& record : records)
+    //    m_store->clearRecords(m_registrationKey, m_identifier, [] { });
+    //    auto records = std::exchange(m_records, { });
+    //    for (auto& record : records)
     for (auto& record : m_records)
         record->abort();
-
+    
     updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::Aborted);
+    return true;
 }
 
 void BackgroundFetch::perform(const CreateLoaderCallback& createLoaderCallback)
@@ -196,6 +201,12 @@ BackgroundFetch::Record::Record(BackgroundFetch& fetch, BackgroundFetchRequest&&
 {
 }
 
+BackgroundFetch::Record::~Record()
+{
+    if (auto callback = std::exchange(m_callback, { }))
+        callback(makeUnexpected(ExceptionData { TypeError }));
+}
+
 bool BackgroundFetch::Record::isMatching(const ResourceRequest& request, const CacheQueryOptions& options) const
 {
     return DOMCacheEngine::queryCacheMatch(request, m_request.internalRequest, m_response, options);
@@ -215,6 +226,13 @@ void BackgroundFetch::Record::complete(const CreateLoaderCallback& createLoaderC
 
 void BackgroundFetch::Record::abort()
 {
+    if (m_isAborted)
+        return;
+
+    m_isAborted = true;
+    if (auto callback = std::exchange(m_callback, { }))
+        callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
+
     if (!m_loader)
         return;
     m_loader->abort();
@@ -223,23 +241,52 @@ void BackgroundFetch::Record::abort()
 
 void BackgroundFetch::Record::didSendData(uint64_t size)
 {
-    m_fetch->didSendData(size);
+    if (m_fetch)
+        m_fetch->didSendData(size);
 }
 
 void BackgroundFetch::Record::didReceiveResponse(ResourceResponse&& response)
 {
-    m_fetch->storeResponse(m_index, WTFMove(response));
+    m_response = response;
+    if (auto callback = std::exchange(m_callback, { }))
+        callback(ResourceResponse { m_response });
+    if (m_fetch)
+        m_fetch->storeResponse(m_index, WTFMove(response));
 }
 
 void BackgroundFetch::Record::didReceiveResponseBodyChunk(const SharedBuffer& data)
 {
     m_responseDataSize += data.size();
-    m_fetch->storeResponseBodyChunk(m_index, WTFMove(data));
+    if (m_fetch)
+        m_fetch->storeResponseBodyChunk(m_index, WTFMove(data));
 }
 
 void BackgroundFetch::Record::didFinish(const ResourceError& error)
 {
-    m_fetch->didFinishRecord(m_index, error);
+    if (auto callback = std::exchange(m_callback, { }))
+        callback(makeUnexpected(ExceptionData { TypeError }));
+
+    if (m_fetch)
+        m_fetch->didFinishRecord(m_index, error);
+}
+
+void BackgroundFetch::Record::retrieveResponse(RetrieveRecordResponseCallback&& callback)
+{
+    if (!m_response.isNull()) {
+        callback(ResourceResponse { m_response });
+        return;
+    }
+    if (m_isCompleted) {
+        callback(makeUnexpected(ExceptionData { TypeError }));
+        return;
+    }
+
+    if (m_isAborted) {
+        callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
+        return;
+    }
+
+    m_callback = WTFMove(callback);
 }
 
 } // namespace WebCore
