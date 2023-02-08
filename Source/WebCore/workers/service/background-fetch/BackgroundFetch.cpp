@@ -203,7 +203,8 @@ BackgroundFetch::Record::Record(BackgroundFetch& fetch, BackgroundFetchRequest&&
 
 BackgroundFetch::Record::~Record()
 {
-    if (auto callback = std::exchange(m_callback, { }))
+    auto callbacks = std::exchange(m_responseCallbacks, { });
+    for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { TypeError }));
 }
 
@@ -230,7 +231,9 @@ void BackgroundFetch::Record::abort()
         return;
 
     m_isAborted = true;
-    if (auto callback = std::exchange(m_callback, { }))
+
+    auto callbacks = std::exchange(m_responseCallbacks, { });
+    for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
 
     if (!m_loader)
@@ -248,7 +251,8 @@ void BackgroundFetch::Record::didSendData(uint64_t size)
 void BackgroundFetch::Record::didReceiveResponse(ResourceResponse&& response)
 {
     m_response = response;
-    if (auto callback = std::exchange(m_callback, { }))
+    auto callbacks = std::exchange(m_responseCallbacks, { });
+    for (auto& callback : callbacks)
         callback(ResourceResponse { m_response });
     if (m_fetch)
         m_fetch->storeResponse(m_index, WTFMove(response));
@@ -263,7 +267,8 @@ void BackgroundFetch::Record::didReceiveResponseBodyChunk(const SharedBuffer& da
 
 void BackgroundFetch::Record::didFinish(const ResourceError& error)
 {
-    if (auto callback = std::exchange(m_callback, { }))
+    auto callbacks = std::exchange(m_responseCallbacks, { });
+    for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { TypeError }));
 
     if (m_fetch)
@@ -286,7 +291,7 @@ void BackgroundFetch::Record::retrieveResponse(RetrieveRecordResponseCallback&& 
         return;
     }
 
-    m_callback = WTFMove(callback);
+    m_responseCallbacks.append(WTFMove(callback));
 }
 
 void BackgroundFetch::Record::retrieveRecordResponseBody(RetrieveRecordResponseBodyCallback&& callback)

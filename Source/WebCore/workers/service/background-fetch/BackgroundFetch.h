@@ -96,7 +96,7 @@ public:
         uint64_t m_responseDataSize { 0 };
         bool m_isCompleted { false };
         bool m_isAborted { false };
-        RetrieveRecordResponseCallback m_callback;
+        Vector<RetrieveRecordResponseCallback> m_responseCallbacks;
     };
     
     using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<Ref<Record>>&&)>;
