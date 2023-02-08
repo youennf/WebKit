@@ -221,10 +221,11 @@ void FetchResponse::addAbortSteps(Ref<AbortSignal>&& signal)
 
         setLoadingError(Exception { AbortError, "Fetch is aborted"_s });
 
-        if (m_bodyLoader) {
-            if (auto callback = m_bodyLoader->takeNotificationCallback())
+        if (m_responseLoader) {
+            if (auto callback = m_responseLoader->takeNotificationCallback())
                 callback(Exception { AbortError, "Fetch is aborted"_s });
-
+        }
+        if (m_bodyLoader) {
             if (auto callback = m_bodyLoader->takeConsumeDataCallback())
                 callback(Exception { AbortError, "Fetch is aborted"_s });
         }
@@ -237,6 +238,8 @@ void FetchResponse::addAbortSteps(Ref<AbortSignal>&& signal)
         if (m_body)
             m_body->loadingFailed(*loadingException());
 
+        if (auto responseLoader = WTFMove(m_responseLoader))
+            responseLoader->stop();
         if (auto bodyLoader = WTFMove(m_bodyLoader))
             bodyLoader->stop();
     });
@@ -251,7 +254,7 @@ Ref<FetchResponse> FetchResponse::createFetchResponse(ScriptExecutionContext& co
 
     response->addAbortSteps(request.signal());
 
-    response->m_bodyLoader = makeUnique<BodyLoader>(response.get(), WTFMove(responseCallback));
+    response->m_responseLoader = makeUnique<ResponseLoader>(response.get(), WTFMove(responseCallback));
     return response;
 }
 
@@ -270,8 +273,8 @@ void FetchResponse::startLoader(ScriptExecutionContext& context, FetchRequest& r
 {
     InspectorInstrumentation::willFetch(context, request.url().string());
 
-    if (m_bodyLoader && !m_bodyLoader->start(context, request, initiator))
-        m_bodyLoader = nullptr;
+    if (m_responseLoader && !m_responseLoader->start(context, request, initiator))
+        m_responseLoader = nullptr;
 }
 
 const String& FetchResponse::url() const
@@ -291,7 +294,7 @@ const ResourceResponse& FetchResponse::filteredResponse() const
     return m_internalResponse;
 }
 
-void FetchResponse::BodyLoader::didSucceed(const NetworkLoadMetrics& metrics)
+void FetchResponse::ResponseLoader::didSucceed(const NetworkLoadMetrics& metrics)
 {
     ASSERT(m_response.hasPendingActivity());
     m_response.m_body->loadingSucceeded(m_response.contentType());
@@ -303,16 +306,16 @@ void FetchResponse::BodyLoader::didSucceed(const NetworkLoadMetrics& metrics)
         m_response.closeStream();
     }
 
-    if (auto consumeDataCallback = WTFMove(m_consumeDataCallback))
+    if (auto consumeDataCallback = takeConsumeDataCallback())
         consumeDataCallback(nullptr);
 
     if (m_loader->isStarted()) {
         Ref<FetchResponse> protector(m_response);
-        m_response.m_bodyLoader = nullptr;
+        m_response.m_responseLoader = nullptr;
     }
 }
 
-void FetchResponse::BodyLoader::didFail(const ResourceError& error)
+void FetchResponse::ResponseLoader::didFail(const ResourceError& error)
 {
     ASSERT(m_response.hasPendingActivity());
 
@@ -321,7 +324,7 @@ void FetchResponse::BodyLoader::didFail(const ResourceError& error)
     if (auto responseCallback = WTFMove(m_responseCallback))
         responseCallback(Exception { TypeError, error.sanitizedDescription() });
 
-    if (auto consumeDataCallback = WTFMove(m_consumeDataCallback))
+    if (auto consumeDataCallback = takeConsumeDataCallback())
         consumeDataCallback(Exception { TypeError, error.sanitizedDescription() });
 
     if (m_response.m_readableStreamSource) {
@@ -336,7 +339,7 @@ void FetchResponse::BodyLoader::didFail(const ResourceError& error)
     // Check whether didFail is called as part of FetchLoader::start.
     if (m_loader && m_loader->isStarted()) {
         Ref<FetchResponse> protector(m_response);
-        m_response.m_bodyLoader = nullptr;
+        m_response.m_responseLoader = nullptr;
     }
 }
 
@@ -358,20 +361,25 @@ void FetchResponse::setReceivedInternalResponse(const ResourceResponse& resource
 
     m_headers->filterAndFill(m_filteredResponse->httpHeaderFields(), FetchHeaders::Guard::Response);
     updateContentType();
+
+    if (m_responseLoader) {
+        ASSERT(!m_bodyLoader);
+        m_bodyLoader = std::exchange(m_responseLoader, nullptr);
+    }
 }
 
-FetchResponse::BodyLoader::BodyLoader(FetchResponse& response, NotificationCallback&& responseCallback)
+FetchResponse::ResponseLoader::ResponseLoader(FetchResponse& response, NotificationCallback&& responseCallback)
     : m_response(response)
     , m_responseCallback(WTFMove(responseCallback))
     , m_pendingActivity(m_response.makePendingActivity(m_response))
 {
 }
 
-FetchResponse::BodyLoader::~BodyLoader()
+FetchResponse::ResponseLoader::~ResponseLoader()
 {
 }
 
-void FetchResponse::BodyLoader::didReceiveResponse(const ResourceResponse& resourceResponse)
+void FetchResponse::ResponseLoader::didReceiveResponse(const ResourceResponse& resourceResponse)
 {
     m_response.setReceivedInternalResponse(resourceResponse, m_credentials);
 
@@ -379,13 +387,13 @@ void FetchResponse::BodyLoader::didReceiveResponse(const ResourceResponse& resou
         responseCallback(Ref { m_response });
 }
 
-void FetchResponse::BodyLoader::didReceiveData(const SharedBuffer& buffer)
+void FetchResponse::ResponseLoader::didReceiveData(const SharedBuffer& buffer)
 {
-    ASSERT(m_response.m_readableStreamSource || m_consumeDataCallback);
+    ASSERT(m_response.m_readableStreamSource || hasConsumeDataCallback());
 
-    if (m_consumeDataCallback) {
+    if (consumeDataCallback()) {
         Span chunk { buffer.data(), buffer.size() };
-        m_consumeDataCallback(&chunk);
+        consumeDataCallback()(&chunk);
         return;
     }
 
@@ -407,7 +415,7 @@ void FetchResponse::BodyLoader::didReceiveData(const SharedBuffer& buffer)
     source.resolvePullPromise();
 }
 
-bool FetchResponse::BodyLoader::start(ScriptExecutionContext& context, const FetchRequest& request, const String& initiator)
+bool FetchResponse::ResponseLoader::start(ScriptExecutionContext& context, const FetchRequest& request, const String& initiator)
 {
     m_credentials = request.fetchOptions().credentials;
     m_loader = makeUnique<FetchLoader>(*this, &m_response.m_body->consumer());
@@ -424,24 +432,11 @@ bool FetchResponse::BodyLoader::start(ScriptExecutionContext& context, const Fet
     return true;
 }
 
-void FetchResponse::BodyLoader::stop()
+void FetchResponse::ResponseLoader::stop()
 {
     m_responseCallback = { };
     if (m_loader)
         m_loader->stop();
-}
-
-void FetchResponse::BodyLoader::consumeDataByChunk(ConsumeDataByChunkCallback&& consumeDataCallback)
-{
-    ASSERT(!m_consumeDataCallback);
-    m_consumeDataCallback = WTFMove(consumeDataCallback);
-    auto data = startStreaming();
-    if (!data)
-        return;
-
-    auto contiguousBuffer = data->makeContiguous();
-    Span chunk { contiguousBuffer->data(), data->size() };
-    m_consumeDataCallback(&chunk);
 }
 
 FetchResponse::ResponseData FetchResponse::consumeBody()
@@ -511,9 +506,9 @@ void FetchResponse::consumeBodyAsStream()
         return;
     }
 
-    ASSERT(m_bodyLoader);
+    ASSERT(m_responseLoader);
 
-    auto data = m_bodyLoader->startStreaming();
+    auto data = m_responseLoader->startStreaming();
     if (data) {
         if (!m_readableStreamSource->enqueue(data->tryCreateArrayBuffer())) {
             stop();
@@ -542,7 +537,7 @@ void FetchResponse::cancelStream()
 void FetchResponse::feedStream()
 {
     ASSERT(m_readableStreamSource);
-    bool shouldCloseStream = !m_bodyLoader;
+    bool shouldCloseStream = !m_responseLoader;
 
     if (body().consumer().hasData()) {
         if (!m_readableStreamSource->enqueue(body().consumer().takeAsArrayBuffer())) {
@@ -559,7 +554,7 @@ void FetchResponse::feedStream()
     closeStream();
 }
 
-RefPtr<FragmentedSharedBuffer> FetchResponse::BodyLoader::startStreaming()
+RefPtr<FragmentedSharedBuffer> FetchResponse::ResponseLoader::startStreaming()
 {
     if (!m_loader) {
         m_shouldStartStreaming = true;
@@ -579,7 +574,7 @@ void FetchResponse::stop()
 {
     RefPtr<FetchResponse> protectedThis(this);
     FetchBodyOwner::stop();
-    if (auto bodyLoader = WTFMove(m_bodyLoader))
+    if (auto bodyLoader = WTFMove(m_responseLoader))
         bodyLoader->stop();
 }
 

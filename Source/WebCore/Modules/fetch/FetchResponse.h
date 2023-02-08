@@ -30,6 +30,7 @@
 
 #include "FetchBodyOwner.h"
 #include "FetchHeaders.h"
+#include "FetchResponseBodyLoader.h"
 #include "ReadableStreamSink.h"
 #include "ResourceResponse.h"
 #include <JavaScriptCore/TypedArrays.h>
@@ -119,7 +120,7 @@ public:
     void startLoader(ScriptExecutionContext&, FetchRequest&, const String& initiator);
 
     void setIsNavigationPreload(bool isNavigationPreload) { m_isNavigationPreload = isNavigationPreload; }
-    bool isAvailableNavigationPreload() const { return m_isNavigationPreload && m_bodyLoader && !m_bodyLoader->hasLoader() && !hasReadableStreamBody(); }
+    bool isAvailableNavigationPreload() const { return m_isNavigationPreload && m_bodyLoader && !m_bodyLoader->isActive() && !hasReadableStreamBody(); }
     void markAsUsedForPreload();
     bool isUsedForPreload() const { return m_isUsedForPreload; }
 
@@ -135,22 +136,21 @@ private:
 
     void addAbortSteps(Ref<AbortSignal>&&);
 
-    class BodyLoader final : public FetchLoaderClient {
+    class ResponseLoader final : public FetchLoaderClient, public FetchResponseBodyLoader {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        BodyLoader(FetchResponse&, NotificationCallback&&);
-        ~BodyLoader();
+        ResponseLoader(FetchResponse&, NotificationCallback&&);
+        ~ResponseLoader();
 
         bool start(ScriptExecutionContext&, const FetchRequest&, const String& initiator);
-        void stop();
-
-        void consumeDataByChunk(ConsumeDataByChunkCallback&&);
 
         bool hasLoader() const { return !!m_loader; }
-
-        RefPtr<FragmentedSharedBuffer> startStreaming();
         NotificationCallback takeNotificationCallback() { return WTFMove(m_responseCallback); }
-        ConsumeDataByChunkCallback takeConsumeDataCallback() { return WTFMove(m_consumeDataCallback); }
+
+        // FetchResponseBodyLoader
+        void stop() final;
+        bool isActive() const final { return hasLoader(); };
+        RefPtr<FragmentedSharedBuffer> startStreaming() final;
 
     private:
         // FetchLoaderClient API
@@ -161,7 +161,6 @@ private:
 
         FetchResponse& m_response;
         NotificationCallback m_responseCallback;
-        ConsumeDataByChunkCallback m_consumeDataCallback;
         std::unique_ptr<FetchLoader> m_loader;
         Ref<PendingActivity<FetchResponse>> m_pendingActivity;
         FetchOptions::Credentials m_credentials;
@@ -170,7 +169,8 @@ private:
 
     mutable std::optional<ResourceResponse> m_filteredResponse;
     ResourceResponse m_internalResponse;
-    std::unique_ptr<BodyLoader> m_bodyLoader;
+    std::unique_ptr<ResponseLoader> m_responseLoader;
+    std::unique_ptr<FetchResponseBodyLoader> m_bodyLoader;
     mutable String m_responseURL;
     // Opaque responses will padd their body size when used with Cache API.
     uint64_t m_bodySizeWithPadding { 0 };

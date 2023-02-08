@@ -1130,6 +1130,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     loader/FetchOptionsDestination.h
     loader/FetchOptionsMode.h
     loader/FetchOptionsRedirect.h
+    loader/FetchResponseBodyLoader.h
     loader/FontLoadRequest.h
     loader/FormState.h
     loader/FormSubmission.h
