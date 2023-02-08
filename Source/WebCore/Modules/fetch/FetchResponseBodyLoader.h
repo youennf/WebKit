@@ -29,19 +29,13 @@
 #pragma once
 
 #include "ExceptionOr.h"
+#include "SharedBuffer.h"
 #include <wtf/Function.h>
 #include <wtf/Span.h>
 
-namespace JSC {
-class CallFrame;
-class JSValue;
-};
-
 namespace WebCore {
 
-class AbortSignal;
-class FetchRequest;
-class ReadableStreamSource;
+class FragmentedSharedBuffer;
 
 class FetchResponseBodyLoader {
     WTF_MAKE_FAST_ALLOCATED;

@@ -2933,6 +2933,7 @@ workers/service/background-fetch/BackgroundFetchCacheMemoryStore.cpp
 workers/service/background-fetch/BackgroundFetchEvent.cpp
 workers/service/background-fetch/BackgroundFetchManager.cpp
 workers/service/background-fetch/BackgroundFetchRecord.cpp
+workers/service/background-fetch/BackgroundFetchRecordResponseBodyLoader.cpp
 workers/service/background-fetch/BackgroundFetchRegistration.cpp
 workers/service/background-fetch/BackgroundFetchUpdateUIEvent.cpp
 workers/service/background-fetch/ServiceWorkerRegistrationBackgroundFetchAPI.cpp

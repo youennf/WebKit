@@ -459,6 +459,13 @@ void FetchResponse::markAsUsedForPreload()
     m_isUsedForPreload = true;
 }
 
+void FetchResponse::setBodyLoader(std::unique_ptr<FetchResponseBodyLoader>&& bodyLoader)
+{
+    ASSERT(!m_responseLoader);
+    ASSERT(!m_bodyLoader);
+    m_bodyLoader = WTFMove(bodyLoader);
+}
+
 void FetchResponse::consumeBodyReceivedByChunk(ConsumeDataByChunkCallback&& callback)
 {
     ASSERT(isBodyReceivedByChunk());

@@ -30,6 +30,7 @@
 
 #include "BackgroundFetchManager.h"
 #include "BackgroundFetchRecordInformation.h"
+#include "BackgroundFetchRecordResponseBodyLoader.h"
 #include "CacheQueryOptions.h"
 #include "EventNames.h"
 #include "FetchRequest.h"
@@ -93,9 +94,10 @@ static ExceptionOr<ResourceRequest> requestFromInfo(ScriptExecutionContext& cont
 
 static Ref<BackgroundFetchRecord> createRecord(ScriptExecutionContext& context, BackgroundFetchRecordInformation&& information)
 {
+    auto recordIdentifier = information.identifier;
     auto record = BackgroundFetchRecord::create(context, WTFMove(information));
     fprintf(stderr, "BackgroundFetchEvent::createRecord %d %p\n", (int)information.identifier.toUInt64(), record.ptr());
-    SWClientConnection::fromScriptExecutionContext(context)->retrieveRecordResponse(information.identifier, [weakContext = WeakPtr { context }, record](auto&& result) {
+    SWClientConnection::fromScriptExecutionContext(context)->retrieveRecordResponse(recordIdentifier, [weakContext = WeakPtr { context }, record, recordIdentifier](auto&& result) {
         fprintf(stderr, "BackgroundFetchEvent::createRecord 1 %p\n", record.ptr());
 
         if (!weakContext)
@@ -110,6 +112,7 @@ static Ref<BackgroundFetchRecord> createRecord(ScriptExecutionContext& context, 
         auto response = FetchResponse::create(*weakContext, FetchHeaders::Guard::Immutable);
         // FIXME: We need to pass down Credentials option and we need a way to get the body.
         response->setReceivedInternalResponse(result.releaseReturnValue(), FetchOptions::Credentials::Omit);
+        response->setBodyLoader(makeUnique<BackgroundFetchRecordResponseBodyLoader>(*weakContext, recordIdentifier));
         record->settleResponseReadyPromise(WTFMove(response));
     });
     return record;

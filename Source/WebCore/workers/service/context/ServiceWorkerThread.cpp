@@ -28,6 +28,7 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "BackgroundFetchManager.h"
 #include "BackgroundFetchUpdateUIEvent.h"
 #include "CacheStorageProvider.h"
 #include "CommonAtomStrings.h"
@@ -48,6 +49,7 @@
 #include "SecurityOrigin.h"
 #include "ServiceWorkerFetch.h"
 #include "ServiceWorkerGlobalScope.h"
+#include "ServiceWorkerRegistrationBackgroundFetchAPI.h"
 #include "ServiceWorkerWindowClient.h"
 #include "WorkerDebuggerProxy.h"
 #include "WorkerLoaderProxy.h"

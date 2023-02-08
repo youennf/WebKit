@@ -124,6 +124,8 @@ public:
     void markAsUsedForPreload();
     bool isUsedForPreload() const { return m_isUsedForPreload; }
 
+    void setBodyLoader(std::unique_ptr<FetchResponseBodyLoader>&&);
+
 private:
     FetchResponse(ScriptExecutionContext*, std::optional<FetchBody>&&, Ref<FetchHeaders>&&, ResourceResponse&&);
 

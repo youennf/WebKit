@@ -37,6 +37,7 @@
 #include "ClientOrigin.h"
 #include "ResourceResponse.h"
 #include "ServiceWorkerRegistrationKey.h"
+#include "ServiceWorkerTypes.h"
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {

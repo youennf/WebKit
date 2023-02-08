@@ -41,6 +41,7 @@ struct BackgroundFetchRecordInformation;
 struct BackgroundFetchRequest;
 struct ExceptionData;
 class ResourceError;
+class ResourceResponse;
 struct RetrieveRecordsOptions;
 class SWServerRegistration;
 class SharedBuffer;
