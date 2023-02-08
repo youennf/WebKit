@@ -1,9 +1,7 @@
 
-Harness Error (TIMEOUT), message = null
-
-TIMEOUT Matching to a single request should work Test timed out
-NOTRUN Matching to a non-existing request should work
-NOTRUN Matching multiple times on the same request works as expected.
-NOTRUN Access to active fetches is supported.
-NOTRUN Match with query options.
+FAIL Matching to a single request should work assert_equals: expected "Background Fetch" but got ""
+PASS Matching to a non-existing request should work
+FAIL Matching multiple times on the same request works as expected. assert_equals: expected "Background Fetch" but got ""
+FAIL Access to active fetches is supported. assert_equals: expected "Background Fetch" but got ""
+FAIL Match with query options. assert_equals: expected 2 but got 3
 

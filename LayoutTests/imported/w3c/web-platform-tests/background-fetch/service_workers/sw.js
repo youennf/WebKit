@@ -44,6 +44,7 @@ function handleBackgroundFetchEvent(event) {
         if (!records.map) return [records];  // One entry was returned.
         return records;  // Already in a list.
       })
+      .catch(() => { return [ ]; })
       // Extract responses.
       .then(records =>
         Promise.all(records.map(record => getFetchResult(record))))
