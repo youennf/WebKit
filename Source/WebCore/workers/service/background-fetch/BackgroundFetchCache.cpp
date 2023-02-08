@@ -230,7 +230,7 @@ void BackgroundFetchCache::retrieveRecordResponse(BackgroundFetchRecordIdentifie
         callback(makeUnexpected(ExceptionData { InvalidStateError, "Record not found"_s }));
         return;
     }
-    record->retrieveResponse(WTFMove(callback));
+    record->retrieveResponse(m_store.get(), WTFMove(callback));
 }
 
 void BackgroundFetchCache::retrieveRecordResponseBody(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseBodyCallback&& callback)
@@ -240,7 +240,7 @@ void BackgroundFetchCache::retrieveRecordResponseBody(BackgroundFetchRecordIdent
         callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Record not found"_s }));
         return;
     }
-    record->retrieveRecordResponseBody(WTFMove(callback));
+    record->retrieveRecordResponseBody(m_store.get(), WTFMove(callback));
 }
 
 } // namespace WebCore

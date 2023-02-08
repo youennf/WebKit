@@ -76,8 +76,8 @@ public:
         bool isMatching(const ResourceRequest&, const CacheQueryOptions&) const;
         BackgroundFetchRecordInformation information() const;
 
-        void retrieveResponse(RetrieveRecordResponseCallback&&);
-        void retrieveRecordResponseBody(RetrieveRecordResponseBodyCallback&&);
+        void retrieveResponse(BackgroundFetchCacheStore&, RetrieveRecordResponseCallback&&);
+        void retrieveRecordResponseBody(BackgroundFetchCacheStore&, RetrieveRecordResponseBodyCallback&&);
 
     private:
         Record(BackgroundFetch&, BackgroundFetchRequest&&, size_t);
@@ -89,6 +89,8 @@ public:
 
         WeakPtr<BackgroundFetch> m_fetch;
         BackgroundFetchRecordIdentifier m_identifier;
+        String m_fetchIdentifier;
+        ServiceWorkerRegistrationKey m_registrationKey;
         BackgroundFetchRequest m_request;
         size_t m_index { 0 };
         ResourceResponse m_response;
@@ -97,6 +99,7 @@ public:
         bool m_isCompleted { false };
         bool m_isAborted { false };
         Vector<RetrieveRecordResponseCallback> m_responseCallbacks;
+        Vector<RetrieveRecordResponseBodyCallback> m_responseBodyCallbacks;
     };
     
     using MatchBackgroundFetchCallback = CompletionHandler<void(Vector<Ref<Record>>&&)>;

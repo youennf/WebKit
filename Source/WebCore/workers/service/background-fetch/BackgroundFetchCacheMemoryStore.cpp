@@ -108,6 +108,19 @@ void BackgroundFetchCacheMemoryStore::storeRecordResponseBodyChunk(ServiceWorker
     callback(StoreResult::OK);
 }
 
+void BackgroundFetchCacheMemoryStore::retrieveResponseBody(ServiceWorkerRegistrationKey key, const String& identifier, size_t index, RetrieveRecordResponseBodyCallback&& callback)
+{
+    auto& entryMap = m_entries.ensure(key, [] { return EntriesMap(); }).iterator->value;
+    auto& recordMap = entryMap.ensure(identifier, [] { return RecordMap(); }).iterator->value;
+
+    auto iterator = recordMap.find(index + 1);
+    if (iterator == recordMap.end()) {
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Record not found"_s }));
+        return;
+    }
+    callback(RefPtr { iterator->value->buffer.copy()->makeContiguous() });
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

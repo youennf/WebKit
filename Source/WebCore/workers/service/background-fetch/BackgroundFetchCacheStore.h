@@ -40,8 +40,10 @@ struct BackgroundFetchOptions;
 struct BackgroundFetchRecordInformation;
 struct BackgroundFetchRequest;
 struct ExceptionData;
+class ResourceError;
 struct RetrieveRecordsOptions;
 class SWServerRegistration;
+class SharedBuffer;
 
 class BackgroundFetchCacheStore : public RefCounted<BackgroundFetchCacheStore> {
 public:
@@ -55,8 +57,11 @@ public:
     virtual void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) = 0;
     virtual void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) = 0;
     virtual void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) = 0;
+
+    using RetrieveRecordResponseBodyCallback = Function<void(Expected<RefPtr<SharedBuffer>, ResourceError>&&)>;
+    virtual void retrieveResponseBody(ServiceWorkerRegistrationKey, const String&, size_t, RetrieveRecordResponseBodyCallback&&) = 0;
+
 /*
-    
     using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;
     virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrFetchCallback&&) = 0;
     using FetchCallback = CompletionHandler<void(WeakPtr<Fetch>&&)>;

@@ -196,6 +196,8 @@ void BackgroundFetch::unsetRecordsAvailableFlag()
 BackgroundFetch::Record::Record(BackgroundFetch& fetch, BackgroundFetchRequest&& request, size_t index)
     : m_fetch(fetch)
     , m_identifier(BackgroundFetchRecordIdentifier::generate())
+    , m_fetchIdentifier(fetch.m_identifier)
+    , m_registrationKey(fetch.m_registrationKey)
     , m_request(WTFMove(request))
     , m_index(index)
 {
@@ -206,6 +208,10 @@ BackgroundFetch::Record::~Record()
     auto callbacks = std::exchange(m_responseCallbacks, { });
     for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { TypeError }));
+    
+    auto bodyCallbacks = std::exchange(m_responseBodyCallbacks, { });
+    for (auto& callback : bodyCallbacks)
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Record is gone"_s }));
 }
 
 bool BackgroundFetch::Record::isMatching(const ResourceRequest& request, const CacheQueryOptions& options) const
@@ -236,6 +242,10 @@ void BackgroundFetch::Record::abort()
     for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
 
+    auto bodyCallbacks = std::exchange(m_responseBodyCallbacks, { });
+    for (auto& callback : bodyCallbacks)
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Background fetch was aborted"_s, ResourceError::Type::Cancellation }));
+
     if (!m_loader)
         return;
     m_loader->abort();
@@ -262,7 +272,13 @@ void BackgroundFetch::Record::didReceiveResponseBodyChunk(const SharedBuffer& da
 {
     m_responseDataSize += data.size();
     if (m_fetch)
-        m_fetch->storeResponseBodyChunk(m_index, WTFMove(data));
+        m_fetch->storeResponseBodyChunk(m_index, data);
+
+    if (!m_responseBodyCallbacks.isEmpty()) {
+        auto buffer = SharedBuffer::create(data.data(), data.size());
+        for (auto& callback : m_responseBodyCallbacks)
+            callback(RefPtr { buffer.ptr() });
+    }
 }
 
 void BackgroundFetch::Record::didFinish(const ResourceError& error)
@@ -271,33 +287,66 @@ void BackgroundFetch::Record::didFinish(const ResourceError& error)
     for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { TypeError }));
 
+    auto bodyCallbacks = std::exchange(m_responseBodyCallbacks, { });
+    for (auto& callback : bodyCallbacks) {
+        if (!error.isNull())
+            callback(makeUnexpected(error));
+        else
+            callback(RefPtr<SharedBuffer> { });
+    }
+
     if (m_fetch)
         m_fetch->didFinishRecord(m_index, error);
 }
 
-void BackgroundFetch::Record::retrieveResponse(RetrieveRecordResponseCallback&& callback)
+void BackgroundFetch::Record::retrieveResponse(BackgroundFetchCacheStore&, RetrieveRecordResponseCallback&& callback)
 {
-    if (!m_response.isNull()) {
-        callback(ResourceResponse { m_response });
-        return;
-    }
-    if (m_isCompleted) {
-        callback(makeUnexpected(ExceptionData { TypeError }));
+    if (m_isAborted) {
+        callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
         return;
     }
 
-    if (m_isAborted) {
-        callback(makeUnexpected(ExceptionData { AbortError, "Background fetch was aborted"_s }));
+    if (!m_response.isNull()) {
+        callback(ResourceResponse { m_response });
         return;
     }
 
     m_responseCallbacks.append(WTFMove(callback));
 }
 
-void BackgroundFetch::Record::retrieveRecordResponseBody(RetrieveRecordResponseBodyCallback&& callback)
+void BackgroundFetch::Record::retrieveRecordResponseBody(BackgroundFetchCacheStore& store, RetrieveRecordResponseBodyCallback&& callback)
 {
-    // FIXME: Implement this.
-    callback({ });
+    if (m_isAborted) {
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Background fetch was aborted"_s, ResourceError::Type::Cancellation }));
+        return;
+    }
+
+    ASSERT(!m_response.isNull());
+
+    store.retrieveResponseBody(m_registrationKey, m_fetchIdentifier, m_index, [weakThis = WeakPtr { *this }, callback = WTFMove(callback)](auto&& result) mutable {
+        if (!result.has_value()) {
+            callback(makeUnexpected(WTFMove(result.error())));
+            return;
+        }
+
+        callback(WTFMove(result.value()));
+
+        if (!weakThis) {
+            callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Record is gone"_s }));
+            return;
+        }
+
+        if (weakThis->m_isAborted) {
+            callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Background fetch was aborted"_s, ResourceError::Type::Cancellation }));
+            return;
+        }
+
+        if (weakThis->m_isCompleted) {
+            callback(RefPtr<SharedBuffer> { });
+            return;
+        }
+        weakThis->m_responseBodyCallbacks.append(WTFMove(callback));
+    });
 }
 
 } // namespace WebCore

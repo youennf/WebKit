@@ -37,15 +37,16 @@ class BackgroundFetchCacheMemoryStore :  public BackgroundFetchCacheStore {
 public:
     static Ref<BackgroundFetchCacheMemoryStore> create() { return adoptRef(*new BackgroundFetchCacheMemoryStore()); }
 
+private:
+    BackgroundFetchCacheMemoryStore();
+
     void initialize(SWServerRegistration&, CompletionHandler<void()>&&) final;
     void clearRecords(ServiceWorkerRegistrationKey, const String&, CompletionHandler<void()>&&) final;
     void clearAllRecords(ServiceWorkerRegistrationKey, CompletionHandler<void()>&&) final;
     void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) final;
     void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) final;
     void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) final;
-
-private:
-    BackgroundFetchCacheMemoryStore();
+    void retrieveResponseBody(ServiceWorkerRegistrationKey, const String&, size_t, RetrieveRecordResponseBodyCallback&&) final;
 
     struct Record {
         WTF_MAKE_FAST_ALLOCATED;
