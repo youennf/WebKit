@@ -1683,6 +1683,11 @@ void SWServer::Connection::retrieveRecordResponse(BackgroundFetchRecordIdentifie
     server().backgroundFetchCache().retrieveRecordResponse(recordIdentifier, WTFMove(callback));
 }
 
+void SWServer::Connection::retrieveRecordResponseBody(BackgroundFetchRecordIdentifier recordIdentifier, BackgroundFetchCache::RetrieveRecordResponseBodyCallback&& callback)
+{
+    server().backgroundFetchCache().retrieveRecordResponseBody(recordIdentifier, WTFMove(callback));
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

@@ -289,6 +289,12 @@ void BackgroundFetch::Record::retrieveResponse(RetrieveRecordResponseCallback&& 
     m_callback = WTFMove(callback);
 }
 
+void BackgroundFetch::Record::retrieveRecordResponseBody(RetrieveRecordResponseBodyCallback&& callback)
+{
+    // FIXME: Implement this.
+    callback({ });
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

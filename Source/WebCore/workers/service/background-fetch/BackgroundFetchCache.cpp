@@ -233,6 +233,16 @@ void BackgroundFetchCache::retrieveRecordResponse(BackgroundFetchRecordIdentifie
     record->retrieveResponse(WTFMove(callback));
 }
 
+void BackgroundFetchCache::retrieveRecordResponseBody(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseBodyCallback&& callback)
+{
+    auto record = m_records.get(recordIdentifier);
+    if (!record) {
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "Record not found"_s }));
+        return;
+    }
+    record->retrieveRecordResponseBody(WTFMove(callback));
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(SERVICE_WORKER)

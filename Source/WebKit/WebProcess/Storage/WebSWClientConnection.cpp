@@ -34,6 +34,7 @@
 #include "NetworkConnectionToWebProcessMessages.h"
 #include "NetworkProcessConnection.h"
 #include "NetworkProcessMessages.h"
+#include "SharedBufferReference.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebMessagePortChannelProvider.h"
 #include "WebPage.h"
@@ -364,6 +365,34 @@ void WebSWClientConnection::retrieveRecordResponse(BackgroundFetchRecordIdentifi
     sendWithAsyncReply(Messages::WebSWServerConnection::RetrieveRecordResponse { recordIdentifier }, [callback = WTFMove(callback)](auto&& result) mutable {
         callExceptionOrResultCallback(WTFMove(callback), WTFMove(result));
     });
+}
+
+void WebSWClientConnection::retrieveRecordResponseBody(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseBodyCallback&& callback)
+{
+    auto identifier = RetrieveRecordResponseBodyCallbackIdentifier::generate();
+    m_retrieveRecordResponseBodyCallbacks.add(identifier, WTFMove(callback));
+    send(Messages::WebSWServerConnection::RetrieveRecordResponseBody { recordIdentifier, identifier });
+}
+
+void WebSWClientConnection::notifyRecordResponseBodyChunk(RetrieveRecordResponseBodyCallbackIdentifier identifier, IPC::SharedBufferReference&& data)
+{
+    auto iterator = m_retrieveRecordResponseBodyCallbacks.find(identifier);
+    if (iterator == m_retrieveRecordResponseBodyCallbacks.end())
+        return;
+    auto buffer = data.unsafeBuffer();
+    bool isDone = !buffer;
+    iterator->value(WTFMove(buffer));
+    if (isDone)
+        m_retrieveRecordResponseBodyCallbacks.remove(iterator);
+}
+
+void WebSWClientConnection::notifyRecordResponseBodyEnd(RetrieveRecordResponseBodyCallbackIdentifier identifier, WebCore::ResourceError&& error)
+{
+    auto iterator = m_retrieveRecordResponseBodyCallbacks.find(identifier);
+    if (iterator == m_retrieveRecordResponseBodyCallbacks.end())
+        return;
+    iterator->value(makeUnexpected(WTFMove(error)));
+    m_retrieveRecordResponseBodyCallbacks.remove(iterator);
 }
 
 void WebSWClientConnection::focusServiceWorkerClient(ScriptExecutionContextIdentifier clientIdentifier, CompletionHandler<void(std::optional<ServiceWorkerClientData>&&)>&& callback)

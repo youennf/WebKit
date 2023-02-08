@@ -4817,6 +4817,7 @@
 		41EB4D3A274CE04500A9272B /* ServiceWorkerNavigationPreloader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ServiceWorkerNavigationPreloader.h; sourceTree = "<group>"; };
 		41EB4D3B274CE04500A9272B /* ServiceWorkerNavigationPreloader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ServiceWorkerNavigationPreloader.cpp; sourceTree = "<group>"; };
 		41F060DD1654317500F3281C /* WebSocketChannelMessageReceiver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WebSocketChannelMessageReceiver.cpp; sourceTree = "<group>"; };
+		41F651E92993D40E00B82659 /* RetrieveRecordResponseBodyCallbackIdentifier.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RetrieveRecordResponseBodyCallbackIdentifier.h; sourceTree = "<group>"; };
 		41F898BB28EB195B0070549C /* RemoteVideoCodecFactory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RemoteVideoCodecFactory.cpp; sourceTree = "<group>"; };
 		41F898BC28EB195C0070549C /* RemoteVideoCodecFactory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RemoteVideoCodecFactory.h; sourceTree = "<group>"; };
 		41F9FD1823ED8A810099B579 /* LibWebRTCResolverIdentifier.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = LibWebRTCResolverIdentifier.h; path = Network/webrtc/LibWebRTCResolverIdentifier.h; sourceTree = "<group>"; };
@@ -11028,6 +11029,7 @@
 				46C5B7CC27AADDBE000C5B47 /* RemoteWorkerFrameLoaderClient.cpp */,
 				46C5B7CD27AADDBE000C5B47 /* RemoteWorkerFrameLoaderClient.h */,
 				46C5B7CB27AADDBE000C5B47 /* RemoteWorkerLibWebRTCProvider.h */,
+				41F651E92993D40E00B82659 /* RetrieveRecordResponseBodyCallbackIdentifier.h */,
 				4131F3E01F98712C0059995A /* WebServiceWorkerFetchTaskClient.cpp */,
 				419ACF9B1F981D26009F1A83 /* WebServiceWorkerFetchTaskClient.h */,
 				51BEB6291F3A5ACD005029B9 /* WebServiceWorkerProvider.cpp */,

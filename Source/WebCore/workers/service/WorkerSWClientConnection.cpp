@@ -111,6 +111,10 @@ WorkerSWClientConnection::~WorkerSWClientConnection()
     auto retrieveRecordResponseCallbacks = std::exchange(m_retrieveRecordResponseCallbacks, { });
     for (auto& callback : retrieveRecordResponseCallbacks.values())
         callback(Exception { AbortError, "context stopped"_s });
+
+    auto retrieveRecordResponseBodyCallbacks = std::exchange(m_retrieveRecordResponseBodyCallbacks, { });
+    for (auto& callback : retrieveRecordResponseBodyCallbacks.values())
+        callback(makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, { }, "context stopped"_s }));
 }
 
 void WorkerSWClientConnection::matchRegistration(SecurityOriginData&& topOrigin, const URL& clientURL, RegistrationCallback&& callback)
@@ -516,6 +520,38 @@ void WorkerSWClientConnection::retrieveRecordResponse(BackgroundFetchRecordIdent
         });
     });
 }
+
+void WorkerSWClientConnection::retrieveRecordResponseBody(BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseBodyCallback&& callback)
+{
+    uint64_t requestIdentifier = ++m_lastRequestIdentifier;
+    m_retrieveRecordResponseBodyCallbacks.add(requestIdentifier, WTFMove(callback));
+
+    callOnMainThread([thread = m_thread, requestIdentifier, recordIdentifier]() mutable {
+        auto& connection = ServiceWorkerProvider::singleton().serviceWorkerConnection();
+        connection.retrieveRecordResponseBody(recordIdentifier, [thread = WTFMove(thread), requestIdentifier](auto&& result) {
+            RefPtr<SharedBuffer> buffer;
+            ResourceError error;
+            if (!result.has_value())
+                error = WTFMove(result.error());
+            else
+                buffer = WTFMove(result.value());
+            thread->runLoop().postTaskForMode([requestIdentifier, buffer = WTFMove(buffer), error = WTFMove(error).isolatedCopy()](auto& scope) mutable {
+                auto& callbacks = downcast<WorkerGlobalScope>(scope).swClientConnection().m_retrieveRecordResponseBodyCallbacks;
+                auto iterator = callbacks.find(requestIdentifier);
+                ASSERT(iterator != callbacks.end());
+                if (!error.isNull()) {
+                    iterator->value(makeUnexpected(WTFMove(error)));
+                    callbacks.remove(iterator);
+                }
+                bool isDone = !buffer;
+                iterator->value(WTFMove(buffer));
+                if (isDone)
+                    callbacks.remove(iterator);
+            }, WorkerRunLoop::defaultMode());
+        });
+    });
+}
+
 
 } // namespace WebCore
 

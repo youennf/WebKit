@@ -51,6 +51,8 @@ public:
     void matchBackgroundFetch(SWServerRegistration&, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&);
     using RetrieveRecordResponseCallback = BackgroundFetch::RetrieveRecordResponseCallback;
     void retrieveRecordResponse(BackgroundFetchRecordIdentifier, RetrieveRecordResponseCallback&&);
+    using RetrieveRecordResponseBodyCallback = BackgroundFetch::RetrieveRecordResponseBodyCallback;
+    void retrieveRecordResponseBody(BackgroundFetchRecordIdentifier, RetrieveRecordResponseBodyCallback&&);
 
     void remove(SWServerRegistration&);
 

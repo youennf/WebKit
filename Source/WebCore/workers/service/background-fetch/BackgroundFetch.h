@@ -44,6 +44,7 @@ namespace WebCore {
 class BackgroundFetchRecordLoader;
 struct BackgroundFetchRequest;
 struct CacheQueryOptions;
+class SharedBuffer;
 
 class BackgroundFetch : public CanMakeWeakPtr<BackgroundFetch> {
     WTF_MAKE_FAST_ALLOCATED;
@@ -56,6 +57,7 @@ public:
     BackgroundFetchInformation information() const;
 
     using RetrieveRecordResponseCallback = CompletionHandler<void(Expected<ResourceResponse, ExceptionData>&&)>;
+    using RetrieveRecordResponseBodyCallback = Function<void(Expected<RefPtr<SharedBuffer>, ResourceError>&&)>;
     using CreateLoaderCallback = Function<std::unique_ptr<BackgroundFetchRecordLoader>(BackgroundFetchRecordLoader::Client&, ResourceRequest&&, FetchOptions&&, const ClientOrigin&)>;
 
     class Record : public BackgroundFetchRecordLoader::Client, public RefCounted<Record> {
@@ -75,6 +77,7 @@ public:
         BackgroundFetchRecordInformation information() const;
 
         void retrieveResponse(RetrieveRecordResponseCallback&&);
+        void retrieveRecordResponseBody(RetrieveRecordResponseBodyCallback&&);
 
     private:
         Record(BackgroundFetch&, BackgroundFetchRequest&&, size_t);

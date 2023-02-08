@@ -291,6 +291,7 @@ def serialized_identifiers():
         'WebKit::RemoteRemoteCommandListenerIdentifier',
         'WebKit::RenderingBackendIdentifier',
         'WebKit::RenderingUpdateID',
+        'WebKit::RetrieveRecordResponseBodyCallbackIdentifier',
         'WebKit::SampleBufferDisplayLayerIdentifier',
         'WebKit::StorageAreaIdentifier',
         'WebKit::StorageAreaImplIdentifier',

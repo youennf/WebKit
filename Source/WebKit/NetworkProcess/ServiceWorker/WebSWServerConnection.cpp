@@ -38,6 +38,7 @@
 #include "NetworkResourceLoader.h"
 #include "NetworkSession.h"
 #include "RemoteWorkerType.h"
+#include "SharedBufferReference.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebProcess.h"
 #include "WebProcessMessages.h"
@@ -710,7 +711,19 @@ std::optional<SWServer::GatheredClientData> WebSWServerConnection::gatherClientD
 void WebSWServerConnection::updateBackgroundFetchRegistration(const WebCore::BackgroundFetchInformation& information)
 {
     send(Messages::WebSWClientConnection::UpdateBackgroundFetchRegistration(information));
-    
+}
+
+void WebSWServerConnection::retrieveRecordResponseBody(WebCore::BackgroundFetchRecordIdentifier recordIdentifier, RetrieveRecordResponseBodyCallbackIdentifier callbackIdentifier)
+{
+    SWServer::Connection::retrieveRecordResponseBody(recordIdentifier, [weakThis = WeakPtr { *this }, callbackIdentifier](auto&& result) {
+        if (!weakThis)
+            return;
+        if (!result.has_value()) {
+            weakThis->send(Messages::WebSWClientConnection::NotifyRecordResponseBodyEnd(callbackIdentifier, result.error()));
+            return;
+        }
+        weakThis->send(Messages::WebSWClientConnection::NotifyRecordResponseBodyChunk(callbackIdentifier, IPC::SharedBufferReference(WTFMove(result.value()))));
+    });
 }
 
 } // namespace WebKit

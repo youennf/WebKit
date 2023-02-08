@@ -75,6 +75,7 @@ private:
     void abortBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, AbortBackgroundFetchCallback&&) final;
     void matchBackgroundFetch(ServiceWorkerRegistrationIdentifier, const String&, RetrieveRecordsOptions&&, MatchBackgroundFetchCallback&&) final;
     void retrieveRecordResponse(BackgroundFetchRecordIdentifier, RetrieveRecordResponseCallback&&) final;
+    void retrieveRecordResponseBody(BackgroundFetchRecordIdentifier, RetrieveRecordResponseBodyCallback&&) final;
 
     Ref<WorkerThread> m_thread;
 
@@ -95,6 +96,7 @@ private:
     HashMap<uint64_t, AbortBackgroundFetchCallback> m_abortBackgroundFetchCallbacks;
     HashMap<uint64_t, MatchBackgroundFetchCallback> m_matchBackgroundFetchCallbacks;
     HashMap<uint64_t, RetrieveRecordResponseCallback> m_retrieveRecordResponseCallbacks;
+    HashMap<uint64_t, RetrieveRecordResponseBodyCallback> m_retrieveRecordResponseBodyCallbacks;
 };
 
 } // namespace WebCore
