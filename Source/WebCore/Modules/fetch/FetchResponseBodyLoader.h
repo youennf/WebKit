@@ -31,6 +31,7 @@
 #include "ExceptionOr.h"
 #include "SharedBuffer.h"
 #include <wtf/Function.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/Span.h>
 
 namespace WebCore {
@@ -40,6 +41,7 @@ class FragmentedSharedBuffer;
 class FetchResponseBodyLoader {
     WTF_MAKE_FAST_ALLOCATED;
 public:
+    explicit FetchResponseBodyLoader(FetchResponse&)
     virtual ~FetchResponseBodyLoader() = default;
 
     virtual void stop() = 0;
@@ -53,8 +55,14 @@ public:
     ConsumeDataByChunkCallback& consumeDataCallback() { return m_consumeDataCallback; }
 
 private:
+    WeakPtr<FetchResponse> m_response;
     ConsumeDataByChunkCallback m_consumeDataCallback;
 };
+
+inline void FetchResponseBodyLoader::FetchResponseBodyLoader(FetchResponse& response)
+    : m_response(response)
+{
+}
 
 inline void FetchResponseBodyLoader::consumeDataByChunk(ConsumeDataByChunkCallback&& callback)
 {
