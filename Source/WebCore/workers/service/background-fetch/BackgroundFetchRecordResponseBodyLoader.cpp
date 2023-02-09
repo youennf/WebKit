@@ -28,15 +28,38 @@
 
 #if ENABLE(SERVICE_WORKER)
 
+#include "FetchBody.h"
+#include "FetchResponse.h"
 #include "SWClientConnection.h"
 
 namespace WebCore {
 
-BackgroundFetchRecordResponseBodyLoader::BackgroundFetchRecordResponseBodyLoader(ScriptExecutionContext& context, BackgroundFetchRecordIdentifier recordIdentifier)
-    : m_context(context)
+BackgroundFetchRecordResponseBodyLoader::BackgroundFetchRecordResponseBodyLoader(FetchResponse& response, FetchOptions::Credentials credentials, NotificationCallback&& callback, BackgroundFetchRecordIdentifier recordIdentifier)
+    : FetchResponseLoader(response, credentials, WTFMove(callback))
     , m_recordIdentifier(recordIdentifier)
 {
-    start();
+}
+
+bool BackgroundFetchRecordResponseBodyLoader::start(ScriptExecutionContext& context)
+{
+    fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::start\n");
+
+    m_context = context;
+    SWClientConnection::fromScriptExecutionContext(context)->retrieveRecordResponse(m_recordIdentifier, [weakThis = WeakPtr { *this }](auto&& result) {
+        if (!weakThis || !weakThis->m_isActive)
+            return;
+
+        if (result.hasException()) {
+            weakThis->receivedError(result.releaseException());
+            return;
+        }
+
+        fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::start 1\n");
+        weakThis->receivedResponse(result.returnValue());
+        if (weakThis->m_isActive)
+            weakThis->startStreamingBody();
+    });
+    return true;
 }
 
 void BackgroundFetchRecordResponseBodyLoader::stop()
@@ -49,37 +72,43 @@ bool BackgroundFetchRecordResponseBodyLoader::isActive() const
     return m_isActive;
 }
 
-RefPtr<FragmentedSharedBuffer> BackgroundFetchRecordResponseBodyLoader::startStreaming()
+RefPtr<FragmentedSharedBuffer> BackgroundFetchRecordResponseBodyLoader::startStreamingBody()
 {
+    fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::startStreamingBody 1\n");
+
     ASSERT(m_isActive);
+    if (m_hasStartedStreamingBody)
+        return nullptr;
+
+    m_hasStartedStreamingBody = true;
+
+    fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::startStreamingBody 2\n");
     if (!m_context) {
         if (auto callback = takeConsumeDataCallback())
             callback(Exception { TypeError });
         return nullptr;
     }
 
+    fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::startStreamingBody 3\n");
     SWClientConnection::fromScriptExecutionContext(*m_context)->retrieveRecordResponseBody(m_recordIdentifier, [weakThis = WeakPtr { *this }](auto&& result) {
+        fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::startStreamingBody 4\n");
         if (!weakThis)
             return;
-        
+        fprintf(stderr, "BackgroundFetchRecordResponseBodyLoader::startStreamingBody 5\n");
+
         if (!result.has_value()) {
-            // FIXME: handle aborted.
-            if (auto callback = weakThis->takeConsumeDataCallback())
-                callback(Exception { TypeError });
+            weakThis->receivedError(Exception { TypeError, result.error().sanitizedDescription() });
             return;
         }
         
         if (auto buffer = WTFMove(result.value())) {
-            if (weakThis->consumeDataCallback()) {
-                Span chunk { buffer->data(), buffer->size() };
-                weakThis->consumeDataCallback()(&chunk);
-            }
+            weakThis->response()->receivedData(buffer.releaseNonNull());
             return;
         }
 
-        if (auto callback = weakThis->takeConsumeDataCallback())
-            callback(nullptr);
+        weakThis->response()->didSucceed({ });
     });
+
     return nullptr;
 }
 

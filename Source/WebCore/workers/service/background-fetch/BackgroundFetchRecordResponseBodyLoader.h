@@ -28,25 +28,30 @@
 #if ENABLE(SERVICE_WORKER)
 
 #include "BackgroundFetchRecordIdentifier.h"
-#include "FetchResponseBodyLoader.h"
+#include "FetchResponseLoader.h"
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
-class ScriptExecutionContext;
+class FetchBody;
 
-class BackgroundFetchRecordResponseBodyLoader : public FetchResponseBodyLoader, public CanMakeWeakPtr<BackgroundFetchRecordResponseBodyLoader> {
+class BackgroundFetchRecordResponseBodyLoader : public FetchResponseLoader, public CanMakeWeakPtr<BackgroundFetchRecordResponseBodyLoader> {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    BackgroundFetchRecordResponseBodyLoader(ScriptExecutionContext&, BackgroundFetchRecordIdentifier);
+    explicit BackgroundFetchRecordResponseBodyLoader(FetchResponse&, FetchOptions::Credentials, NotificationCallback&&, BackgroundFetchRecordIdentifier);
     
 private:
+    bool start(ScriptExecutionContext&) final;
     void stop() final;
     bool isActive() const final;
-    RefPtr<FragmentedSharedBuffer> startStreaming() final;
-
+    RefPtr<FragmentedSharedBuffer> startStreamingBody() final;
+    void sendBody() final { startStreamingBody(); }
+    
     WeakPtr<ScriptExecutionContext> m_context;
     BackgroundFetchRecordIdentifier m_recordIdentifier;
     bool m_isActive { true };
+    bool m_hasStartedStreamingBody { false };
+    
 };
 
 } // namespace WebCore

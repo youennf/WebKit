@@ -235,7 +235,7 @@ void FetchResponse::addAbortSteps(Ref<AbortSignal>&& signal)
     });
 }
 
-Ref<FetchResponse> FetchResponse::createFetchResponse(ScriptExecutionContext& context, FetchRequest& request, NotificationCallback&& responseCallback)
+Ref<FetchResponse> FetchResponse::createFetchResponse(ScriptExecutionContext& context, FetchRequest& request, NotificationCallback&& responseCallback, const String& initiator)
 {
     auto response = adoptRef(*new FetchResponse(&context, FetchBody { }, FetchHeaders::create(FetchHeaders::Guard::Immutable), { }));
     response->suspendIfNeeded();
@@ -244,7 +244,19 @@ Ref<FetchResponse> FetchResponse::createFetchResponse(ScriptExecutionContext& co
 
     response->addAbortSteps(request.signal());
 
-    response->m_bodyLoader = makeUnique<BodyLoader>(response.get(), WTFMove(responseCallback));
+    response->m_bodyLoader = makeUnique<BodyLoader>(response.get(), request, initiator, WTFMove(responseCallback));
+    return response;
+}
+
+Ref<FetchResponse> FetchResponse::createFetchResponse(ScriptExecutionContext& context, const Function<UniqueRef<FetchResponseLoader>(FetchResponse&)>& createLoaderCallback)
+{
+    auto response = adoptRef(*new FetchResponse(&context, FetchBody { }, FetchHeaders::create(FetchHeaders::Guard::Immutable), { }));
+    response->suspendIfNeeded();
+
+    response->body().consumer().setAsLoading();
+
+    response->m_bodyLoader = createLoaderCallback(response.get()).moveToUniquePtr();
+    response->m_bodyLoader->start(context);
     return response;
 }
 
@@ -255,15 +267,15 @@ void FetchResponse::fetch(ScriptExecutionContext& context, FetchRequest& request
         return;
     }
 
-    auto response = createFetchResponse(context, request, WTFMove(responseCallback));
-    response->startLoader(context, request, initiator);
+    auto response = createFetchResponse(context, request, WTFMove(responseCallback), initiator);
+    response->startLoader(context, request);
 }
 
-void FetchResponse::startLoader(ScriptExecutionContext& context, FetchRequest& request, const String& initiator)
+void FetchResponse::startLoader(ScriptExecutionContext& context, FetchRequest& request)
 {
     InspectorInstrumentation::willFetch(context, request.url().string());
 
-    if (m_bodyLoader && !m_bodyLoader->start(context, request, initiator))
+    if (m_bodyLoader && !m_bodyLoader->start(context))
         m_bodyLoader = nullptr;
 }
 
@@ -284,52 +296,79 @@ const ResourceResponse& FetchResponse::filteredResponse() const
     return m_internalResponse;
 }
 
+void FetchResponse::didSucceed(const NetworkLoadMetrics& metrics)
+{
+    ASSERT(hasPendingActivity());
+    m_body->loadingSucceeded(contentType());
+    setNetworkLoadMetrics(metrics);
+    if (m_readableStreamSource) {
+        if (body().consumer().hasData())
+            m_readableStreamSource->enqueue(body().consumer().takeAsArrayBuffer());
+
+        closeStream();
+    }
+
+    if (m_bodyLoader) {
+        if (auto consumeDataCallback = m_bodyLoader->takeConsumeDataCallback())
+            consumeDataCallback(nullptr);
+    }
+}
+
+void FetchResponse::receivedData(Ref<SharedBuffer>&& buffer)
+{
+    body().consumer().append(buffer.get());
+}
+
 void FetchResponse::BodyLoader::didSucceed(const NetworkLoadMetrics& metrics)
 {
-    ASSERT(m_response.hasPendingActivity());
-    m_response.m_body->loadingSucceeded(m_response.contentType());
-    m_response.setNetworkLoadMetrics(metrics);
-    if (m_response.m_readableStreamSource) {
-        if (m_response.body().consumer().hasData())
-            m_response.m_readableStreamSource->enqueue(m_response.body().consumer().takeAsArrayBuffer());
-
-        m_response.closeStream();
-    }
-
-    if (auto consumeDataCallback = WTFMove(m_consumeDataCallback))
-        consumeDataCallback(nullptr);
+    response()->didSucceed(metrics);
 
     if (m_loader->isStarted()) {
-        Ref<FetchResponse> protector(m_response);
-        m_response.m_bodyLoader = nullptr;
+        Ref<FetchResponse> protector(*response());
+        response()->m_bodyLoader = nullptr;
     }
+}
+
+void FetchResponse::receivedError(ResourceError&& error)
+{
+    setLoadingError(WTFMove(error));
+    processReceivedError();
+}
+
+void FetchResponse::receivedError(Exception&& error)
+{
+    setLoadingError(WTFMove(error));
+    processReceivedError();
+}
+
+void FetchResponse::processReceivedError()
+{
+    ASSERT(hasPendingActivity());
+
+    if (m_bodyLoader) {
+        if (auto callback = m_bodyLoader->takeNotificationCallback())
+            callback(*loadingException());
+        else if (auto callback = m_bodyLoader->takeConsumeDataCallback())
+            callback(*loadingException());
+    }
+
+    if (m_readableStreamSource) {
+        if (!m_readableStreamSource->isCancelling())
+            m_readableStreamSource->error(*loadingException());
+        m_readableStreamSource = nullptr;
+    }
+
+    if (m_body)
+        m_body->loadingFailed(*loadingException());
 }
 
 void FetchResponse::BodyLoader::didFail(const ResourceError& error)
 {
-    ASSERT(m_response.hasPendingActivity());
+    response()->receivedError(ResourceError { error });
 
-    m_response.setLoadingError(ResourceError { error });
-
-    if (auto responseCallback = WTFMove(m_responseCallback))
-        responseCallback(Exception { TypeError, error.sanitizedDescription() });
-
-    if (auto consumeDataCallback = WTFMove(m_consumeDataCallback))
-        consumeDataCallback(Exception { TypeError, error.sanitizedDescription() });
-
-    if (m_response.m_readableStreamSource) {
-        if (!m_response.m_readableStreamSource->isCancelling())
-            m_response.m_readableStreamSource->error(*m_response.loadingException());
-        m_response.m_readableStreamSource = nullptr;
-    }
-
-    if (m_response.m_body)
-        m_response.m_body->loadingFailed(*m_response.loadingException());
-
-    // Check whether didFail is called as part of FetchLoader::start.
-    if (m_loader && m_loader->isStarted()) {
-        Ref<FetchResponse> protector(m_response);
-        m_response.m_bodyLoader = nullptr;
+    if (m_loader->isStarted()) {
+        Ref<FetchResponse> protector(*response());
+        response()->m_bodyLoader = nullptr;
     }
 }
 
@@ -353,10 +392,10 @@ void FetchResponse::setReceivedInternalResponse(const ResourceResponse& resource
     updateContentType();
 }
 
-FetchResponse::BodyLoader::BodyLoader(FetchResponse& response, NotificationCallback&& responseCallback)
-    : m_response(response)
-    , m_responseCallback(WTFMove(responseCallback))
-    , m_pendingActivity(m_response.makePendingActivity(m_response))
+FetchResponse::BodyLoader::BodyLoader(FetchResponse& response, FetchRequest& request, const String& initiator, NotificationCallback&& responseCallback)
+    : FetchResponseLoader(response, request.fetchOptions().credentials, WTFMove(responseCallback))
+    , m_request(request)
+    , m_initiator(initiator)
 {
 }
 
@@ -366,30 +405,27 @@ FetchResponse::BodyLoader::~BodyLoader()
 
 void FetchResponse::BodyLoader::didReceiveResponse(const ResourceResponse& resourceResponse)
 {
-    m_response.setReceivedInternalResponse(resourceResponse, m_credentials);
-
-    if (auto responseCallback = WTFMove(m_responseCallback))
-        responseCallback(Ref { m_response });
+    receivedResponse(resourceResponse);
 }
 
 void FetchResponse::BodyLoader::didReceiveData(const SharedBuffer& buffer)
 {
-    ASSERT(m_response.m_readableStreamSource || m_consumeDataCallback);
+    ASSERT(response()->m_readableStreamSource || hasConsumeDataCallback());
 
-    if (m_consumeDataCallback) {
+    if (hasConsumeDataCallback()) {
         Span chunk { buffer.data(), buffer.size() };
-        m_consumeDataCallback(&chunk);
+        consumeDataCallback()(&chunk);
         return;
     }
 
-    auto& source = *m_response.m_readableStreamSource;
+    auto& source = *response()->m_readableStreamSource;
 
     if (!source.isPulling()) {
-        m_response.body().consumer().append(buffer);
+        response()->body().consumer().append(buffer);
         return;
     }
 
-    if (m_response.body().consumer().hasData() && !source.enqueue(m_response.body().consumer().takeAsArrayBuffer())) {
+    if (response()->body().consumer().hasData() && !source.enqueue(response()->body().consumer().takeAsArrayBuffer())) {
         stop();
         return;
     }
@@ -400,11 +436,10 @@ void FetchResponse::BodyLoader::didReceiveData(const SharedBuffer& buffer)
     source.resolvePullPromise();
 }
 
-bool FetchResponse::BodyLoader::start(ScriptExecutionContext& context, const FetchRequest& request, const String& initiator)
+bool FetchResponse::BodyLoader::start(ScriptExecutionContext& context)
 {
-    m_credentials = request.fetchOptions().credentials;
-    m_loader = makeUnique<FetchLoader>(*this, &m_response.m_body->consumer());
-    m_loader->start(context, request, initiator);
+    m_loader = makeUnique<FetchLoader>(*this, &response()->m_body->consumer());
+    m_loader->start(context, m_request.get(), m_initiator);
 
     if (!m_loader->isStarted())
         return false;
@@ -419,22 +454,9 @@ bool FetchResponse::BodyLoader::start(ScriptExecutionContext& context, const Fet
 
 void FetchResponse::BodyLoader::stop()
 {
-    m_responseCallback = { };
+    takeNotificationCallback();
     if (m_loader)
         m_loader->stop();
-}
-
-void FetchResponse::BodyLoader::consumeDataByChunk(ConsumeDataByChunkCallback&& consumeDataCallback)
-{
-    ASSERT(!m_consumeDataCallback);
-    m_consumeDataCallback = WTFMove(consumeDataCallback);
-    auto data = startStreaming();
-    if (!data)
-        return;
-
-    auto contiguousBuffer = data->makeContiguous();
-    Span chunk { contiguousBuffer->data(), data->size() };
-    m_consumeDataCallback(&chunk);
 }
 
 FetchResponse::ResponseData FetchResponse::consumeBody()
@@ -506,7 +528,7 @@ void FetchResponse::consumeBodyAsStream()
 
     ASSERT(m_bodyLoader);
 
-    auto data = m_bodyLoader->startStreaming();
+    auto data = m_bodyLoader->startStreamingBody();
     if (data) {
         if (!m_readableStreamSource->enqueue(data->tryCreateArrayBuffer())) {
             stop();
@@ -552,7 +574,7 @@ void FetchResponse::feedStream()
     closeStream();
 }
 
-RefPtr<FragmentedSharedBuffer> FetchResponse::BodyLoader::startStreaming()
+RefPtr<FragmentedSharedBuffer> FetchResponse::BodyLoader::startStreamingBody()
 {
     if (!m_loader) {
         m_shouldStartStreaming = true;
@@ -615,6 +637,12 @@ bool FetchResponse::isCORSSameOrigin() const
 bool FetchResponse::hasWasmMIMEType() const
 {
     return MIMETypeRegistry::isSupportedWebAssemblyMIMEType(m_headers->fastGet(HTTPHeaderName::ContentType));
+}
+
+void FetchResponse::sendBody()
+{
+    if (m_bodyLoader)
+        m_bodyLoader->sendBody();
 }
 
 } // namespace WebCore

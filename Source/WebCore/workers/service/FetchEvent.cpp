@@ -182,7 +182,7 @@ void FetchEvent::navigationPreloadIsReady(ResourceResponse&& response)
     auto request = FetchRequest::create(*context, { }, FetchHeaders::create(), ResourceRequest { m_request->internalRequest() } , FetchOptions { m_request->fetchOptions() }, String { m_request->internalRequestReferrer() });
     request->setNavigationPreloadIdentifier(m_navigationPreloadIdentifier);
 
-    auto fetchResponse = FetchResponse::createFetchResponse(*context, request.get(), { });
+    auto fetchResponse = FetchResponse::createFetchResponse(*context, request.get(), { }, cachedResourceRequestInitiatorTypes().navigation);
     fetchResponse->setReceivedInternalResponse(response, FetchOptions::Credentials::Include);
     fetchResponse->setIsNavigationPreload(true);
 
@@ -194,7 +194,7 @@ void FetchEvent::navigationPreloadIsReady(ResourceResponse&& response)
     // We postpone the load to leave some time for the service worker to use the preload before loading it.
     context->postTask([fetchResponse = WTFMove(fetchResponse), request = WTFMove(request)](auto& context) {
         if (!fetchResponse->isUsedForPreload())
-            fetchResponse->startLoader(context, request.get(), cachedResourceRequestInitiatorTypes().navigation);
+            fetchResponse->startLoader(context, request.get());
     });
 }
 

@@ -4,8 +4,8 @@ Harness Error (TIMEOUT), message = null
 FAIL Background Fetch requires an activated Service Worker assert_unreached: Should have rejected: fetch() must reject on pending and installing workers Reached unreachable code
 PASS Argument verification is done for BackgroundFetchManager.fetch()
 PASS IDs must be unique among active Background Fetch registrations
-TIMEOUT Empty URL is OK. Test timed out
-NOTRUN Requests with PUT method require CORS Preflight and succeed.
+PASS Empty URL is OK.
+TIMEOUT Requests with PUT method require CORS Preflight and succeed. Test timed out
 NOTRUN Requests with text/json content type require CORS Preflight and succeed.
 NOTRUN Using Background Fetch to successfully fetch a single resource
 NOTRUN Registration object gets updated values when a background fetch completes.

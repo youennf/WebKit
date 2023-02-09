@@ -30,6 +30,7 @@
 
 #include "FetchBodyOwner.h"
 #include "FetchHeaders.h"
+#include "FetchResponseLoader.h"
 #include "ReadableStreamSink.h"
 #include "ResourceResponse.h"
 #include <JavaScriptCore/TypedArrays.h>
@@ -65,7 +66,8 @@ public:
 
     using NotificationCallback = Function<void(ExceptionOr<Ref<FetchResponse>>&&)>;
     static void fetch(ScriptExecutionContext&, FetchRequest&, NotificationCallback&&, const String& initiator);
-    static Ref<FetchResponse> createFetchResponse(ScriptExecutionContext&, FetchRequest&, NotificationCallback&&);
+    static Ref<FetchResponse> createFetchResponse(ScriptExecutionContext&, FetchRequest&, NotificationCallback&&, const String&);
+    static Ref<FetchResponse> createFetchResponse(ScriptExecutionContext&, const Function<UniqueRef<FetchResponseLoader>(FetchResponse&)>&);
 
     void startConsumingStream(unsigned);
     void consumeChunk(Ref<JSC::Uint8Array>&&);
@@ -115,12 +117,17 @@ public:
 
     const NetworkLoadMetrics& networkLoadMetrics() const { return m_networkLoadMetrics; }
     void setReceivedInternalResponse(const ResourceResponse&, FetchOptions::Credentials);
-    void startLoader(ScriptExecutionContext&, FetchRequest&, const String& initiator);
+    void startLoader(ScriptExecutionContext&, FetchRequest&);
 
     void setIsNavigationPreload(bool isNavigationPreload) { m_isNavigationPreload = isNavigationPreload; }
-    bool isAvailableNavigationPreload() const { return m_isNavigationPreload && m_bodyLoader && !m_bodyLoader->hasLoader() && !hasReadableStreamBody(); }
+    bool isAvailableNavigationPreload() const { return m_isNavigationPreload && m_bodyLoader && !m_bodyLoader->isActive() && !hasReadableStreamBody(); }
     void markAsUsedForPreload();
     bool isUsedForPreload() const { return m_isUsedForPreload; }
+
+    void receivedError(Exception&&);
+    void receivedError(ResourceError&&);
+    void didSucceed(const NetworkLoadMetrics&);
+    void receivedData(Ref<SharedBuffer>&&);
 
 private:
     FetchResponse(ScriptExecutionContext*, std::optional<FetchBody>&&, Ref<FetchHeaders>&&, ResourceResponse&&);
@@ -128,28 +135,21 @@ private:
     void stop() final;
     const char* activeDOMObjectName() const final;
 
+    void sendBody() final;
+
     const ResourceResponse& filteredResponse() const;
     void setNetworkLoadMetrics(const NetworkLoadMetrics& metrics) { m_networkLoadMetrics = metrics; }
     void closeStream();
 
     void addAbortSteps(Ref<AbortSignal>&&);
 
-    class BodyLoader final : public FetchLoaderClient {
+    void processReceivedError();
+
+    class BodyLoader final : public FetchLoaderClient, public FetchResponseLoader {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        BodyLoader(FetchResponse&, NotificationCallback&&);
+        BodyLoader(FetchResponse&, FetchRequest&, const String&, NotificationCallback&&);
         ~BodyLoader();
-
-        bool start(ScriptExecutionContext&, const FetchRequest&, const String& initiator);
-        void stop();
-
-        void consumeDataByChunk(ConsumeDataByChunkCallback&&);
-
-        bool hasLoader() const { return !!m_loader; }
-
-        RefPtr<FragmentedSharedBuffer> startStreaming();
-        NotificationCallback takeNotificationCallback() { return WTFMove(m_responseCallback); }
-        ConsumeDataByChunkCallback takeConsumeDataCallback() { return WTFMove(m_consumeDataCallback); }
 
     private:
         // FetchLoaderClient API
@@ -158,18 +158,21 @@ private:
         void didReceiveResponse(const ResourceResponse&) final;
         void didReceiveData(const SharedBuffer&) final;
 
-        FetchResponse& m_response;
-        NotificationCallback m_responseCallback;
-        ConsumeDataByChunkCallback m_consumeDataCallback;
+        // FetchResponseLoader
+        bool start(ScriptExecutionContext&) final;
+        void stop() final;
+        bool isActive() const final { return !!m_loader; }
+        RefPtr<FragmentedSharedBuffer> startStreamingBody() final;
+
+        Ref<FetchRequest> m_request;
+        String m_initiator;
         std::unique_ptr<FetchLoader> m_loader;
-        Ref<PendingActivity<FetchResponse>> m_pendingActivity;
-        FetchOptions::Credentials m_credentials;
         bool m_shouldStartStreaming { false };
     };
 
     mutable std::optional<ResourceResponse> m_filteredResponse;
     ResourceResponse m_internalResponse;
-    std::unique_ptr<BodyLoader> m_bodyLoader;
+    std::unique_ptr<FetchResponseLoader> m_bodyLoader;
     mutable String m_responseURL;
     // Opaque responses will padd their body size when used with Cache API.
     uint64_t m_bodySizeWithPadding { 0 };

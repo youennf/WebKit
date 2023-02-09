@@ -93,6 +93,7 @@ Modules/fetch/FetchHeaders.cpp
 Modules/fetch/FetchLoader.cpp
 Modules/fetch/FetchRequest.cpp
 Modules/fetch/FetchResponse.cpp
+Modules/fetch/FetchResponseLoader.cpp
 Modules/fetch/FormDataConsumer.cpp
 Modules/fetch/WindowOrWorkerGlobalScopeFetch.cpp
 Modules/filesystemaccess/FileSystemDirectoryHandle.cpp
