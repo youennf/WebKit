@@ -283,6 +283,7 @@ void BackgroundFetch::Record::didReceiveResponseBodyChunk(const SharedBuffer& da
 
 void BackgroundFetch::Record::didFinish(const ResourceError& error)
 {
+    fprintf(stderr, "BackgroundFetch::Record::didFinish\n");
     auto callbacks = std::exchange(m_responseCallbacks, { });
     for (auto& callback : callbacks)
         callback(makeUnexpected(ExceptionData { TypeError }));

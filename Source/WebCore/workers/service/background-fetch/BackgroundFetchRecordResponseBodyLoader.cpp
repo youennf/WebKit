@@ -36,6 +36,7 @@ BackgroundFetchRecordResponseBodyLoader::BackgroundFetchRecordResponseBodyLoader
     : m_context(context)
     , m_recordIdentifier(recordIdentifier)
 {
+    start();
 }
 
 void BackgroundFetchRecordResponseBodyLoader::stop()
