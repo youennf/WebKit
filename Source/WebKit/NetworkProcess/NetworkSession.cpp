@@ -752,6 +752,11 @@ std::unique_ptr<BackgroundFetchRecordLoader> NetworkSession::createBackgroundFet
 {
     return makeUnique<BackgroundFetchLoad>(m_networkProcess.get(), m_sessionID, client, WTFMove(request), WTFMove(options), clientOrigin);
 }
+
+void NetworkSession::requestBackgroundFetchSpace(const ClientOrigin& origin, uint64_t size, CompletionHandler<void(bool)>&& callback)
+{
+    m_storageManager->requestSpace(origin, size, WTFMove(callback));
+}
 #endif // ENABLE(SERVICE_WORKER)
 
 } // namespace WebKit

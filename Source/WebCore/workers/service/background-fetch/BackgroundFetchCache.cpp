@@ -71,12 +71,31 @@ void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registrati
 
     auto fetch = WeakPtr { *result.iterator->value };
 
-    fetch->perform([this](auto& client, auto&& request, auto&& options, auto& origin) mutable {
-        return m_server->createBackgroundFetchRecordLoader(client, WTFMove(request), WTFMove(options), origin);
-    });
+    // FIXME: We should wait for upload data to be fully read.
+    uint64_t expectedSpace;
+    constexpr uint64_t fixedRecordSize = 4096;
+    bool isSafe = WTF::safeAdd(fetch->downloadTotal(), fetch->uploadTotal(), expectedSpace) && WTF::safeAdd(expectedSpace, fixedRecordSize, expectedSpace);
+    if (!isSafe) {
+        callback(makeUnexpected(ExceptionData { QuotaExceededError, "Background fetch requested space is above quota"_s }));
+        return;
+    }
 
-    // FIXME: we should do a quota check with uploadTotal.
-    callback(fetch->information());
+    m_server->requestBackgroundFetchSpace(fetch->origin(), expectedSpace, [server = m_server, fetch = WTFMove(fetch), callback = WTFMove(callback)](bool result) mutable {
+        if (!fetch || !server) {
+            callback(makeUnexpected(ExceptionData { TypeError, "Background fetch is gone"_s }));
+            return;
+        }
+        if (!result) {
+            callback(makeUnexpected(ExceptionData { QuotaExceededError, "Background fetch requested space is above quota"_s }));
+            return;
+        }
+
+        fetch->perform([server = WTFMove(server)](auto& client, auto&& request, auto&& options, auto& origin) mutable {
+            return server ? server->createBackgroundFetchRecordLoader(client, WTFMove(request), WTFMove(options), origin) : nullptr;
+        });
+
+        callback(fetch->information());
+    });
 }
 
 void BackgroundFetchCache::notifyBackgroundFetchUpdate(BackgroundFetchInformation&& information)

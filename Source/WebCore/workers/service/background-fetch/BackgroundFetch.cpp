@@ -63,7 +63,7 @@ BackgroundFetch::~BackgroundFetch()
 
 BackgroundFetchInformation BackgroundFetch::information() const
 {
-    return { m_registrationIdentifier, m_identifier, m_uploadTotal, m_currentUploadSize, m_downloadTotal, m_currentDownloadSize, m_result, m_failureReason, m_recordsAvailableFlag };
+    return { m_registrationIdentifier, m_identifier, m_uploadTotal, m_currentUploadSize, downloadTotal(), m_currentDownloadSize, m_result, m_failureReason, m_recordsAvailableFlag };
 }
 
 void BackgroundFetch::match(const RetrieveRecordsOptions& options, MatchBackgroundFetchCallback&& callback)
@@ -121,7 +121,7 @@ void BackgroundFetch::storeResponseBodyChunk(size_t index, const SharedBuffer& d
 {
     ASSERT(index < m_records.size());
     m_currentDownloadSize += data.size();
-    if (m_downloadTotal && m_currentDownloadSize >= m_downloadTotal) {
+    if (downloadTotal() && m_currentDownloadSize >= downloadTotal()) {
         updateBackgroundFetchStatus(BackgroundFetchResult::Failure, BackgroundFetchFailureReason::DownloadTotalExceeded);
         return;
     }
@@ -229,6 +229,8 @@ void BackgroundFetch::Record::complete(const CreateLoaderCallback& createLoaderC
     ASSERT(!m_loader);
     // FIXME: Handle Range headers
     m_loader = createLoaderCallback(*this, ResourceRequest { m_request.internalRequest }, FetchOptions { m_request.options }, m_fetch->m_origin);
+    if (!m_loader)
+        abort();
 }
 
 void BackgroundFetch::Record::abort()

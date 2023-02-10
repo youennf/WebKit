@@ -111,6 +111,9 @@ public:
     void perform(const CreateLoaderCallback&);
 
     bool isActive() const { return m_isActive; }
+    ClientOrigin origin() const { return m_origin; }
+    uint64_t downloadTotal() const { return  m_options.downloadTotal; }
+    uint64_t uploadTotal() const { return m_uploadTotal; }
 
     void unsetRecordsAvailableFlag();
 
@@ -127,7 +130,6 @@ private:
     String m_identifier;
     Vector<Ref<Record>> m_records;
     BackgroundFetchOptions m_options;
-    uint64_t m_downloadTotal { 0 };
     uint64_t m_uploadTotal { 0 };
     BackgroundFetchResult m_result { BackgroundFetchResult::EmptyString };
     BackgroundFetchFailureReason m_failureReason { BackgroundFetchFailureReason::EmptyString };
