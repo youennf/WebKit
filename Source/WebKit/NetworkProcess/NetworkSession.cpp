@@ -757,6 +757,11 @@ void NetworkSession::requestBackgroundFetchSpace(const ClientOrigin& origin, uin
 {
     m_storageManager->requestSpace(origin, size, WTFMove(callback));
 }
+
+Ref<BackgroundFetchCacheStore> NetworkSession::createBackgroundFetchCacheStore()
+{
+    return m_storageManager->createBackgroundFetchCacheStore();
+}
 #endif // ENABLE(SERVICE_WORKER)
 
 } // namespace WebKit

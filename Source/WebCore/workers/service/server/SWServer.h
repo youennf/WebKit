@@ -272,6 +272,7 @@ public:
 
     std::unique_ptr<BackgroundFetchRecordLoader> createBackgroundFetchRecordLoader(BackgroundFetchRecordLoader::Client& client, ResourceRequest&& request, FetchOptions&& options, const WebCore::ClientOrigin& origin) { return m_delegate->createBackgroundFetchRecordLoader(client, WTFMove(request), WTFMove(options), origin); }
     void requestBackgroundFetchSpace(const ClientOrigin& origin, uint64_t size, CompletionHandler<void(bool)>&& callback) { m_delegate->requestBackgroundFetchSpace(origin, size, WTFMove(callback)); }
+    Ref<BackgroundFetchCacheStore> createBackgroundFetchCacheStore() { return m_delegate->createBackgroundFetchCacheStore(); }
 
 private:
     unsigned maxRegistrationCount();

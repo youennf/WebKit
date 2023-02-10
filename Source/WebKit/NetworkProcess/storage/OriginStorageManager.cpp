@@ -56,7 +56,8 @@ public:
         LocalStorage,
         SessionStorage,
         IndexedDB,
-        CacheStorage
+        CacheStorage,
+        BackgroundFetchStorage
     };
     std::optional<StorageType> toStorageType(WebsiteDataType) const;
     String toStorageIdentifier(StorageType) const;
@@ -173,6 +174,8 @@ String OriginStorageManager::StorageBucket::toStorageIdentifier(StorageType type
         return "IndexedDB"_s;
     case StorageType::CacheStorage:
         return "CacheStorage"_s;
+    case StorageType::BackgroundFetchStorage:
+        return "BackgroundFetchStorage"_s;
     default:
         break;
     }
@@ -554,6 +557,8 @@ String OriginStorageManager::StorageBucket::resolvedPath(WebsiteDataType webiste
         return resolvedCacheStoragePath();
     case StorageType::SessionStorage:
     case StorageType::FileSystem:
+        return typeStoragePath(*type);
+    case StorageType::BackgroundFetchStorage:
         return typeStoragePath(*type);
     }
     RELEASE_ASSERT_NOT_REACHED();

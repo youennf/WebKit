@@ -30,11 +30,13 @@
 #include "ServiceWorkerRegistrationKey.h"
 #include <wtf/CompletionHandler.h>
 #include <wtf/Expected.h>
+#include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
+class BackgroundFetchCache;
 struct BackgroundFetchInformation;
 struct BackgroundFetchOptions;
 struct BackgroundFetchRecordInformation;
@@ -46,33 +48,21 @@ struct RetrieveRecordsOptions;
 class SWServerRegistration;
 class SharedBuffer;
 
-class BackgroundFetchCacheStore : public RefCounted<BackgroundFetchCacheStore> {
+class BackgroundFetchCacheStore : public ThreadSafeRefCounted<BackgroundFetchCacheStore, WTF::DestructionThread::MainRunLoop> {
 public:
     virtual ~BackgroundFetchCacheStore() = default;
     
-    virtual void initialize(SWServerRegistration&, CompletionHandler<void()>&&) = 0;
-    virtual void clearRecords(ServiceWorkerRegistrationKey, const String&, CompletionHandler<void()>&& = [] { }) = 0;
-    virtual void clearAllRecords(ServiceWorkerRegistrationKey, CompletionHandler<void()>&& = [] { }) = 0;
+    virtual void initialize(BackgroundFetchCache&, const ServiceWorkerRegistrationKey&, CompletionHandler<void()>&&) = 0;
+    virtual void clearRecords(const ServiceWorkerRegistrationKey&, const String&, CompletionHandler<void()>&& = [] { }) = 0;
+    virtual void clearAllRecords(const ServiceWorkerRegistrationKey&, CompletionHandler<void()>&& = [] { }) = 0;
 
     enum class StoreResult { OK, QuotaError, InternalError };
-    virtual void storeNewRecord(ServiceWorkerRegistrationKey, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) = 0;
-    virtual void storeRecordResponse(ServiceWorkerRegistrationKey, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) = 0;
-    virtual void storeRecordResponseBodyChunk(ServiceWorkerRegistrationKey, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeNewRecord(const ServiceWorkerRegistrationKey&, const String&, size_t, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeRecordResponse(const ServiceWorkerRegistrationKey&, const String&, size_t, ResourceResponse&&, CompletionHandler<void(StoreResult)>&&) = 0;
+    virtual void storeRecordResponseBodyChunk(const ServiceWorkerRegistrationKey&, const String&, size_t, const SharedBuffer&, CompletionHandler<void(StoreResult)>&&) = 0;
 
     using RetrieveRecordResponseBodyCallback = Function<void(Expected<RefPtr<SharedBuffer>, ResourceError>&&)>;
-    virtual void retrieveResponseBody(ServiceWorkerRegistrationKey, const String&, size_t, RetrieveRecordResponseBodyCallback&&) = 0;
-
-/*
-    using ExceptionOrFetchCallback = CompletionHandler<void(Expected<WeakPtr<Fetch>, ExceptionData>&&)>;
-    virtual void add(SWServerRegistration&, const String&, Vector<BackgroundFetchRequest>&&, BackgroundFetchOptions&&, ExceptionOrFetchCallback&&) = 0;
-    using FetchCallback = CompletionHandler<void(WeakPtr<Fetch>&&)>;
-    virtual void get(SWServerRegistration&, const String&, FetchCallback&&) = 0;
-    using FetchIdentifiersCallback = CompletionHandler<void(Vector<String>&&)>;
-    virtual void getIdentifiers(SWServerRegistration&, FetchIdentifiersCallback&&) = 0;
-    using AbortCallback = CompletionHandler<void(bool)>;
-    virtual void abort(SWServerRegistration&, const String&, AbortCallback&&) = 0;
-    virtual void remove(SWServerRegistration&) = 0;
-*/
+    virtual void retrieveResponseBody(const ServiceWorkerRegistrationKey&, const String&, size_t, RetrieveRecordResponseBodyCallback&&) = 0;
 };
 
 } // namespace WebCore

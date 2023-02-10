@@ -26,6 +26,8 @@
 #include "config.h"
 #include "NetworkStorageManager.h"
 
+#include "BackgroundFetchCacheDiskStore.h"
+#include "BackgroundFetchCacheMemoryStore.h"
 #include "CacheStorageCache.h"
 #include "CacheStorageManager.h"
 #include "CacheStorageRegistry.h"
@@ -879,6 +881,15 @@ void NetworkStorageManager::setBackupExclusionPeriodForTesting(Seconds period, C
     });
 }
 
+#endif
+
+#if ENABLE(SERVICE_WORKER)
+Ref<WebCore::BackgroundFetchCacheStore> NetworkStorageManager::createBackgroundFetchCacheStore()
+{
+    if (m_sessionID.isEphemeral())
+        return BackgroundFetchCacheMemoryStore::create();
+    return BackgroundFetchCacheDiskStore::create(*this, workQueue());
+}
 #endif
 
 void NetworkStorageManager::connectToStorageArea(IPC::Connection& connection, WebCore::StorageType type, StorageAreaMapIdentifier sourceIdentifier, std::optional<StorageNamespaceIdentifier> namespaceIdentifier, const WebCore::ClientOrigin& origin, CompletionHandler<void(StorageAreaIdentifier, HashMap<String, String>, uint64_t)>&& completionHandler)

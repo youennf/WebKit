@@ -36,6 +36,7 @@
 
 namespace WebCore {
 
+class BackgroundFetchCacheStore;
 class BackgroundFetchRecordLoader;
 struct BackgroundFetchRequest;
 class RegistrableDomain;
@@ -53,6 +54,7 @@ public:
     virtual void addAllowedFirstPartyForCookies(ProcessIdentifier, std::optional<ProcessIdentifier>, RegistrableDomain&&) = 0;
     virtual std::unique_ptr<BackgroundFetchRecordLoader> createBackgroundFetchRecordLoader(BackgroundFetchRecordLoader::Client&, ResourceRequest&&, FetchOptions&&, const WebCore::ClientOrigin&) = 0;
     virtual void requestBackgroundFetchSpace(const ClientOrigin&, uint64_t size, CompletionHandler<void(bool)>&&) = 0;
+    virtual Ref<BackgroundFetchCacheStore> createBackgroundFetchCacheStore() = 0;
 };
 
 } // namespace WebCore

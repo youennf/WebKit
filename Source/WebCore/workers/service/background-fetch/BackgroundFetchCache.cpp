@@ -28,7 +28,6 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include "BackgroundFetchCacheMemoryStore.h"
 #include "SWServerToContextConnection.h"
 #include "ExceptionData.h"
 #include "Logging.h"
@@ -37,7 +36,7 @@ namespace WebCore {
 
 BackgroundFetchCache::BackgroundFetchCache(SWServer& server)
     : m_server(server)
-    , m_store(BackgroundFetchCacheMemoryStore::create())
+    , m_store(server.createBackgroundFetchCacheStore())
 {
 }
 
@@ -45,7 +44,7 @@ void BackgroundFetchCache::startBackgroundFetch(SWServerRegistration& registrati
 {
     auto iterator = m_fetches.find(registration.key());
     if (iterator == m_fetches.end()) {
-        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, requests = WTFMove(requests), options = WTFMove(options), callback = WTFMove(callback)]() mutable {
+        m_store->initialize(*this, registration.key(), [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, requests = WTFMove(requests), options = WTFMove(options), callback = WTFMove(callback)]() mutable {
             if (!weakThis || !registration) {
                 callback(makeUnexpected(ExceptionData { NotSupportedError, "BackgroundFetchCache is gone"_s }));
                 return;
@@ -119,7 +118,7 @@ void BackgroundFetchCache::backgroundFetchInformation(SWServerRegistration& regi
 {
     auto iterator = m_fetches.find(registration.key());
     if (iterator == m_fetches.end()) {
-        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
+        m_store->initialize(*this, registration.key(), [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
             if (!weakThis || !registration) {
                 callback(makeUnexpected(ExceptionData { NotSupportedError, "BackgroundFetchCache is gone"_s }));
                 return;
@@ -145,7 +144,7 @@ void BackgroundFetchCache::backgroundFetchIdentifiers(SWServerRegistration& regi
 {
     auto iterator = m_fetches.find(registration.key());
     if (iterator == m_fetches.end()) {
-        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, callback = WTFMove(callback)]() mutable {
+        m_store->initialize(*this, registration.key(), [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, callback = WTFMove(callback)]() mutable {
             if (!weakThis || !registration) {
                 callback({ });
                 return;
@@ -171,7 +170,7 @@ void BackgroundFetchCache::abortBackgroundFetch(SWServerRegistration& registrati
 {
     auto iterator = m_fetches.find(registration.key());
     if (iterator == m_fetches.end()) {
-        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
+        m_store->initialize(*this, registration.key(), [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, callback = WTFMove(callback)]() mutable {
             if (!weakThis || !registration) {
                 callback(false);
                 return;
@@ -197,7 +196,7 @@ void BackgroundFetchCache::matchBackgroundFetch(SWServerRegistration& registrati
 {
     auto iterator = m_fetches.find(registration.key());
     if (iterator == m_fetches.end()) {
-        m_store->initialize(registration, [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, options = WTFMove(options), callback = WTFMove(callback)]() mutable {
+        m_store->initialize(*this, registration.key(), [weakThis = WeakPtr { *this }, registration = WeakPtr { registration }, backgroundFetchIdentifier, options = WTFMove(options), callback = WTFMove(callback)]() mutable {
             if (!weakThis || !registration) {
                 callback({ });
                 return;

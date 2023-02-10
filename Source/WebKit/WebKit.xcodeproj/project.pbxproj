@@ -4818,6 +4818,10 @@
 		41EB4D3B274CE04500A9272B /* ServiceWorkerNavigationPreloader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ServiceWorkerNavigationPreloader.cpp; sourceTree = "<group>"; };
 		41F060DD1654317500F3281C /* WebSocketChannelMessageReceiver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WebSocketChannelMessageReceiver.cpp; sourceTree = "<group>"; };
 		41F651E92993D40E00B82659 /* RetrieveRecordResponseBodyCallbackIdentifier.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RetrieveRecordResponseBodyCallbackIdentifier.h; sourceTree = "<group>"; };
+		41F651FB299682DA00B82659 /* BackgroundFetchCacheMemoryStore.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BackgroundFetchCacheMemoryStore.cpp; sourceTree = "<group>"; };
+		41F651FC299682DA00B82659 /* BackgroundFetchCacheDiskStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BackgroundFetchCacheDiskStore.h; sourceTree = "<group>"; };
+		41F651FD299682DA00B82659 /* BackgroundFetchCacheDiskStore.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BackgroundFetchCacheDiskStore.cpp; sourceTree = "<group>"; };
+		41F651FE299682DB00B82659 /* BackgroundFetchCacheMemoryStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BackgroundFetchCacheMemoryStore.h; sourceTree = "<group>"; };
 		41F898BB28EB195B0070549C /* RemoteVideoCodecFactory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RemoteVideoCodecFactory.cpp; sourceTree = "<group>"; };
 		41F898BC28EB195C0070549C /* RemoteVideoCodecFactory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RemoteVideoCodecFactory.h; sourceTree = "<group>"; };
 		41F9FD1823ED8A810099B579 /* LibWebRTCResolverIdentifier.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = LibWebRTCResolverIdentifier.h; path = Network/webrtc/LibWebRTCResolverIdentifier.h; sourceTree = "<group>"; };
@@ -11962,6 +11966,10 @@
 		93085DC226E1BB65000EC6A7 /* storage */ = {
 			isa = PBXGroup;
 			children = (
+				41F651FD299682DA00B82659 /* BackgroundFetchCacheDiskStore.cpp */,
+				41F651FC299682DA00B82659 /* BackgroundFetchCacheDiskStore.h */,
+				41F651FB299682DA00B82659 /* BackgroundFetchCacheMemoryStore.cpp */,
+				41F651FE299682DB00B82659 /* BackgroundFetchCacheMemoryStore.h */,
 				935BF7FB2936BF1A00B41326 /* CacheStorageCache.cpp */,
 				935BF7F22936BF1700B41326 /* CacheStorageCache.h */,
 				934CF814294B884B00304F7D /* CacheStorageDiskStore.cpp */,

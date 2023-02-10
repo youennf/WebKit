@@ -277,6 +277,7 @@ protected:
     void addAllowedFirstPartyForCookies(WebCore::ProcessIdentifier, std::optional<WebCore::ProcessIdentifier>, WebCore::RegistrableDomain&&) final;
     std::unique_ptr<WebCore::BackgroundFetchRecordLoader> createBackgroundFetchRecordLoader(WebCore::BackgroundFetchRecordLoader::Client&, WebCore::ResourceRequest&&, WebCore::FetchOptions&&, const WebCore::ClientOrigin&) final;
     void requestBackgroundFetchSpace(const WebCore::ClientOrigin&, uint64_t size, CompletionHandler<void(bool)>&&) final;
+    Ref<WebCore::BackgroundFetchCacheStore> createBackgroundFetchCacheStore() final;
 #endif
 
     PAL::SessionID m_sessionID;
