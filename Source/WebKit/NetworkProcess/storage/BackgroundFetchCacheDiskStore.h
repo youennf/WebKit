@@ -58,12 +58,11 @@ private:
         WebCore::ResourceResponse response;
     };
 
-    using RecordMap = HashMap<size_t, std::unique_ptr<Record>>;
-    using EntriesMap = HashMap<String, RecordMap>;
-    HashMap<WebCore::ServiceWorkerRegistrationKey, EntriesMap> m_entries;
+    HashMap<WebCore::ServiceWorkerRegistrationKey, String> m_registrations;
 
     Ref<NetworkStorageManager> m_manager;
-    Ref<SuspendableWorkQueue> m_queue;
+    Ref<SuspendableWorkQueue> m_managerQueue;
+    Ref<WorkQueue> m_ioQueue;
 };
 
 } // namespace WebKit

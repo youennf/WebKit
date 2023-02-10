@@ -33,18 +33,37 @@
 #include <WebCore/BackgroundFetchRecordInformation.h>
 #include <WebCore/DOMCacheEngine.h>
 #include <WebCore/SWServerRegistration.h>
+#include <wtf/FileSystem.h>
 
 namespace WebKit {
 
 using namespace WebCore;
 
+static String computeFetchPath(const String& rootPath, const String& /* identifier */)
+{
+    return rootPath;
+}
+
+static String computeRecordPath(const String& rootPath, const String& /* identifier */, size_t)
+{
+    return rootPath;
+}
+
+static String computeRecordResponsePath(const String& rootPath, const String& /* identifier */, size_t)
+{
+    return rootPath;
+}
+
+static String computeRecordResponseBodyPath(const String& rootPath, const String& /* identifier */, size_t)
+{
+    return rootPath;
+}
+
 BackgroundFetchCacheDiskStore::BackgroundFetchCacheDiskStore(NetworkStorageManager& manager, SuspendableWorkQueue& queue)
     : m_manager(manager)
-    , m_queue(queue)
+    , m_managerQueue(queue)
+    , m_ioQueue(WorkQueue::create("com.apple.WebKit.BackgroundFetchCacheDiskStore"))
 {
-    //    : m_path(path)
-      //  , m_salt(valueOrDefault(FileSystem::readOrMakeSalt(saltFilePath())))
-        //, m_ioQueue(WorkQueue::create("com.apple.WebKit.BackgroundFetchCacheDiskStore"))
 }
 
 BackgroundFetchCacheDiskStore::~BackgroundFetchCacheDiskStore()
@@ -53,11 +72,20 @@ BackgroundFetchCacheDiskStore::~BackgroundFetchCacheDiskStore()
 
 void BackgroundFetchCacheDiskStore::initialize(BackgroundFetchCache& cache, const ServiceWorkerRegistrationKey& key, CompletionHandler<void()>&& callback)
 {
-    m_entries.
-    m_queue->dispatch([protectedThis = Ref { *this }, weakCache = WeakPtr { cache }, key = key.isolatedCopy(), callback = WTFMove(callback)]() mutable {
-        // Initialize disk paths, get lists of background fetches, send them back to main thread
-        callOnMainRunLoop([weakCache = WTFMove(weakCache), callback = WTFMove(callback)]() mutable {
-            // notify disk cache of existing background fetches.
+    if (m_registrations.contains(key)) {
+        m_managerQueue->dispatch([callback = WTFMove(callback)]() mutable {
+            callOnMainRunLoop(WTFMove(callback));
+        });
+        return;
+    }
+
+    m_managerQueue->dispatch([protectedThis = Ref { *this }, weakCache = WeakPtr { cache }, key = key.isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        // Compute registration path and create it if needed.
+        // Read existing bg fetches.
+        String registrationPath;
+        callOnMainRunLoop([protectedThis = WTFMove(protectedThis), weakCache = WTFMove(weakCache), key = WTFMove(key).isolatedCopy(), registrationPath = WTFMove(registrationPath).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+            // notify disk cache of existing background fetches
+            protectedThis->m_registrations.add(WTFMove(key), WTFMove(registrationPath));
             callback();
         });
     });
@@ -65,47 +93,105 @@ void BackgroundFetchCacheDiskStore::initialize(BackgroundFetchCache& cache, cons
 
 void BackgroundFetchCacheDiskStore::clearRecords(const ServiceWorkerRegistrationKey& key, const String& identifier, CompletionHandler<void()>&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(identifier);
-    UNUSED_PARAM(callback);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback();
+        return;
+    }
+
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = computeFetchPath(registrationPath, identifier).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        FileSystem::deleteNonEmptyDirectory(path);
+        callOnMainRunLoop(WTFMove(callback));
+    });
 }
 
 void BackgroundFetchCacheDiskStore::clearAllRecords(const ServiceWorkerRegistrationKey& key, CompletionHandler<void()>&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(callback);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback();
+        return;
+    }
+
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = WTFMove(registrationPath).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        FileSystem::deleteNonEmptyDirectory(path);
+        callOnMainRunLoop(WTFMove(callback));
+    });
 }
 
 void BackgroundFetchCacheDiskStore::storeNewRecord(const ServiceWorkerRegistrationKey& key, const String& identifier, size_t index, const BackgroundFetchRequest&, CompletionHandler<void(StoreResult)>&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(identifier);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback(StoreResult::InternalError);
+        return;
+    }
+
+    // Serialize the fetch request data
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = computeRecordPath(registrationPath, identifier, index).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        // Store serialized data in path
+        callOnMainRunLoop([callback = WTFMove(callback)]() mutable {
+            callback(StoreResult::InternalError);
+        });
+    });
     UNUSED_PARAM(index);
-    UNUSED_PARAM(callback);
 }
 
 void BackgroundFetchCacheDiskStore::storeRecordResponse(const ServiceWorkerRegistrationKey& key, const String& identifier, size_t index, ResourceResponse&&, CompletionHandler<void(StoreResult)>&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(identifier);
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(callback);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback(StoreResult::InternalError);
+        return;
+    }
+
+    // Serialize the response data
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = computeRecordResponsePath(registrationPath, identifier, index).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        // Store serialized data in path
+        callOnMainRunLoop([callback = WTFMove(callback)]() mutable {
+            callback(StoreResult::InternalError);
+        });
+    });
 }
 
-void BackgroundFetchCacheDiskStore::storeRecordResponseBodyChunk(const ServiceWorkerRegistrationKey& key, const String& identifier, size_t index, const SharedBuffer&, CompletionHandler<void(StoreResult)>&& callback)
+void BackgroundFetchCacheDiskStore::storeRecordResponseBodyChunk(const ServiceWorkerRegistrationKey& key, const String& identifier, size_t index, const SharedBuffer& buffer, CompletionHandler<void(StoreResult)>&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(identifier);
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(callback);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback(StoreResult::InternalError);
+        return;
+    }
+
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = computeRecordResponseBodyPath(registrationPath, identifier, index).isolatedCopy(), buffer = Ref { buffer }, callback = WTFMove(callback)]() mutable {
+        // Store buffer in path.
+        callOnMainRunLoop([callback = WTFMove(callback)]() mutable {
+            callback(StoreResult::InternalError);
+        });
+    });
 }
 
 void BackgroundFetchCacheDiskStore::retrieveResponseBody(const ServiceWorkerRegistrationKey& key, const String& identifier, size_t index, RetrieveRecordResponseBodyCallback&& callback)
 {
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(identifier);
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(callback);
+    auto registrationPath = m_registrations.get(key);
+    ASSERT(!registrationPath.isEmpty());
+    if (registrationPath.isEmpty()) {
+        callback(RefPtr<SharedBuffer> { });
+        return;
+    }
+
+    m_ioQueue->dispatch([protectedThis = Ref { *this }, path = computeRecordResponseBodyPath(registrationPath, identifier, index).isolatedCopy(), callback = WTFMove(callback)]() mutable {
+        callOnMainRunLoop([buffer = SharedBuffer::createWithContentsOfFile(path), callback = WTFMove(callback)] {
+            bool isNull = !buffer;
+            callback(WTFMove(buffer));
+            if (!isNull)
+                callback(RefPtr<SharedBuffer> { });
+        });
+    });
 }
 
 } // namespace WebKit
