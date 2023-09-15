@@ -897,4 +897,42 @@ TEST(GPUProcess, ValidateWebAudioMediaProcessingAssertion)
     EXPECT_TRUE([configuration.get().processPool _hasAudibleMediaActivity]);
 }
 
+TEST(GPUProcess, ClearRemoteVideoFrameObjectHeapPixelConformerUnderMemoryPressure)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    WKPreferencesSetBoolValueForKeyForTesting((__bridge WKPreferencesRef)[configuration preferences], true, WKStringCreateWithUTF8CString("UseGPUProcessForMediaEnabled"));
+    WKPreferencesSetBoolValueForKeyForTesting((__bridge WKPreferencesRef)[configuration preferences], true, WKStringCreateWithUTF8CString("CaptureVideoInGPUProcessEnabled"));
+    WKPreferencesSetBoolValueForKeyForTesting((__bridge WKPreferencesRef)[configuration preferences], true, WKStringCreateWithUTF8CString("UseGPUProcessForCanvasRenderingEnabled"));
+    WKPreferencesSetBoolValueForKeyForTesting((__bridge WKPreferencesRef)[configuration preferences], false, WKStringCreateWithUTF8CString("UseGPUProcessForDOMRenderingEnabled"));
+
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 400, 400) configuration:configuration.get()]);
+    [webView synchronouslyLoadTestPageNamed:@"camera-to-canvas"];
+
+    // trigger canvas painting to use the pixel conformer.
+    __block bool done = false;
+    [webView callAsyncJavaScript:@"paintCameraInCanvas()" arguments:nil inFrame:nil inContentWorld:WKContentWorld.pageWorld completionHandler:^(id result, NSError *error) {
+        EXPECT_TRUE(!error);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    // A GPUProcess should get launched.
+    while (![configuration.get().processPool _gpuProcessIdentifier])
+        TestWebKitAPI::Util::runFor(0.1_s);
+    auto gpuProcessPID = [configuration.get().processPool _gpuProcessIdentifier];
+
+    // Simulate memory pressure (notifyutil -p org.WebKit.lowMemory).
+    notify_post("org.WebKit.lowMemory");
+
+    // Make sure the GPUProcess does not exit since it is still needed.
+    TestWebKitAPI::Util::runFor(0.5_s);
+    EXPECT_EQ(gpuProcessPID, [configuration.get().processPool _gpuProcessIdentifier]);
+
+    // trigger again canvas painting and verify this works ok again
+    [webView callAsyncJavaScript:@"paintCameraInCanvas()" arguments:nil inFrame:nil inContentWorld:WKContentWorld.pageWorld completionHandler:^(id result, NSError *error) {
+        EXPECT_TRUE(!error);
+        done = true;
+    }];
+}
+
 } // namespace TestWebKitAPI
