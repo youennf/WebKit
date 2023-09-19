@@ -23,24 +23,23 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE(AVCONTENTKEYSESSION)
+#pragma once
 
-#import <Foundation/Foundation.h>
+#if PLATFORM(IOS_FAMILY)
 
-NS_ASSUME_NONNULL_BEGIN
+#import <UIKit/UIKit.h>
+#import <WebCore/FloatQuad.h>
+#import <WebCore/FloatRoundedRect.h>
+#import <wtf/Vector.h>
 
-@class AVContentKeyRequest;
+@interface WKTapHighlightView : UIView
 
-@protocol WebContentKeyGrouping <NSObject>
-
-@property (readonly, nullable) NSData *contentProtectionSessionIdentifier;
-
-- (BOOL)associateContentKeyRequest:(AVContentKeyRequest *)contentKeyRequest;
-- (void)expire;
-- (void)processContentKeyRequestWithIdentifier:(nullable id)identifier initializationData:(nullable NSData *)initializationData options:(nullable NSDictionary<NSString *, id> *)options;
+- (void)setColor:(UIColor *)color;
+- (void)setMinimumCornerRadius:(float)radius;
+- (void)setCornerRadii:(WebCore::FloatRoundedRect::Radii&&)radii;
+- (void)setFrames:(Vector<WebCore::FloatRect>&&)frames;
+- (void)setQuads:(Vector<WebCore::FloatQuad>&&)quads boundaryRect:(const WebCore::FloatRect&)rect;
 
 @end
 
-NS_ASSUME_NONNULL_END
-
-#endif // HAVE(AVCONTENTKEYSESSION)
+#endif // PLATFORM(IOS_FAMILY)

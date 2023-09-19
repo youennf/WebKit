@@ -182,7 +182,7 @@ public:
 private:
     RemoteLayerBackingStoreCollection* backingStoreCollection() const;
 
-    void drawInContext(WebCore::GraphicsContext&, WTF::Function<void()>&& additionalContextSetupCallback = nullptr);
+    void drawInContext(WebCore::GraphicsContext&);
 
     struct Buffer {
         RefPtr<WebCore::ImageBuffer> imageBuffer;
@@ -203,6 +203,8 @@ private:
     SwapBuffersDisplayRequirement prepareBuffers();
     void ensureFrontBuffer();
     void dirtyRepaintCounterIfNecessary();
+
+    WebCore::IntRect layerBounds() const;
 
     PlatformCALayerRemote* m_layer;
 

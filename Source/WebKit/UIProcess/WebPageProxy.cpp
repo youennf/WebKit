@@ -127,6 +127,7 @@
 #include "WebEditCommandProxy.h"
 #include "WebErrors.h"
 #include "WebEventConversion.h"
+#include "WebEventType.h"
 #include "WebFoundTextRange.h"
 #include "WebFrame.h"
 #include "WebFramePolicyListenerProxy.h"
@@ -1256,9 +1257,10 @@ void WebPageProxy::didAttachToRunningProcess()
     m_webDeviceOrientationUpdateProviderProxy = makeUnique<WebDeviceOrientationUpdateProviderProxy>(*this);
 #endif
 
+#if !PLATFORM(IOS_FAMILY)
     auto currentOrientation = WebCore::naturalScreenOrientationType();
-#if PLATFORM(IOS_FAMILY)
-    currentOrientation = toScreenOrientationType(m_deviceOrientation);
+#else
+    auto currentOrientation = toScreenOrientationType(m_deviceOrientation);
 #endif
     m_screenOrientationManager = makeUnique<WebScreenOrientationManagerProxy>(*this, currentOrientation);
 
@@ -2709,7 +2711,7 @@ IntSize WebPageProxy::viewSize() const
     return pageClient().viewSize();
 }
 
-void WebPageProxy::setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent& keyboardEvent, CompletionHandler<void()>&& callbackFunction)
+void WebPageProxy::setInitialFocus(bool forward, bool isKeyboardEventValid, const std::optional<WebKeyboardEvent>& keyboardEvent, CompletionHandler<void()>&& callbackFunction)
 {
     if (!hasRunningProcess()) {
         callbackFunction();
@@ -3118,9 +3120,9 @@ void WebPageProxy::didPerformDragControllerAction(std::optional<WebCore::DragOpe
 }
 
 #if PLATFORM(GTK)
-void WebPageProxy::startDrag(SelectionData&& selectionData, OptionSet<WebCore::DragOperation> dragOperationMask, ShareableBitmap::Handle&& dragImageHandle, IntPoint&& dragImageHotspot)
+void WebPageProxy::startDrag(SelectionData&& selectionData, OptionSet<WebCore::DragOperation> dragOperationMask, std::optional<ShareableBitmap::Handle>&& dragImageHandle, IntPoint&& dragImageHotspot)
 {
-    RefPtr<ShareableBitmap> dragImage = !dragImageHandle.isNull() ? ShareableBitmap::create(WTFMove(dragImageHandle)) : nullptr;
+    RefPtr<ShareableBitmap> dragImage = dragImageHandle ? ShareableBitmap::create(WTFMove(*dragImageHandle)) : nullptr;
     pageClient().startDrag(WTFMove(selectionData), dragOperationMask, WTFMove(dragImage), WTFMove(dragImageHotspot));
 
     didStartDrag();
@@ -3229,10 +3231,12 @@ void WebPageProxy::handleMouseEventReply(WebEventType eventType, bool handled, c
 
 void WebPageProxy::sendMouseEvent(const WebCore::FrameIdentifier& frameID, const NativeWebMouseEvent& event, std::optional<Vector<SandboxExtensionHandle>>&& sandboxExtensions)
 {
-    sendWithAsyncReply(Messages::WebPage::MouseEvent(frameID, event, sandboxExtensions), [this, protectedThis = Ref { *this }, sandboxExtensions = WTFMove(sandboxExtensions)] (WebEventType eventType, bool handled, std::optional<WebCore::RemoteMouseEventData> remoteMouseEventData) mutable {
+    sendWithAsyncReply(Messages::WebPage::MouseEvent(frameID, event, sandboxExtensions), [this, protectedThis = Ref { *this }, sandboxExtensions = WTFMove(sandboxExtensions)] (std::optional<WebEventType> eventType, bool handled, std::optional<WebCore::RemoteMouseEventData> remoteMouseEventData) mutable {
         if (!m_pageClient)
             return;
-        handleMouseEventReply(eventType, handled, remoteMouseEventData, WTFMove(sandboxExtensions));
+        if (!eventType)
+            return;
+        handleMouseEventReply(*eventType, handled, remoteMouseEventData, WTFMove(sandboxExtensions));
     });
 }
 
@@ -3293,7 +3297,7 @@ void WebPageProxy::processNextQueuedMouseEvent()
     if (pageClient().windowIsFrontWindowUnderMouse(event))
         setToolTip(String());
 
-    WebEventType eventType = event.type();
+    auto eventType = event.type();
     if (eventType == WebEventType::MouseDown || eventType == WebEventType::MouseForceChanged || eventType == WebEventType::MouseForceDown)
         m_process->startResponsivenessTimer(WebProcessProxy::UseLazyStop::Yes);
     else if (eventType != WebEventType::MouseMove) {
@@ -3577,10 +3581,12 @@ bool WebPageProxy::handleKeyboardEvent(const NativeWebKeyboardEvent& event)
     if (internals().keyEventQueue.size() == 1) {
         LOG(KeyHandling, " UI process: sent keyEvent from handleKeyboardEvent");
         m_process->recordUserGestureAuthorizationToken(event.authorizationToken());
-        sendWithAsyncReply(Messages::WebPage::KeyEvent(m_mainFrame->frameID(), event), [this, protectedThis = Ref { *this }] (WebEventType eventType, bool handled) {
+        sendWithAsyncReply(Messages::WebPage::KeyEvent(m_mainFrame->frameID(), event), [this, protectedThis = Ref { *this }] (std::optional<WebEventType> eventType, bool handled) {
             if (!m_pageClient)
                 return;
-            didReceiveEvent(eventType, handled);
+            if (!eventType)
+                return;
+            didReceiveEvent(*eventType, handled);
         });
     }
 
@@ -3685,10 +3691,12 @@ void WebPageProxy::handleGestureEvent(const NativeWebGestureEvent& event)
 
     m_process->startResponsivenessTimer((event.type() == WebEventType::GestureStart || event.type() == WebEventType::GestureChange) ? WebProcessProxy::UseLazyStop::Yes : WebProcessProxy::UseLazyStop::No);
 
-    sendWithAsyncReply(Messages::EventDispatcher::GestureEvent(internals().webPageID, event), [this, protectedThis = Ref { *this }] (WebEventType eventType, bool handled) {
+    sendWithAsyncReply(Messages::EventDispatcher::GestureEvent(internals().webPageID, event), [this, protectedThis = Ref { *this }] (std::optional<WebEventType> eventType, bool handled) {
         if (!m_pageClient)
             return;
-        didReceiveEvent(eventType, handled);
+        if (!eventType)
+            return;
+        didReceiveEvent(*eventType, handled);
     }, 0);
 }
 #endif
@@ -3837,10 +3845,12 @@ void WebPageProxy::handleTouchEvent(const NativeWebTouchEvent& event)
     if (!m_areActiveDOMObjectsAndAnimationsSuspended) {
         internals().touchEventQueue.append(event);
         m_process->startResponsivenessTimer();
-        sendWithAsyncReply(Messages::WebPage::TouchEvent(event), [this, protectedThis = Ref { *this }] (WebEventType eventType, bool handled) {
+        sendWithAsyncReply(Messages::WebPage::TouchEvent(event), [this, protectedThis = Ref { *this }] (std::optional<WebEventType> eventType, bool handled) {
             if (!m_pageClient)
                 return;
-            didReceiveEvent(eventType, handled);
+            if (!eventType)
+                return;
+            didReceiveEvent(*eventType, handled);
         });
     } else {
         if (internals().touchEventQueue.isEmpty()) {
@@ -7861,7 +7871,7 @@ void WebPageProxy::didCountStringMatches(const String& string, uint32_t matchCou
     m_findClient->didCountStringMatches(this, string, matchCount);
 }
 
-void WebPageProxy::didGetImageForFindMatch(const ImageBufferBackend::Parameters& parameters, ShareableBitmap::Handle contentImageHandle, uint32_t matchIndex)
+void WebPageProxy::didGetImageForFindMatch(const ImageBufferBackend::Parameters& parameters, ShareableBitmap::Handle&& contentImageHandle, uint32_t matchIndex)
 {
     auto image = WebImage::create(parameters, WTFMove(contentImageHandle));
     if (!image) {
@@ -8527,7 +8537,6 @@ void WebPageProxy::setCursorHiddenUntilMouseMoves(bool hiddenUntilMouseMoves)
 void WebPageProxy::didReceiveEvent(WebEventType eventType, bool handled)
 {
     switch (eventType) {
-    case WebEventType::NoType:
     case WebEventType::MouseMove:
     case WebEventType::Wheel:
         break;
@@ -8557,8 +8566,6 @@ void WebPageProxy::didReceiveEvent(WebEventType eventType, bool handled)
     }
 
     switch (eventType) {
-    case WebEventType::NoType:
-        break;
     case WebEventType::MouseForceChanged:
     case WebEventType::MouseForceDown:
     case WebEventType::MouseForceUp:
@@ -8623,10 +8630,12 @@ void WebPageProxy::didReceiveEvent(WebEventType eventType, bool handled)
             auto nextEvent = internals().keyEventQueue.first();
             LOG(KeyHandling, " UI process: sent keyEvent from didReceiveEvent");
             m_process->recordUserGestureAuthorizationToken(nextEvent.authorizationToken());
-            sendWithAsyncReply(Messages::WebPage::KeyEvent(m_mainFrame->frameID(), nextEvent), [this, protectedThis = Ref { *this }] (WebEventType eventType, bool handled) {
+            sendWithAsyncReply(Messages::WebPage::KeyEvent(m_mainFrame->frameID(), nextEvent), [this, protectedThis = Ref { *this }] (std::optional<WebEventType> eventType, bool handled) {
                 if (!m_pageClient)
                     return;
-                didReceiveEvent(eventType, handled);
+                if (!eventType)
+                    return;
+                didReceiveEvent(*eventType, handled);
             });
         }
 
@@ -10015,7 +10024,7 @@ void WebPageProxy::startVisualTranslation(const String& sourceLanguageIdentifier
 
 #endif // ENABLE(IMAGE_ANALYSIS)
 
-void WebPageProxy::requestImageBitmap(const ElementContext& elementContext, CompletionHandler<void(ShareableBitmap::Handle&&, const String&)>&& completion)
+void WebPageProxy::requestImageBitmap(const ElementContext& elementContext, CompletionHandler<void(std::optional<ShareableBitmap::Handle>&&, const String&)>&& completion)
 {
     if (!hasRunningProcess()) {
         completion({ }, { });
@@ -10339,7 +10348,7 @@ IPC::Connection::AsyncReplyID WebPageProxy::computePagesForPrinting(FrameIdentif
 }
 
 #if PLATFORM(COCOA)
-IPC::Connection::AsyncReplyID WebPageProxy::drawRectToImage(WebFrameProxy* frame, const PrintInfo& printInfo, const IntRect& rect, const WebCore::IntSize& imageSize, CompletionHandler<void(WebKit::ShareableBitmap::Handle&&)>&& callback)
+IPC::Connection::AsyncReplyID WebPageProxy::drawRectToImage(WebFrameProxy* frame, const PrintInfo& printInfo, const IntRect& rect, const WebCore::IntSize& imageSize, CompletionHandler<void(std::optional<WebKit::ShareableBitmap::Handle>&&)>&& callback)
 {
     if (m_isPerformingDOMPrintOperation)
         return sendWithAsyncReply(Messages::WebPage::DrawRectToImageDuringDOMPrintOperation(frame->frameID(), printInfo, rect, imageSize), WTFMove(callback), IPC::SendOption::DispatchMessageEvenWhenWaitingForUnboundedSyncReply);
@@ -10776,7 +10785,7 @@ void WebPageProxy::setScrollPerformanceDataCollectionEnabled(bool enabled)
 }
 #endif
 
-void WebPageProxy::takeSnapshot(IntRect rect, IntSize bitmapSize, SnapshotOptions options, CompletionHandler<void(ShareableBitmap::Handle&&)>&& callback)
+void WebPageProxy::takeSnapshot(IntRect rect, IntSize bitmapSize, SnapshotOptions options, CompletionHandler<void(std::optional<ShareableBitmap::Handle>&&)>&& callback)
 {
     sendWithAsyncReply(Messages::WebPage::TakeSnapshot(rect, bitmapSize, options), WTFMove(callback));
 }
@@ -11514,7 +11523,7 @@ void WebPageProxy::requestAttachmentIcon(const String& identifier, const String&
 
     auto updateAttachmentIcon = [&] {
         FloatSize size = requestedSize;
-        ShareableBitmap::Handle handle;
+        std::optional<ShareableBitmap::Handle> handle;
 
 #if PLATFORM(COCOA)
         if (auto icon = iconForAttachment(fileName, contentType, title, size))
@@ -11570,11 +11579,9 @@ void WebPageProxy::updateAttachmentThumbnail(const String& identifier, const Ref
     if (!hasRunningProcess())
         return;
     
-    ShareableBitmap::Handle handle;
-    if (bitmap) {
-        if (auto bitmapHandle = bitmap->createHandle())
-            handle = WTFMove(*bitmapHandle);
-    }
+    std::optional<ShareableBitmap::Handle> handle;
+    if (bitmap)
+        handle = bitmap->createHandle();
 
     send(Messages::WebPage::UpdateAttachmentThumbnail(identifier, handle));
 }
@@ -12640,12 +12647,15 @@ void WebPageProxy::beginTextRecognitionForVideoInElementFullScreen(MediaPlayerId
         return;
 
     m_isPerformingTextRecognitionInElementFullScreen = true;
-    gpuProcess->requestBitmapImageForCurrentTime(m_process->coreProcessIdentifier(), identifier, [weakThis = WeakPtr { *this }, bounds](ShareableBitmap::Handle&& bitmapHandle) {
+    gpuProcess->requestBitmapImageForCurrentTime(m_process->coreProcessIdentifier(), identifier, [weakThis = WeakPtr { *this }, bounds](std::optional<ShareableBitmap::Handle>&& bitmapHandle) {
         RefPtr protectedThis = weakThis.get();
         if (!protectedThis || !protectedThis->m_isPerformingTextRecognitionInElementFullScreen)
             return;
 
-        protectedThis->pageClient().beginTextRecognitionForVideoInElementFullscreen(WTFMove(bitmapHandle), bounds);
+        if (!bitmapHandle)
+            return;
+
+        protectedThis->pageClient().beginTextRecognitionForVideoInElementFullscreen(WTFMove(*bitmapHandle), bounds);
         protectedThis->m_isPerformingTextRecognitionInElementFullScreen = false;
     });
 #else

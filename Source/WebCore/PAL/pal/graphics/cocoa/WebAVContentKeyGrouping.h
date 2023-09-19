@@ -23,50 +23,21 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "config.h"
-#import "WebContentKeyGroup.h"
-
 #if HAVE(AVCONTENTKEYSESSION)
 
-#import "NotImplemented.h"
+#import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@implementation WebContentKeyGroup
+@class AVContentKeyRequest;
 
-- (instancetype)initWithContentKeySession:(AVContentKeySession *)contentKeySession
-{
-    self = [super init];
-    if (!self)
-        return nil;
+@protocol WebAVContentKeyGrouping <NSObject>
 
-    notImplemented();
-    return self;
-}
+@property (readonly, nullable) NSData *contentProtectionSessionIdentifier;
 
-#pragma mark - WebContentKeyGrouping
-
-- (nullable NSData *)contentProtectionSessionIdentifier
-{
-    notImplemented();
-    return nil;
-}
-
-- (BOOL)associateContentKeyRequest:(AVContentKeyRequest *)contentKeyRequest
-{
-    notImplemented();
-    return NO;
-}
-
-- (void)expire
-{
-    notImplemented();
-}
-
-- (void)processContentKeyRequestWithIdentifier:(nullable id)identifier initializationData:(nullable NSData *)initializationData options:(nullable NSDictionary<NSString *, id> *)options
-{
-    notImplemented();
-}
+- (BOOL)associateContentKeyRequest:(AVContentKeyRequest *)contentKeyRequest;
+- (void)expire;
+- (void)processContentKeyRequestWithIdentifier:(nullable id)identifier initializationData:(nullable NSData *)initializationData options:(nullable NSDictionary<NSString *, id> *)options;
 
 @end
 

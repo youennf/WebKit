@@ -176,6 +176,7 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/rendering/shapes"
     "${WEBCORE_DIR}/rendering/style"
     "${WEBCORE_DIR}/rendering/svg"
+    "${WEBCORE_DIR}/rendering/svg/legacy"
     "${WEBCORE_DIR}/rendering/updating"
     "${WEBCORE_DIR}/replay"
     "${WEBCORE_DIR}/storage"
@@ -450,6 +451,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/MediaTrackCapabilities.idl
     Modules/mediastream/MediaTrackConstraints.idl
     Modules/mediastream/MediaTrackSupportedConstraints.idl
+    Modules/mediastream/MeteringMode.idl
     Modules/mediastream/Navigator+MediaDevices.idl
     Modules/mediastream/OverconstrainedError.idl
     Modules/mediastream/OverconstrainedErrorEvent.idl
@@ -2762,10 +2764,14 @@ target_precompile_headers(WebCore PRIVATE WebCorePrefix.h)
 list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/WebGPU/InternalAPI/WebGPU.serialization.in
 
+    Modules/indexeddb/IndexedDB.serialization.in
+
     page/ActivityState.serialization.in
     page/DragActions.serialization.in
     page/LayoutMilestones.serialization.in
     page/MediaProducer.serialization.in
+
+    platform/graphics/ca/PlatformCALayer.messages.in
 
     platform/PlatformEvent.serialization.in
     platform/PlatformScreen.serialization.in

@@ -4436,10 +4436,8 @@ void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo& visi
             send(Messages::WebPageProxy::PageScaleFactorDidChange(scaleFromUIProcess.value()));
         }
 
-        if (!hasSetPageScale && m_isInStableState) {
+        if (!hasSetPageScale && m_isInStableState)
             m_page->setPageScaleFactor(scaleToUse, scrollPosition, true);
-            hasSetPageScale = true;
-        }
     }
 
     if (scrollPosition != frameView.scrollPosition())
@@ -4549,7 +4547,7 @@ void WebPage::computePagesForPrintingiOS(WebCore::FrameIdentifier frameID, const
     reply(pageRects.size());
 }
 
-void WebPage::drawToImage(WebCore::FrameIdentifier frameID, const PrintInfo& printInfo, CompletionHandler<void(WebKit::ShareableBitmap::Handle&&)>&& reply)
+void WebPage::drawToImage(WebCore::FrameIdentifier frameID, const PrintInfo& printInfo, CompletionHandler<void(std::optional<WebKit::ShareableBitmap::Handle>&&)>&& reply)
 {  
     Vector<WebCore::IntRect> pageRects;
     double totalScaleFactor;
@@ -4611,13 +4609,7 @@ void WebPage::drawToImage(WebCore::FrameIdentifier frameID, const PrintInfo& pri
     }
 
     auto handle = bitmap->createHandle(SharedMemory::Protection::ReadOnly);
-    if (!handle) {
-        reply({ });
-        endPrinting();
-        return;
-    }
-
-    reply(WTFMove(*handle));
+    reply(WTFMove(handle));
     endPrinting();
 }
 

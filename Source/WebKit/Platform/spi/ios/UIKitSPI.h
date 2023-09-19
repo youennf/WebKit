@@ -93,7 +93,6 @@
 #import <UIKit/UIWindowScene_Private.h>
 #import <UIKit/UIWindow_Private.h>
 #import <UIKit/_UIApplicationRotationFollowing.h>
-#import <UIKit/_UIHighlightView.h>
 #import <UIKit/_UINavigationInteractiveTransition.h>
 #import <UIKit/_UINavigationParallaxTransition.h>
 #import <UIKit/_UISheetPresentationController.h>
@@ -706,6 +705,15 @@ typedef NS_ENUM(NSInteger, UIWKGestureType) {
 @interface UITextSelectionView : UIView
 @end
 
+#if HAVE(UI_TEXT_SELECTION_RECT_CUSTOM_HANDLE_INFO)
+@interface UITextSelectionRectCustomHandleInfo : NSObject
+@property (nonatomic, readonly) CGPoint bottomLeft;
+@property (nonatomic, readonly) CGPoint topLeft;
+@property (nonatomic, readonly) CGPoint bottomRight;
+@property (nonatomic, readonly) CGPoint topRight;
+@end
+#endif
+
 @class UIContextMenuInteraction;
 @protocol UIContextMenuInteractionDelegate;
 @interface UITextInteractionAssistant (SPI)
@@ -813,17 +821,6 @@ typedef NS_ENUM(NSInteger, UIWKGestureType) {
 @end
 
 @interface _UILookupGestureRecognizer : UIGestureRecognizer
-@end
-
-@interface _UIHighlightView : UIView
-@end
-
-@interface _UIHighlightView ()
-- (void)setColor:(UIColor *)aColor;
-- (void)setCornerRadii:(NSArray *)cornerRadii;
-- (void)setCornerRadius:(CGFloat)aCornerRadius;
-- (void)setFrames:(NSArray *)frames boundaryRect:(CGRect)aBoundarRect;
-- (void)setQuads:(NSArray *)quads boundaryRect:(CGRect)aBoundaryRect;
 @end
 
 @interface _UINavigationParallaxTransition : NSObject <UIViewControllerAnimatedTransitioningEx>
@@ -1108,10 +1105,6 @@ typedef NS_ENUM(NSUInteger, UIMenuOptionsPrivate) {
 @property (readonly) NSString *primaryString;
 @property (readonly) NSArray<NSString *> *alternativeStrings;
 @property (readonly) BOOL isLowConfidence;
-@end
-
-@interface UIPointerInteraction ()
-@property (nonatomic, assign, getter=_pausesPointerUpdatesWhilePanning, setter=_setPausesPointerUpdatesWhilePanning:) BOOL pausesPointerUpdatesWhilePanning;
 @end
 
 #if PLATFORM(WATCHOS)

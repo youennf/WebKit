@@ -2872,9 +2872,9 @@ void WebPage::setFooterBannerHeight(int height)
 }
 #endif
 
-void WebPage::takeSnapshot(IntRect snapshotRect, IntSize bitmapSize, uint32_t options, CompletionHandler<void(WebKit::ShareableBitmap::Handle&&)>&& completionHandler)
+void WebPage::takeSnapshot(IntRect snapshotRect, IntSize bitmapSize, uint32_t options, CompletionHandler<void(std::optional<WebKit::ShareableBitmap::Handle>&&)>&& completionHandler)
 {
-    ShareableBitmap::Handle handle;
+    std::optional<ShareableBitmap::Handle> handle;
     RefPtr coreFrame = m_mainFrame->coreLocalFrame();
     if (!coreFrame) {
         completionHandler(WTFMove(handle));
@@ -3340,7 +3340,7 @@ void WebPage::contextMenuForKeyEvent()
 }
 #endif
 
-void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEvent, std::optional<Vector<SandboxExtension::Handle>>&& sandboxExtensions, CompletionHandler<void(WebEventType, bool, std::optional<RemoteMouseEventData>)>&& completionHandler)
+void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEvent, std::optional<Vector<SandboxExtension::Handle>>&& sandboxExtensions, CompletionHandler<void(std::optional<WebEventType>, bool, std::optional<RemoteMouseEventData>)>&& completionHandler)
 {
     SetForScope userIsInteractingChange { m_userIsInteracting, true };
 
@@ -3503,7 +3503,7 @@ void WebPage::dispatchWheelEventWithoutScrolling(FrameIdentifier frameID, const 
 }
 #endif
 
-void WebPage::keyEvent(FrameIdentifier frameID, const WebKeyboardEvent& keyboardEvent, CompletionHandler<void(WebEventType, bool)>&& completionHandler)
+void WebPage::keyEvent(FrameIdentifier frameID, const WebKeyboardEvent& keyboardEvent, CompletionHandler<void(std::optional<WebEventType>, bool)>&& completionHandler)
 {
     SetForScope userIsInteractingChange { m_userIsInteracting, true };
 
@@ -3681,7 +3681,7 @@ void WebPage::updatePotentialTapSecurityOrigin(const WebTouchEvent& touchEvent, 
         m_potentialTapSecurityOrigin = &targetDocument->securityOrigin();
 }
 #elif ENABLE(TOUCH_EVENTS)
-void WebPage::touchEvent(const WebTouchEvent& touchEvent, CompletionHandler<void(WebEventType, bool)>&& completionHandler)
+void WebPage::touchEvent(const WebTouchEvent& touchEvent, CompletionHandler<void(std::optional<WebEventType>, bool)>&& completionHandler)
 {
     CurrentEvent currentEvent(touchEvent);
 
@@ -3711,7 +3711,7 @@ static bool handleGestureEvent(const WebGestureEvent& event, Page* page)
     return localMainFrame->eventHandler().handleGestureEvent(platform(event));
 }
 
-void WebPage::gestureEvent(const WebGestureEvent& gestureEvent, CompletionHandler<void(WebEventType, bool)>&& completionHandler)
+void WebPage::gestureEvent(const WebGestureEvent& gestureEvent, CompletionHandler<void(std::optional<WebEventType>, bool)>&& completionHandler)
 {
     CurrentEvent currentEvent(gestureEvent);
     bool handled = handleGestureEvent(gestureEvent, m_page.get());
@@ -3837,7 +3837,7 @@ void WebPage::viewWillEndLiveResize()
         view->willEndLiveResize();
 }
 
-void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent& event, CompletionHandler<void()>&& completionHandler)
+void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const std::optional<WebKeyboardEvent>& event, CompletionHandler<void()>&& completionHandler)
 {
     if (!m_page)
         return completionHandler();
@@ -3848,8 +3848,8 @@ void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const Web
     Ref frame = focusController->focusedOrMainFrame();
     frame->document()->setFocusedElement(nullptr);
 
-    if (isKeyboardEventValid && event.type() == WebEventType::KeyDown) {
-        PlatformKeyboardEvent platformEvent(platform(event));
+    if (isKeyboardEventValid && event && event->type() == WebEventType::KeyDown) {
+        PlatformKeyboardEvent platformEvent(platform(*event));
         platformEvent.disambiguateKeyDownEvent(PlatformEvent::Type::RawKeyDown);
         focusController->setInitialFocus(forward ? FocusDirection::Forward : FocusDirection::Backward, &KeyboardEvent::create(platformEvent, &frame->windowProxy()).get());
         completionHandler();
@@ -6121,7 +6121,7 @@ void WebPage::drawToPDF(FrameIdentifier frameID, const std::optional<FloatRect>&
     completionHandler(SharedBuffer::create(pdfData.get()));
 }
 
-void WebPage::drawRectToImage(FrameIdentifier frameID, const PrintInfo& printInfo, const IntRect& rect, const WebCore::IntSize& imageSize, CompletionHandler<void(WebKit::ShareableBitmap::Handle&&)>&& completionHandler)
+void WebPage::drawRectToImage(FrameIdentifier frameID, const PrintInfo& printInfo, const IntRect& rect, const WebCore::IntSize& imageSize, CompletionHandler<void(std::optional<WebKit::ShareableBitmap::Handle>&&)>&& completionHandler)
 {
     PrintContextAccessScope scope { *this };
     RefPtr frame = WebProcess::singleton().webFrame(frameID);
@@ -6161,7 +6161,7 @@ void WebPage::drawRectToImage(FrameIdentifier frameID, const PrintInfo& printInf
     }
 #endif
 
-    ShareableBitmap::Handle handle;
+    std::optional<ShareableBitmap::Handle> handle;
     if (image)
         handle = image->createHandle(SharedMemory::Protection::ReadOnly);
 
@@ -7932,10 +7932,10 @@ void WebPage::updateAttachmentAttributes(const String& identifier, std::optional
     callback();
 }
 
-void WebPage::updateAttachmentThumbnail(const String& identifier, ShareableBitmap::Handle&& qlThumbnailHandle)
+void WebPage::updateAttachmentThumbnail(const String& identifier, std::optional<ShareableBitmap::Handle>&& qlThumbnailHandle)
 {
     if (RefPtr attachment = attachmentElementWithIdentifier(identifier)) {
-        if (RefPtr thumbnail = !qlThumbnailHandle.isNull() ? ShareableBitmap::create(WTFMove(qlThumbnailHandle)) : nullptr) {
+        if (RefPtr thumbnail = qlThumbnailHandle ? ShareableBitmap::create(WTFMove(*qlThumbnailHandle)) : nullptr) {
             if (attachment->isWideLayout()) {
                 if (auto imageBuffer = ImageBuffer::create(thumbnail->size(), RenderingPurpose::Unspecified, 1.0, DestinationColorSpace::SRGB(), PixelFormat::BGRA8)) {
                     thumbnail->paint(imageBuffer->context(), IntPoint::zero(), IntRect(IntPoint::zero(), thumbnail->size()));
@@ -7948,10 +7948,10 @@ void WebPage::updateAttachmentThumbnail(const String& identifier, ShareableBitma
     }
 }
 
-void WebPage::updateAttachmentIcon(const String& identifier, ShareableBitmap::Handle&& iconHandle, const WebCore::FloatSize& size)
+void WebPage::updateAttachmentIcon(const String& identifier, std::optional<ShareableBitmap::Handle>&& iconHandle, const WebCore::FloatSize& size)
 {
     if (RefPtr attachment = attachmentElementWithIdentifier(identifier)) {
-        if (auto icon = !iconHandle.isNull() ? ShareableBitmap::create(WTFMove(iconHandle)) : nullptr) {
+        if (auto icon = iconHandle ? ShareableBitmap::create(WTFMove(*iconHandle)) : nullptr) {
             if (attachment->isWideLayout()) {
                 if (auto imageBuffer = ImageBuffer::create(icon->size(), RenderingPurpose::Unspecified, 1.0, DestinationColorSpace::SRGB(), PixelFormat::BGRA8)) {
                     icon->paint(imageBuffer->context(), IntPoint::zero(), IntRect(IntPoint::zero(), icon->size()));
@@ -8491,7 +8491,7 @@ void WebPage::startVisualTranslation(const String& sourceLanguageIdentifier, con
 
 #endif // ENABLE(IMAGE_ANALYSIS)
 
-void WebPage::requestImageBitmap(const ElementContext& context, CompletionHandler<void(ShareableBitmap::Handle&&, const String& sourceMIMEType)>&& completion)
+void WebPage::requestImageBitmap(const ElementContext& context, CompletionHandler<void(std::optional<ShareableBitmap::Handle>&&, const String& sourceMIMEType)>&& completion)
 {
     RefPtr element = elementForContext(context);
     if (!element) {

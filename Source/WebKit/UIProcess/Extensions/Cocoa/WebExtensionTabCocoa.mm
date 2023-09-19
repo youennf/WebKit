@@ -34,8 +34,10 @@
 
 #import "CocoaHelpers.h"
 #import "Logging.h"
+#import "WKSnapshotConfiguration.h"
 #import "WKWebView.h"
 #import "WKWebViewConfigurationPrivate.h"
+#import "WKWebViewPrivate.h"
 #import "WebExtensionContext.h"
 #import "WebExtensionTabParameters.h"
 #import "WebExtensionTabQueryParameters.h"
@@ -43,6 +45,7 @@
 #import "WebExtensionWindowIdentifier.h"
 #import "_WKWebExtensionTab.h"
 #import "_WKWebExtensionTabCreationOptionsInternal.h"
+#import <wtf/BlockPtr.h>
 
 namespace WebKit {
 
@@ -74,6 +77,7 @@ WebExtensionTab::WebExtensionTab(const WebExtensionContext& context, _WKWebExten
     , m_respondsToPendingURL([delegate respondsToSelector:@selector(pendingURLForWebExtensionContext:)])
     , m_respondsToIsLoadingComplete([delegate respondsToSelector:@selector(isLoadingCompleteForWebExtensionContext:)])
     , m_respondsToDetectWebpageLocale([delegate respondsToSelector:@selector(detectWebpageLocaleForWebExtensionContext:completionHandler:)])
+    , m_respondsToCaptureVisibleWebpage([delegate respondsToSelector:@selector(captureVisibleWebpageForWebExtensionContext:completionHandler:)])
     , m_respondsToLoadURL([delegate respondsToSelector:@selector(loadURL:forWebExtensionContext:completionHandler:)])
     , m_respondsToReload([delegate respondsToSelector:@selector(reloadForWebExtensionContext:completionHandler:)])
     , m_respondsToReloadFromOrigin([delegate respondsToSelector:@selector(reloadFromOriginForWebExtensionContext:completionHandler:)])
@@ -108,8 +112,8 @@ WebExtensionTabParameters WebExtensionTab::parameters() const
     return {
         identifier(),
 
-        hasAccess ? std::optional(url()) : std::nullopt,
-        hasAccess ? std::optional(title()) : std::nullopt,
+        hasAccess ? url() : URL { },
+        hasAccess ? title() : nullString(),
 
         window ? std::optional(window->identifier()) : std::nullopt,
 
@@ -133,27 +137,35 @@ WebExtensionTabParameters WebExtensionTab::parameters() const
     };
 }
 
-WebExtensionTabParameters WebExtensionTab::minimalParameters() const
+WebExtensionTabParameters WebExtensionTab::changedParameters(OptionSet<ChangedProperties> changedProperties) const
 {
-    auto window = this->window();
+    bool hasAccess = extensionHasAccess();
 
     return {
-        identifier(),
-        std::nullopt,
-        std::nullopt,
-        window ? std::optional(window->identifier()) : std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt
+        std::nullopt, // identifier
+
+        changedProperties.contains(ChangedProperties::URL) ? std::optional(hasAccess ? url() : URL { }) : std::nullopt,
+        changedProperties.contains(ChangedProperties::Title) ? std::optional(hasAccess ? title() : nullString()) : std::nullopt,
+
+        std::nullopt, // windowIdentifier
+        std::nullopt, // index
+
+        changedProperties.contains(ChangedProperties::Size) ? std::optional(size()) : std::nullopt,
+
+        std::nullopt, // parentTabIdentifier
+        std::nullopt, // active
+        std::nullopt, // selected
+
+        m_respondsToIsPinned && changedProperties.contains(ChangedProperties::Pinned) ? std::optional(isPinned()) : std::nullopt,
+        m_respondsToIsAudible && changedProperties.contains(ChangedProperties::Audible) ? std::optional(isAudible()) : std::nullopt,
+        m_respondsToIsMuted && changedProperties.contains(ChangedProperties::Muted) ? std::optional(isMuted()) : std::nullopt,
+
+        changedProperties.contains(ChangedProperties::Loading) ? std::optional(!isLoadingComplete()) : std::nullopt,
+
+        std::nullopt, // privateBrowsing
+
+        m_respondsToIsReaderModeAvailable && changedProperties.contains(ChangedProperties::ReaderMode) ? std::optional(isReaderModeAvailable()) : std::nullopt,
+        m_respondsToIsShowingReaderMode && changedProperties.contains(ChangedProperties::ReaderMode) ? std::optional(isShowingReaderMode()) : std::nullopt
     };
 }
 
@@ -229,7 +241,7 @@ bool WebExtensionTab::extensionHasAccess() const
     return extensionContext()->hasPermission(url, delegate());
 }
 
-RefPtr<WebExtensionWindow> WebExtensionTab::window() const
+RefPtr<WebExtensionWindow> WebExtensionTab::window(SkipContainsCheck skipCheck) const
 {
     if (!isValid() || !m_respondsToWindow)
         return nullptr;
@@ -241,7 +253,9 @@ RefPtr<WebExtensionWindow> WebExtensionTab::window() const
     THROW_UNLESS([window conformsToProtocol:@protocol(_WKWebExtensionWindow)], @"Object returned by windowForWebExtensionContext: does not conform to the _WKWebExtensionWindow protocol");
 
     auto result = m_extensionContext->getOrCreateWindow(window);
-    THROW_UNLESS(result->tabs().contains(*this), @"Window returned by windowForWebExtensionContext: does not contain the tab");
+
+    if (skipCheck == SkipContainsCheck::No)
+        THROW_UNLESS(result->tabs().contains(*this), @"Window returned by windowForWebExtensionContext: does not contain the tab");
 
     return result;
 }
@@ -583,6 +597,41 @@ void WebExtensionTab::detectWebpageLocale(CompletionHandler<void(NSLocale *, Err
         THROW_UNLESS(!locale || [locale isKindOfClass:NSLocale.class], @"Object passed to completionHandler of detectWebpageLocaleForWebExtensionContext:completionHandler: is not an NSLocale");
         completionHandler(locale, std::nullopt);
     }];
+}
+
+void WebExtensionTab::captureVisibleWebpage(CompletionHandler<void(CocoaImage *, Error)>&& completionHandler)
+{
+    auto internalCompletionHandler = makeBlockPtr([completionHandler = WTFMove(completionHandler)](CocoaImage *image, NSError *error) mutable {
+        if (error) {
+            RELEASE_LOG_ERROR(Extensions, "Error for captureVisibleWebpage: %{private}@", error);
+            completionHandler(nil, error.localizedDescription);
+            return;
+        }
+
+        THROW_UNLESS(!image || [image isKindOfClass:[CocoaImage class]], @"Object passed to completionHandler of captureVisibleWebpageForWebExtensionContext:completionHandler: is not an image");
+        completionHandler(image, std::nullopt);
+    });
+
+    if (!isValid() || !m_respondsToCaptureVisibleWebpage) {
+        auto *mainWebView = this->mainWebView();
+        if (!mainWebView) {
+            completionHandler(nil, toErrorString(@"tabs.captureVisibleTab()", nil, @"capture is unavailable for this tab"));
+            return;
+        }
+
+        NSRect snapshotRect = mainWebView.bounds;
+#if PLATFORM(MAC)
+        snapshotRect.size.height -= mainWebView._topContentInset;
+#endif
+
+        WKSnapshotConfiguration *snapshotConfiguration = [[WKSnapshotConfiguration alloc] init];
+        snapshotConfiguration.rect = snapshotRect;
+
+        [mainWebView takeSnapshotWithConfiguration:snapshotConfiguration completionHandler:internalCompletionHandler.get()];
+        return;
+    }
+
+    [m_delegate captureVisibleWebpageForWebExtensionContext:m_extensionContext->wrapper() completionHandler:internalCompletionHandler.get()];
 }
 
 void WebExtensionTab::loadURL(URL url, CompletionHandler<void(Error)>&& completionHandler)

@@ -138,6 +138,7 @@ def surround_in_condition(string, condition):
 def types_that_must_be_moved():
     return [
         'IPC::Connection::Handle',
+        'IPC::Signal',
         'IPC::StreamServerConnection::Handle',
         'MachSendRight',
         'Vector<WebKit::SharedMemory::Handle>',
@@ -154,6 +155,7 @@ def types_that_must_be_moved():
         'WebKit::WebProcessCreationParameters',
         'Win32Handle',
         'std::optional<MachSendRight>',
+        'std::optional<WebKit::ShareableBitmap::Handle>',
         'std::optional<WebKit::ShareableResource::Handle>',
         'std::optional<WebKit::SharedVideoFrame::Buffer>',
         'std::optional<Win32Handle>'
@@ -267,6 +269,7 @@ def forward_declarations_for_namespace(namespace, kind_and_types):
 # When updating this list, run "make -C Source/WebKit/Scripts/webkit/tests" to keep the webkitpy tests passing.
 def serialized_identifiers():
     return [
+        'IPC::AsyncReplyID',
         'WebCore::BackgroundFetchRecordIdentifier',
         'WebCore::BroadcastChannelIdentifier',
         'WebCore::DOMCacheIdentifier',
@@ -363,6 +366,7 @@ def types_that_cannot_be_forward_declared():
         'CVPixelBufferRef',
         'GCGLint',
         'IPC::AsyncReplyID',
+        'IPC::Signal',
         'IPC::DataReference',
         'IPC::FontReference',
         'IPC::Semaphore',
@@ -424,6 +428,7 @@ def types_that_cannot_be_forward_declared():
         'WebKit::WCContentBufferIdentifier',
         'WebKit::WCLayerTreeHostIdentifier',
         'WebKit::WebExtensionEventListenerType',
+        'WebKit::WebExtensionTab::ImageFormat',
         'WebKit::WebExtensionTabParameters',
         'WebKit::WebExtensionTabQueryParameters',
         'WebKit::WebExtensionWindowParameters',
@@ -649,6 +654,7 @@ def argument_coder_headers_for_type(type):
 
     special_cases = {
         'IPC::Connection::Handle': '"Connection.h"',
+        'IPC::Signal': '"IPCEvent.h"',
         'String': '"ArgumentCoders.h"',
         'MachSendRight': '"ArgumentCodersDarwin.h"',
         'WebKit::ScriptMessageHandlerHandle': '"WebScriptMessageHandler.h"',
@@ -682,6 +688,7 @@ def headers_for_type(type):
         'Inspector::FrontendChannel::ConnectionType': ['<JavaScriptCore/InspectorFrontendChannel.h>'],
         'Inspector::InspectorTargetType': ['<JavaScriptCore/InspectorTarget.h>'],
         'IPC::AsyncReplyID': ['"Connection.h"'],
+        'IPC::Signal': ['"IPCEvent.h"'],
         'IPC::Semaphore': ['"IPCSemaphore.h"'],
         'JSC::MessageLevel': ['<JavaScriptCore/ConsoleTypes.h>'],
         'JSC::MessageSource': ['<JavaScriptCore/ConsoleTypes.h>'],
@@ -915,6 +922,7 @@ def headers_for_type(type):
         'WebKit::TapIdentifier': ['"IdentifierTypes.h"'],
         'WebKit::TextCheckerRequestID': ['"IdentifierTypes.h"'],
         'WebKit::WebEventType': ['"WebEvent.h"'],
+        'WebKit::WebExtensionTab::ImageFormat': ['"WebExtensionTab.h"'],
         'WebKit::WebGPU::BindGroupDescriptor': ['"WebGPUBindGroupDescriptor.h"'],
         'WebKit::WebGPU::BindGroupEntry': ['"WebGPUBindGroupEntry.h"'],
         'WebKit::WebGPU::BindGroupLayoutDescriptor': ['"WebGPUBindGroupLayoutDescriptor.h"'],

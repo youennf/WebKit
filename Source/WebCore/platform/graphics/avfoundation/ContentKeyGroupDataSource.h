@@ -23,23 +23,28 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma once
+
 #if HAVE(AVCONTENTKEYSESSION)
 
-#import <pal/graphics/cocoa/WebContentKeyGrouping.h>
+#include <wtf/Forward.h>
+#include <wtf/WeakPtr.h>
 
-NS_ASSUME_NONNULL_BEGIN
+OBJC_CLASS AVContentKey;
 
-@class AVContentKeySession;
+namespace WebCore {
 
-@interface WebContentKeyGroup : NSObject <WebContentKeyGrouping>
+class ContentKeyGroupDataSource : public CanMakeWeakPtr<ContentKeyGroupDataSource> {
+public:
+    virtual ~ContentKeyGroupDataSource() = default;
 
-- (instancetype)initWithContentKeySession:(AVContentKeySession *)contentKeySession NS_DESIGNATED_INITIALIZER;
+    virtual Vector<RetainPtr<AVContentKey>> contentKeyGroupDataSourceKeys() const = 0;
+#if !RELEASE_LOG_DISABLED
+    virtual const void* contentKeyGroupDataSourceLogIdentifier() const = 0;
+    virtual const Logger& contentKeyGroupDataSourceLogger() const = 0;
+#endif // !RELEASE_LOG_DISABLED
+};
 
-+ (instancetype)new NS_UNAVAILABLE;
-- (instancetype)init NS_UNAVAILABLE;
-
-@end
-
-NS_ASSUME_NONNULL_END
+} // namespace WebCore
 
 #endif // HAVE(AVCONTENTKEYSESSION)

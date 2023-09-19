@@ -89,6 +89,7 @@ public:
 
     void visit(AST::Statement&) override;
     void visit(AST::AssignmentStatement&) override;
+    void visit(AST::CompoundAssignmentStatement&) override;
     void visit(AST::CompoundStatement&) override;
     void visit(AST::DecrementIncrementStatement&) override;
     void visit(AST::IfStatement&) override;
@@ -916,6 +917,15 @@ void FunctionDefinitionWriter::visit(const Type* type, AST::CallExpression& call
         static constexpr std::pair<ComparableASCIILiteral, ASCIILiteral> baseTypesMappings[] {
             { "f32", "float"_s },
             { "i32", "int"_s },
+            { "mat2x2f", "float2x2"_s },
+            { "mat2x3f", "float2x3"_s },
+            { "mat2x4f", "float2x4"_s },
+            { "mat3x2f", "float3x2"_s },
+            { "mat3x3f", "float3x3"_s },
+            { "mat3x4f", "float3x4"_s },
+            { "mat4x2f", "float4x2"_s },
+            { "mat4x3f", "float4x3"_s },
+            { "mat4x4f", "float4x4"_s },
             { "u32", "uint"_s },
             { "vec2f", "float2"_s },
             { "vec2i", "int2"_s },
@@ -1146,6 +1156,13 @@ void FunctionDefinitionWriter::visit(AST::AssignmentStatement& assignment)
     visit(assignment.lhs());
     m_stringBuilder.append(" = ");
     visit(assignment.rhs());
+}
+
+void FunctionDefinitionWriter::visit(AST::CompoundAssignmentStatement& statement)
+{
+    visit(statement.leftExpression());
+    m_stringBuilder.append(" ", toASCIILiteral(statement.operation()), "= ");
+    visit(statement.rightExpression());
 }
 
 void FunctionDefinitionWriter::visit(AST::CompoundStatement& statement)

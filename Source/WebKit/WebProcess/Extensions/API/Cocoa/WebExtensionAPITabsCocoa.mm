@@ -45,6 +45,7 @@
 #import "WebExtensionWindowIdentifier.h"
 #import "WebProcess.h"
 #import <wtf/cocoa/VectorCocoa.h>
+#import <wtf/text/Base64.h>
 
 static NSString * const idKey = @"id";
 static NSString * const urlKey = @"url";
@@ -82,36 +83,52 @@ static NSString * const windowTypeKey = @"windowType";
 
 static NSString * const bypassCacheKey = @"bypassCache";
 
+static NSString * const oldWindowIdKey = @"oldWindowId";
+static NSString * const oldPositionKey = @"oldPosition";
+
+static NSString * const newWindowIdKey = @"newWindowId";
+static NSString * const newPositionKey = @"newPosition";
+
+static NSString * const previousTabIdKey = @"previousTabId";
+static NSString * const tabIdKey = @"tabId";
+
+static NSString * const fromIndexKey = @"fromIndex";
+static NSString * const toIndexKey = @"toIndex";
+
+static NSString * const isWindowClosingKey = @"isWindowClosing";
+
+static NSString * const tabIdsKey = @"tabIds";
+
+static NSString * const formatKey = @"format";
+static NSString * const pngValue = @"png";
+static NSString * const jpegValue = @"jpeg";
+
+static NSString * const qualityKey = @"quality";
+
 static NSString * const emptyURLValue = @"";
 static NSString * const emptyTitleValue = @"";
+static NSString * const emptyDataURLValue = @"data:,";
 static NSString * const unknownLanguageValue = @"und";
 
 namespace WebKit {
 
 NSDictionary *toWebAPI(const WebExtensionTabParameters& parameters)
 {
-    ASSERT(parameters.identifier);
-
     // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/Tab
 
     auto *result = [NSMutableDictionary dictionary];
 
-    result[idKey] = @(toWebAPI(parameters.identifier.value()));
+    if (parameters.identifier)
+        result[idKey] = @(toWebAPI(parameters.identifier.value()));
 
     if (parameters.url)
-        result[urlKey] = (NSString *)parameters.url.value().string();
-    else
-        result[urlKey] = emptyURLValue;
+        result[urlKey] = !parameters.url.value().isNull() ? (NSString *)parameters.url.value().string() : emptyURLValue;
 
     if (parameters.title)
-        result[titleKey] = (NSString *)parameters.title.value();
-    else
-        result[titleKey] = emptyTitleValue;
+        result[titleKey] = !parameters.title.value().isNull() ? (NSString *)parameters.title.value() : emptyTitleValue;
 
     if (parameters.windowIdentifier)
         result[windowIdKey] = @(toWebAPI(parameters.windowIdentifier.value()));
-    else
-        result[windowIdKey] = @(toWebAPI(WebExtensionWindowConstants::NoneIdentifier));
 
     if (parameters.index)
         result[indexKey] = @(parameters.index.value());
@@ -127,15 +144,10 @@ NSDictionary *toWebAPI(const WebExtensionTabParameters& parameters)
 
     if (parameters.active)
         result[activeKey] = @(parameters.active.value());
-    else
-        result[activeKey] = @NO;
 
     if (parameters.selected) {
         result[selectedKey] = @(parameters.selected.value());
         result[highlightedKey] = @(parameters.selected.value());
-    } else {
-        result[selectedKey] = result[activeKey];
-        result[highlightedKey] = result[activeKey];
     }
 
     if (parameters.pinned)
@@ -371,6 +383,47 @@ bool WebExtensionAPITabs::parseTabQueryOptions(NSDictionary *options, WebExtensi
 
     if (NSNumber *muted = objectForKey<NSNumber>(options, mutedKey))
         parameters.muted = muted.boolValue;
+
+    return true;
+}
+
+bool WebExtensionAPITabs::parseCaptureVisibleTabOptions(NSDictionary *options, WebExtensionTab::ImageFormat& imageFormat, uint8_t& imageQuality, NSString *sourceKey, NSString **outExceptionString)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/extensionTypes/ImageDetails
+
+    // Default to PNG image format.
+    imageFormat = WebExtensionTab::ImageFormat::PNG;
+
+    // Default to 92 for JPEG.
+    imageQuality = 92;
+
+    static NSDictionary<NSString *, id> *types = @{
+        formatKey: NSString.class,
+        qualityKey: NSNumber.class,
+    };
+
+    if (!validateDictionary(options, sourceKey, nil, types, outExceptionString))
+        return false;
+
+    if (NSString *format = objectForKey<NSString>(options, formatKey)) {
+        if ([format isEqualToString:pngValue])
+            imageFormat = WebExtensionTab::ImageFormat::PNG;
+        else if ([format isEqualToString:jpegValue])
+            imageFormat = WebExtensionTab::ImageFormat::JPEG;
+        else {
+            *outExceptionString = toErrorString(nil, formatKey, @"it must specify either 'png' or 'jpeg'");
+            return false;
+        }
+    }
+
+    if (NSNumber *quality = objectForKey<NSNumber>(options, qualityKey)) {
+        if (quality.integerValue < 0 || quality.integerValue > 100) {
+            *outExceptionString = toErrorString(nil, qualityKey, @"it must specify a value between 0 and 100");
+            return false;
+        }
+
+        imageQuality = quality.unsignedCharValue;
+    }
 
     return true;
 }
@@ -756,6 +809,35 @@ void WebExtensionAPITabs::toggleReaderMode(WebPage* page, double tabID, Ref<WebE
     }, extensionContext().identifier().toUInt64());
 }
 
+void WebExtensionAPITabs::captureVisibleTab(WebPage* page, double windowID, NSDictionary *options, Ref<WebExtensionCallbackHandler>&& callback, NSString **outExceptionString)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/captureVisibleTab
+
+    auto windowIdentifier = toWebExtensionWindowIdentifier(windowID);
+    if (windowIdentifier && !isValid(windowIdentifier, outExceptionString))
+        return;
+
+    WebExtensionTab::ImageFormat imageFormat;
+    uint8_t imageQuality;
+
+    if (!parseCaptureVisibleTabOptions(options, imageFormat, imageQuality, @"options", outExceptionString))
+        return;
+
+    WebProcess::singleton().sendWithAsyncReply(Messages::WebExtensionContext::TabsCaptureVisibleTab(page->webPageProxyIdentifier(), windowIdentifier, imageFormat, imageQuality), [protectedThis = Ref { *this }, callback = WTFMove(callback)](std::optional<URL> imageDataURL, WebExtensionTab::Error error) {
+        if (error) {
+            callback->reportError(error.value());
+            return;
+        }
+
+        if (!imageDataURL) {
+            callback->call(emptyDataURLValue);
+            return;
+        }
+
+        callback->call((NSString *)imageDataURL.value().string());
+    }, extensionContext().identifier().toUInt64());
+}
+
 WebExtensionAPIEvent& WebExtensionAPITabs::onActivated()
 {
     // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onActivated
@@ -844,6 +926,108 @@ WebExtensionAPIEvent& WebExtensionAPITabs::onUpdated()
         m_onUpdated = WebExtensionAPIEvent::create(forMainWorld(), runtime(), extensionContext(), WebExtensionEventListenerType::TabsOnUpdated);
 
     return *m_onUpdated;
+}
+
+void WebExtensionContextProxy::dispatchTabsCreatedEvent(const WebExtensionTabParameters& parameters)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onCreated
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onCreated().invokeListenersWithArgument(toWebAPI(parameters));
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsUpdatedEvent(const WebExtensionTabParameters& parameters, const WebExtensionTabParameters& changedParameters)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onUpdated
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onUpdated().invokeListenersWithArgument(@(toWebAPI(parameters.identifier.value())), toWebAPI(changedParameters), toWebAPI(parameters));
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsReplacedEvent(WebExtensionTabIdentifier replacedTabIdentifier, WebExtensionTabIdentifier newTabIdentifier)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onReplaced
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onReplaced().invokeListenersWithArgument(@(toWebAPI(newTabIdentifier)), @(toWebAPI(replacedTabIdentifier)));
+    });
+}
+
+static inline NSNumber *toWebAPI(size_t index)
+{
+    return index != notFound ? @(index) : @(std::numeric_limits<double>::quiet_NaN());
+}
+
+void WebExtensionContextProxy::dispatchTabsDetachedEvent(WebExtensionTabIdentifier tabIdentifier, WebExtensionWindowIdentifier oldWindowIdentifier, size_t oldIndex)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onDetached
+
+    auto *detachInfo = @{ oldWindowIdKey: @(toWebAPI(oldWindowIdentifier)), oldPositionKey: toWebAPI(oldIndex) };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onDetached().invokeListenersWithArgument(@(toWebAPI(tabIdentifier)), detachInfo);
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsMovedEvent(WebExtensionTabIdentifier tabIdentifier, WebExtensionWindowIdentifier windowIdentifier, size_t oldIndex, size_t newIndex)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onMoved
+
+    auto *moveInfo = @{ windowIdKey: @(toWebAPI(windowIdentifier)), fromIndexKey: toWebAPI(oldIndex), toIndexKey: toWebAPI(newIndex) };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onMoved().invokeListenersWithArgument(@(toWebAPI(tabIdentifier)), moveInfo);
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsAttachedEvent(WebExtensionTabIdentifier tabIdentifier, WebExtensionWindowIdentifier newWindowIdentifier, size_t newIndex)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onAttached
+
+    auto *attachInfo = @{ newWindowIdKey: @(toWebAPI(newWindowIdentifier)), newPositionKey: toWebAPI(newIndex) };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onAttached().invokeListenersWithArgument(@(toWebAPI(tabIdentifier)), attachInfo);
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsActivatedEvent(WebExtensionTabIdentifier previousActiveTabIdentifier, WebExtensionTabIdentifier newActiveTabIdentifier, WebExtensionWindowIdentifier windowIdentifier)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onActivated
+
+    auto *activateInfo = @{ previousTabIdKey: @(toWebAPI(previousActiveTabIdentifier)), tabIdKey: @(toWebAPI(newActiveTabIdentifier)), windowIdKey: @(toWebAPI(windowIdentifier)) };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onActivated().invokeListenersWithArgument(activateInfo);
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsHighlightedEvent(const Vector<WebExtensionTabIdentifier>& tabs, WebExtensionWindowIdentifier windowIdentifier)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onHighlighted
+
+    auto *tabIds = createNSArray(tabs, [](auto& tabIdentifier) {
+        return @(toWebAPI(tabIdentifier));
+    }).get();
+
+    auto *highlightInfo = @{ windowIdKey: @(toWebAPI(windowIdentifier)), tabIdsKey: tabIds };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onHighlighted().invokeListenersWithArgument(highlightInfo);
+    });
+}
+
+void WebExtensionContextProxy::dispatchTabsRemovedEvent(WebExtensionTabIdentifier tabIdentifier, WebExtensionWindowIdentifier windowIdentifier, WebExtensionContext::WindowIsClosing windowIsClosing)
+{
+    // Documentation: https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onRemoved
+
+    auto *removeInfo = @{ windowIdKey: @(toWebAPI(windowIdentifier)), isWindowClosingKey: @(windowIsClosing == WebExtensionContext::WindowIsClosing::Yes) };
+
+    enumerateNamespaceObjects([&](auto& namespaceObject) {
+        namespaceObject.tabs().onRemoved().invokeListenersWithArgument(@(toWebAPI(tabIdentifier)), removeInfo);
+    });
 }
 
 } // namespace WebKit

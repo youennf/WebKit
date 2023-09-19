@@ -332,6 +332,7 @@
 		5159F267260D43E300B2DA3C /* NowPlayingInfoTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5159F266260D43E300B2DA3C /* NowPlayingInfoTests.cpp */; };
 		515BE16F1D428BB100DD7C68 /* StoreBlobToBeDeleted.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 515BE16E1D4288FF00DD7C68 /* StoreBlobToBeDeleted.html */; };
 		516281252325C18000BB7E42 /* TestPDFDocument.mm in Sources */ = {isa = PBXBuildFile; fileRef = 516281242325C17B00BB7E42 /* TestPDFDocument.mm */; };
+		516404382AB1D9BC0042B1C3 /* NativePromise.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 516404372AB1D9BB0042B1C3 /* NativePromise.cpp */; };
 		51714EB41CF8C78C004723C4 /* WebProcessKillIDBCleanup-1.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 51714EB21CF8C761004723C4 /* WebProcessKillIDBCleanup-1.html */; };
 		51714EB51CF8C78C004723C4 /* WebProcessKillIDBCleanup-2.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 51714EB31CF8C761004723C4 /* WebProcessKillIDBCleanup-2.html */; };
 		5175C7A226F876230003AF5C /* BundlePageConsoleMessage.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5175C7A126F876230003AF5C /* BundlePageConsoleMessage.mm */; };
@@ -923,6 +924,7 @@
 		A17EAC55208305A00084B41B /* find.pdf in Copy Resources */ = {isa = PBXBuildFile; fileRef = A17EAC542083056E0084B41B /* find.pdf */; };
 		A1C142C224AA7B2E00444207 /* ContextMenuMouseEvents.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1C142C124AA7B2E00444207 /* ContextMenuMouseEvents.mm */; };
 		A1C4FB731BACD1CA003742D0 /* pages.pages in Copy Resources */ = {isa = PBXBuildFile; fileRef = A1C4FB721BACD1B7003742D0 /* pages.pages */; };
+		A1C7D7D32AB817A90055AD62 /* LoggerCocoa.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1C7D7D22AB817A90055AD62 /* LoggerCocoa.mm */; };
 		A1EC11881F42541200D0146E /* PreviewConverter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1EC11871F42541200D0146E /* PreviewConverter.cpp */; };
 		A1FB503D22A1CBE200D4D979 /* apple-pay-availability-existing-object.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = A1FB503C22A1C24400D4D979 /* apple-pay-availability-existing-object.html */; };
 		A1FB503F22A20F6400D4D979 /* apple-pay-can-make-payments.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = A1FB503E22A1E3B300D4D979 /* apple-pay-can-make-payments.html */; };
@@ -936,6 +938,7 @@
 		A57D54F91F3397B400A97AA7 /* LifecycleLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A57D54F71F3397B400A97AA7 /* LifecycleLogger.cpp */; };
 		A5B149DE1F5A19EA00C6DAFF /* MIMETypeRegistry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A5B149DD1F5A19DC00C6DAFF /* MIMETypeRegistry.cpp */; };
 		A5E2027515B21F6E00C13E14 /* WindowlessWebViewWithMedia.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = A5E2027015B2180600C13E14 /* WindowlessWebViewWithMedia.html */; };
+		A73E66C42AB29574005FC327 /* EventTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73E66C32AB29574005FC327 /* EventTests.cpp */; };
 		AA96CAB621C7DB5000FD2F97 /* ParsedContentType.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA96CAB421C7DB4200FD2F97 /* ParsedContentType.cpp */; };
 		AD57AC201DA7465000FF1BDE /* DidRemoveFrameFromHiearchyInPageCache_Bundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD57AC1E1DA7464D00FF1BDE /* DidRemoveFrameFromHiearchyInPageCache_Bundle.cpp */; };
 		AD57AC211DA7465B00FF1BDE /* DidRemoveFrameFromHiearchyInPageCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD57AC1F1DA7464D00FF1BDE /* DidRemoveFrameFromHiearchyInPageCache.cpp */; };
@@ -2457,6 +2460,7 @@
 		516281242325C17B00BB7E42 /* TestPDFDocument.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TestPDFDocument.mm; path = cocoa/TestPDFDocument.mm; sourceTree = "<group>"; };
 		516281262325C19100BB7E42 /* PDFSnapshot.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = PDFSnapshot.mm; sourceTree = "<group>"; };
 		516281282325C45400BB7E42 /* PDFKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PDFKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/PDFKit.framework; sourceTree = DEVELOPER_DIR; };
+		516404372AB1D9BB0042B1C3 /* NativePromise.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = NativePromise.cpp; sourceTree = "<group>"; };
 		5165FE03201EE617009F7EC3 /* MessagePortProviders.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MessagePortProviders.mm; sourceTree = "<group>"; };
 		51714EB21CF8C761004723C4 /* WebProcessKillIDBCleanup-1.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "WebProcessKillIDBCleanup-1.html"; sourceTree = "<group>"; };
 		51714EB31CF8C761004723C4 /* WebProcessKillIDBCleanup-2.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "WebProcessKillIDBCleanup-2.html"; sourceTree = "<group>"; };
@@ -3085,6 +3089,7 @@
 		A1C142C124AA7B2E00444207 /* ContextMenuMouseEvents.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ContextMenuMouseEvents.mm; sourceTree = "<group>"; };
 		A1C4FB6C1BACCE50003742D0 /* QuickLook.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = QuickLook.mm; sourceTree = "<group>"; };
 		A1C4FB721BACD1B7003742D0 /* pages.pages */ = {isa = PBXFileReference; lastKnownFileType = file; name = pages.pages; path = ios/pages.pages; sourceTree = SOURCE_ROOT; };
+		A1C7D7D22AB817A90055AD62 /* LoggerCocoa.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LoggerCocoa.mm; sourceTree = "<group>"; };
 		A1DF74301C41B65800A2F4D0 /* AlwaysRevalidatedURLSchemes.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AlwaysRevalidatedURLSchemes.mm; sourceTree = "<group>"; };
 		A1EC11871F42541200D0146E /* PreviewConverter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PreviewConverter.cpp; sourceTree = "<group>"; };
 		A1FB503C22A1C24400D4D979 /* apple-pay-availability-existing-object.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "apple-pay-availability-existing-object.html"; sourceTree = "<group>"; };
@@ -3105,6 +3110,7 @@
 		A5B149DD1F5A19DC00C6DAFF /* MIMETypeRegistry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MIMETypeRegistry.cpp; sourceTree = "<group>"; };
 		A5E2027015B2180600C13E14 /* WindowlessWebViewWithMedia.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = WindowlessWebViewWithMedia.html; sourceTree = "<group>"; };
 		A5E2027215B2181900C13E14 /* WindowlessWebViewWithMedia.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = WindowlessWebViewWithMedia.mm; sourceTree = "<group>"; };
+		A73E66C32AB29574005FC327 /* EventTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = EventTests.cpp; sourceTree = "<group>"; };
 		A7A966DA140ECCC8005EF9B4 /* CheckedArithmeticOperations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CheckedArithmeticOperations.cpp; sourceTree = "<group>"; };
 		AA96CAB421C7DB4200FD2F97 /* ParsedContentType.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ParsedContentType.cpp; sourceTree = "<group>"; };
 		ABF510632A19B8AC7EC40E17 /* AbortableTaskQueue.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AbortableTaskQueue.cpp; sourceTree = "<group>"; };
@@ -4545,6 +4551,7 @@
 			children = (
 				2D83D08A29194B0100C5C051 /* ArgumentCoderTests.cpp */,
 				7B397C0528BE0EAD00239202 /* ConnectionTests.cpp */,
+				A73E66C32AB29574005FC327 /* EventTests.cpp */,
 				7B7392EB28F84BD2007297FC /* IPCTestUtilities.cpp */,
 				7B7392EA28F849F3007297FC /* IPCTestUtilities.h */,
 				7B7392E128F849EC007297FC /* MessageSenderTests.cpp */,
@@ -5245,6 +5252,7 @@
 				CE78705D2107AB8C0053AC67 /* MoveOnlyLifecycleLogger.cpp */,
 				CE78705C2107AB8C0053AC67 /* MoveOnlyLifecycleLogger.h */,
 				FEB6F74E1B2BA44E009E4922 /* NakedPtr.cpp */,
+				516404372AB1D9BB0042B1C3 /* NativePromise.cpp */,
 				A57D54F21F338C3600A97AA7 /* NeverDestroyed.cpp */,
 				CD48A87224C8A66F00F5800C /* Observer.cpp */,
 				CE50D8C81C8665CE0072EA5A /* OptionSet.cpp */,
@@ -5762,6 +5770,7 @@
 			isa = PBXGroup;
 			children = (
 				1CA6FBAC2A1D818C001D4402 /* ContextualizedNSString.mm */,
+				A1C7D7D22AB817A90055AD62 /* LoggerCocoa.mm */,
 				1C4616A626BB172F00F8C9F6 /* TextStreamCocoa.cpp */,
 				1C46169E26BA510700F8C9F6 /* TextStreamCocoa.mm */,
 				44CDE4D326EE6E41009F6ACB /* TypeCastsCocoa.mm */,
@@ -6148,6 +6157,7 @@
 			files = (
 				2D83D08B29194B0100C5C051 /* ArgumentCoderTests.cpp in Sources */,
 				7B397C0628BE0EAD00239202 /* ConnectionTests.cpp in Sources */,
+				A73E66C42AB29574005FC327 /* EventTests.cpp in Sources */,
 				7B7392EC28F84BD3007297FC /* IPCTestUtilities.cpp in Sources */,
 				7B9FC39F28A26137007570E7 /* mainIOS.mm in Sources */,
 				7B9FC3A028A26137007570E7 /* mainMac.mm in Sources */,
@@ -6212,6 +6222,7 @@
 				7C83DEE81D0A590C00FEBCF3 /* ListHashSet.cpp in Sources */,
 				7C83DF1D1D0A590C00FEBCF3 /* Lock.cpp in Sources */,
 				A57D54F61F3395D000A97AA7 /* Logger.cpp in Sources */,
+				A1C7D7D32AB817A90055AD62 /* LoggerCocoa.mm in Sources */,
 				D04CF93F285C77CA005D6337 /* MachSendRight.cpp in Sources */,
 				4909EE3A2D09480C88982D56 /* Markable.cpp in Sources */,
 				7C83DEED1D0A590C00FEBCF3 /* MathExtras.cpp in Sources */,
@@ -6219,6 +6230,7 @@
 				7C83DEF61D0A590C00FEBCF3 /* MetaAllocator.cpp in Sources */,
 				CE78705F2107AB980053AC67 /* MoveOnlyLifecycleLogger.cpp in Sources */,
 				7C83DEFE1D0A590C00FEBCF3 /* NakedPtr.cpp in Sources */,
+				516404382AB1D9BC0042B1C3 /* NativePromise.cpp in Sources */,
 				A57D54F31F338C3600A97AA7 /* NeverDestroyed.cpp in Sources */,
 				CD48A87324C8A66F00F5800C /* Observer.cpp in Sources */,
 				1A77BAA31D9AFFFC005FC568 /* OptionSet.cpp in Sources */,
