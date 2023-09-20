@@ -23,18 +23,30 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// https://gpuweb.github.io/gpuweb/#typedefdef-gpucomputepasstimestampwrites
+#pragma once
 
-// https://bugs.webkit.org/show_bug.cgi?id=232548 This shouldn't need to be here.
-typedef [EnforceRange] unsigned long GPUSize32;
+#include "GPUComputePassTimestampLocation.h"
+#include "GPUIntegralTypes.h"
+#include "GPUQuerySet.h"
+#include "WebGPUComputePassTimestampWrites.h"
+#include <wtf/RefPtr.h>
+#include <wtf/Vector.h>
 
-[
-    EnabledBySetting=WebGPUEnabled
-]
-dictionary GPUComputePassTimestampWrite {
-    required GPUQuerySet querySet;
-    required GPUSize32 queryIndex;
-    required GPUComputePassTimestampLocation location;
+namespace WebCore {
+
+struct GPUComputePassTimestampWrites {
+    WebGPU::ComputePassTimestampWrites convertToBacking() const
+    {
+        return {
+            querySet ? &querySet->backing() : nullptr,
+            beginningOfPassWriteIndex,
+            endOfPassWriteIndex,
+        };
+    }
+
+    GPUQuerySet* querySet { nullptr };
+    GPUSize32 beginningOfPassWriteIndex { 0 };
+    GPUSize32 endOfPassWriteIndex { 0 };
 };
 
-typedef sequence<GPUComputePassTimestampWrite> GPUComputePassTimestampWrites;
+}

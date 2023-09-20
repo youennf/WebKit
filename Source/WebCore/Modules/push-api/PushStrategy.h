@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,18 +23,29 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// https://gpuweb.github.io/gpuweb/#typedefdef-gpurenderpasstimestampwrites
+#pragma once
+#if ENABLE(DECLARATIVE_WEB_PUSH)
 
-// https://bugs.webkit.org/show_bug.cgi?id=232548 This shouldn't need to be here.
-typedef [EnforceRange] unsigned long GPUSize32;
+#include "PushSubscriptionIdentifier.h"
 
-[
-    EnabledBySetting=WebGPUEnabled
-]
-dictionary GPURenderPassTimestampWrite {
-    required GPUQuerySet querySet;
-    required GPUSize32 queryIndex;
-    required GPURenderPassTimestampLocation location;
+namespace WebCore {
+
+class WEBCORE_EXPORT PushStrategy {
+public:
+    virtual ~PushStrategy() = default;
+
+    using SubscribeToPushServiceCallback = CompletionHandler<void(ExceptionOr<PushSubscriptionData>&&)>;
+    virtual void navigatorSubscribeToPushService(const URL& scope, const Vector<uint8_t>& applicationServerKey, SubscribeToPushServiceCallback&&) = 0;
+
+    using UnsubscribeFromPushServiceCallback = CompletionHandler<void(ExceptionOr<bool>&&)>;
+    virtual void navigatorUnsubscribeFromPushService(const URL& scope, PushSubscriptionIdentifier, UnsubscribeFromPushServiceCallback&&) = 0;
+
+    using GetPushSubscriptionCallback = CompletionHandler<void(ExceptionOr<std::optional<PushSubscriptionData>>&&)>;
+    virtual void navigatorGetPushSubscription(const URL& scope, GetPushSubscriptionCallback&&) = 0;
+
+    using GetPushPermissionStateCallback = CompletionHandler<void(ExceptionOr<PushPermissionState>&&)>;
+    virtual void navigatorGetPushPermissionState(const URL& scope, GetPushPermissionStateCallback&&) = 0;
 };
 
-typedef sequence<GPURenderPassTimestampWrite> GPURenderPassTimestampWrites;
+} // namespace WebCore
+#endif // ENABLE(DECLARATIVE_WEB_PUSH)

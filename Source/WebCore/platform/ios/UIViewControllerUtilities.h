@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,38 +25,15 @@
 
 #pragma once
 
-#include "GPUIntegralTypes.h"
-#include "GPUQuerySet.h"
-#include "GPURenderPassTimestampLocation.h"
-#include "WebGPURenderPassTimestampWrites.h"
-#include <wtf/RefPtr.h>
-#include <wtf/Vector.h>
+#if PLATFORM(IOS_FAMILY)
+
+OBJC_CLASS UIView;
+OBJC_CLASS UIViewController;
 
 namespace WebCore {
 
-struct GPURenderPassTimestampWrite {
-    WebGPU::RenderPassTimestampWrite convertToBacking() const
-    {
-        ASSERT(querySet);
-        return {
-            querySet->backing(),
-            queryIndex,
-            WebCore::convertToBacking(location),
-        };
-    }
-
-    GPUQuerySet* querySet { nullptr };
-    GPUSize32 queryIndex { 0 };
-    GPURenderPassTimestampLocation location { GPURenderPassTimestampLocation::Beginning };
-};
-
-using GPURenderPassTimestampWrites = Vector<GPURenderPassTimestampWrite>;
-
-inline WebGPU::RenderPassTimestampWrites convertToBacking(const GPURenderPassTimestampWrites& renderPassTimestampWrites)
-{
-    return renderPassTimestampWrites.map([](auto& renderPassTimestampWrite) {
-        return renderPassTimestampWrite.convertToBacking();
-    });
-}
+WEBCORE_EXPORT UIViewController *viewController(UIView *);
 
 }
+
+#endif // PLATFORM(IOS_FAMILY)

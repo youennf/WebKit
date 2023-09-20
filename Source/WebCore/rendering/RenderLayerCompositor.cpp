@@ -123,9 +123,12 @@ struct ScrollingTreeState {
 
 struct RenderLayerCompositor::OverlapExtent {
     LayoutRect bounds;
+    Vector<LayerOverlapMap::LayerAndBounds> clippingScopes;
+
     bool extentComputed { false };
     bool hasTransformAnimation { false };
     bool animationCausesExtentUncertainty { false };
+    bool clippingScopesComputed { false };
 
     bool knownToBeHaveExtentUncertainty() const { return extentComputed && animationCausesExtentUncertainty; }
 };
@@ -156,6 +159,7 @@ struct RenderLayerCompositor::CompositingState {
 #if ENABLE(CSS_COMPOSITING)
         childState.hasNotIsolatedCompositedBlendingDescendants = false; // FIXME: should this only be reset for stacking contexts?
 #endif
+        childState.hasBackdropFilterDescendantsWithoutRoot = false;
 #if !LOG_DISABLED
         childState.depth = depth + 1;
 #endif
@@ -198,6 +202,9 @@ struct RenderLayerCompositor::CompositingState {
         if ((layer.isComposited() && layer.hasBlendMode()) || (layer.hasNotIsolatedCompositedBlendingDescendants() && !layer.isolatesCompositedBlending()))
             hasNotIsolatedCompositedBlendingDescendants = true;
 #endif
+
+        if ((layer.isComposited() && layer.hasBackdropFilter()) || (layer.hasBackdropFilterDescendantsWithoutRoot() && !layer.isBackdropRoot()))
+            hasBackdropFilterDescendantsWithoutRoot = true;
     }
 
     bool hasNonRootCompositedAncestor() const
@@ -217,6 +224,7 @@ struct RenderLayerCompositor::CompositingState {
 #if ENABLE(CSS_COMPOSITING)
     bool hasNotIsolatedCompositedBlendingDescendants { false };
 #endif
+    bool hasBackdropFilterDescendantsWithoutRoot { false };
 #if !LOG_DISABLED
     unsigned depth { 0 };
 #endif
@@ -1219,6 +1227,12 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
 
     ASSERT(!layer.hasNotIsolatedCompositedBlendingDescendants() || layer.hasNotIsolatedBlendingDescendants());
 #endif
+
+    bool isBackdropRoot = layer.isBackdropRoot();
+    layer.setHasBackdropFilterDescendantsWithoutRoot(currentState.hasBackdropFilterDescendantsWithoutRoot);
+    if (layer.isBackdropRoot() != isBackdropRoot)
+        layer.setNeedsCompositingConfigurationUpdate();
+
     // Now check for reasons to become composited that depend on the state of descendant layers.
     if (!willBeComposited && canBeComposited(layer)) {
         auto indirectReason = computeIndirectCompositingReason(layer, currentState.subtreeIsCompositing, anyDescendantHas3DTransform, layerPaintsIntoProvidedBacking);
@@ -2223,35 +2237,44 @@ static AncestorTraversal traverseAncestorLayers(const RenderLayer& layer, Functi
     return AncestorTraversal::Continue;
 }
 
-static bool createsClippingScope(const RenderLayer& layer)
+void RenderLayerCompositor::computeClippingScopes(const RenderLayer& layer, OverlapExtent& extent) const
 {
-    return layer.hasCompositedScrollableOverflow();
-}
+    if (extent.clippingScopesComputed)
+        return;
 
-static Vector<LayerOverlapMap::LayerAndBounds> enclosingClippingScopes(const RenderLayer& layer, const RenderLayer& rootLayer)
-{
-    Vector<LayerOverlapMap::LayerAndBounds> clippingScopes;
-    clippingScopes.append({ const_cast<RenderLayer&>(rootLayer), { } });
+    // FIXME: constrain the scopes (by composited stacking context ancestor I think).
+    auto enclosingClippingScopes = [] (const RenderLayer& layer, const RenderLayer& rootLayer) {
 
-    if (!layer.hasCompositedScrollingAncestor())
-        return clippingScopes;
+        auto createsClippingScope = [](const RenderLayer& layer) {
+            return layer.hasCompositedScrollableOverflow();
+        };
 
-    traverseAncestorLayers(layer, [&](const RenderLayer& ancestorLayer, bool inContainingBlockChain, bool) {
-        if (inContainingBlockChain && createsClippingScope(ancestorLayer)) {
-            LayoutRect clipRect;
-            if (is<RenderBox>(ancestorLayer.renderer())) {
-                // FIXME: This is expensive. Broken with transforms.
-                LayoutPoint offsetFromRoot = ancestorLayer.convertToLayerCoords(&rootLayer, { });
-                clipRect = downcast<RenderBox>(ancestorLayer.renderer()).overflowClipRect(offsetFromRoot);
+        Vector<LayerOverlapMap::LayerAndBounds> clippingScopes;
+        clippingScopes.append({ const_cast<RenderLayer&>(rootLayer), { } });
+
+        if (!layer.hasCompositedScrollingAncestor())
+            return clippingScopes;
+
+        traverseAncestorLayers(layer, [&](const RenderLayer& ancestorLayer, bool inContainingBlockChain, bool) {
+            if (inContainingBlockChain && createsClippingScope(ancestorLayer)) {
+                LayoutRect clipRect;
+                if (is<RenderBox>(ancestorLayer.renderer())) {
+                    // FIXME: This is expensive. Broken with transforms.
+                    LayoutPoint offsetFromRoot = ancestorLayer.convertToLayerCoords(&rootLayer, { });
+                    clipRect = downcast<RenderBox>(ancestorLayer.renderer()).overflowClipRect(offsetFromRoot);
+                }
+
+                LayerOverlapMap::LayerAndBounds layerAndBounds { const_cast<RenderLayer&>(ancestorLayer), clipRect };
+                clippingScopes.insert(1, layerAndBounds); // Order is roots to leaves.
             }
+            return AncestorTraversal::Continue;
+        });
 
-            LayerOverlapMap::LayerAndBounds layerAndBounds { const_cast<RenderLayer&>(ancestorLayer), clipRect };
-            clippingScopes.insert(1, layerAndBounds); // Order is roots to leaves.
-        }
-        return AncestorTraversal::Continue;
-    });
+        return clippingScopes;
+    };
 
-    return clippingScopes;
+    extent.clippingScopes = enclosingClippingScopes(layer, rootRenderLayer());
+    extent.clippingScopesComputed = true;
 }
 
 void RenderLayerCompositor::addToOverlapMap(LayerOverlapMap& overlapMap, const RenderLayer& layer, OverlapExtent& extent) const
@@ -2260,14 +2283,12 @@ void RenderLayerCompositor::addToOverlapMap(LayerOverlapMap& overlapMap, const R
         return;
 
     computeExtent(overlapMap, layer, extent);
-
-    // FIXME: constrain the scopes (by composited stacking context ancestor I think).
-    auto clippingScopes = enclosingClippingScopes(layer, rootRenderLayer());
+    computeClippingScopes(layer, extent);
 
     LayoutRect clipRect;
     if (layer.hasCompositedScrollingAncestor()) {
         // Compute a clip up to the composited scrolling ancestor, then convert it to absolute coordinates.
-        auto& scrollingScope = clippingScopes.last();
+        auto& scrollingScope = extent.clippingScopes.last();
         auto& scopeLayer = scrollingScope.layer;
         clipRect = layer.backgroundClipRect(RenderLayer::ClipRectsContext(&scopeLayer, TemporaryClipRects, { })).rect();
         if (!clipRect.isInfinite())
@@ -2284,7 +2305,7 @@ void RenderLayerCompositor::addToOverlapMap(LayerOverlapMap& overlapMap, const R
         clippedBounds.intersect(clipRect);
     }
 
-    overlapMap.add(layer, clippedBounds, clippingScopes);
+    overlapMap.add(layer, clippedBounds, extent.clippingScopes);
 }
 
 void RenderLayerCompositor::addDescendantsToOverlapMapRecursive(LayerOverlapMap& overlapMap, const RenderLayer& layer, const RenderLayer* ancestorLayer) const
@@ -2334,12 +2355,12 @@ void RenderLayerCompositor::updateOverlapMap(LayerOverlapMap& overlapMap, const 
     }
 }
 
-bool RenderLayerCompositor::layerOverlaps(const LayerOverlapMap& overlapMap, const RenderLayer& layer, OverlapExtent& layerExtent) const
+bool RenderLayerCompositor::layerOverlaps(const LayerOverlapMap& overlapMap, const RenderLayer& layer, OverlapExtent& extent) const
 {
-    computeExtent(overlapMap, layer, layerExtent);
+    computeExtent(overlapMap, layer, extent);
+    computeClippingScopes(layer, extent);
 
-    auto clippingScopes = enclosingClippingScopes(layer, rootRenderLayer());
-    return overlapMap.overlapsLayers(layer, layerExtent.bounds, clippingScopes);
+    return overlapMap.overlapsLayers(layer, extent.bounds, extent.clippingScopes);
 }
 
 #if ENABLE(VIDEO)
@@ -2958,6 +2979,9 @@ OptionSet<CompositingReason> RenderLayerCompositor::reasonsForCompositing(const 
         if (renderer.hasFilter() || renderer.hasBackdropFilter())
             reasons.add(CompositingReason::FilterWithCompositedDescendants);
 
+        if (layer.isBackdropRoot())
+            reasons.add(CompositingReason::BackdropRoot);
+
 #if ENABLE(CSS_COMPOSITING)
         if (layer.isolatesCompositedBlending())
             reasons.add(CompositingReason::IsolatesCompositedBlendingDescendants);
@@ -3013,6 +3037,7 @@ static const char* compositingReasonToString(CompositingReason reason)
     case CompositingReason::WillChange: return "will-change";
     case CompositingReason::Root: return "root";
     case CompositingReason::Model: return "model";
+    case CompositingReason::BackdropRoot: return "backdrop root";
     }
     return "";
 }
@@ -3590,7 +3615,7 @@ IndirectCompositingReason RenderLayerCompositor::computeIndirectCompositingReaso
     // When a layer has composited descendants, some effects, like 2d transforms, filters, masks etc must be implemented
     // via compositing so that they also apply to those composited descendants.
     auto& renderer = layer.renderer();
-    if (hasCompositedDescendants && (layer.isolatesCompositedBlending() || layer.transform() || renderer.createsGroup() || renderer.hasReflection()))
+    if (hasCompositedDescendants && (layer.isolatesCompositedBlending() || layer.isBackdropRoot() || layer.transform() || renderer.createsGroup() || renderer.hasReflection()))
         return IndirectCompositingReason::GraphicalEffect;
 
     // A layer with preserve-3d or perspective only needs to be composited if there are descendant layers that

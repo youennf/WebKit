@@ -576,8 +576,6 @@ typedef enum {
 @end
 
 @interface UIViewController ()
-+ (UIViewController *)_viewControllerForFullScreenPresentationFromView:(UIView *)view;
-+ (UIViewController *)viewControllerForView:(UIView *)view;
 - (BOOL)isPerformingModalTransition;
 @end
 
@@ -1023,10 +1021,6 @@ WTF_EXTERN_C_END
 @end
 
 @interface _UIVisualEffectLayerConfig : NSObject
-@end
-
-@interface UIPopoverPresentationController ()
-@property (assign, nonatomic, setter=_setCentersPopoverIfSourceViewNotSet:, getter=_centersPopoverIfSourceViewNotSet) BOOL _centersPopoverIfSourceViewNotSet;
 @end
 
 @interface UIWKDocumentContext : NSObject

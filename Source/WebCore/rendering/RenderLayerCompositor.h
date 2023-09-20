@@ -83,6 +83,7 @@ enum class CompositingReason {
     Root                                   = 1 << 25,
     IsolatesCompositedBlendingDescendants  = 1 << 26,
     Model                                  = 1 << 27,
+    BackdropRoot                           = 1 << 28,
 };
 
 enum class ScrollCoordinationRole {
@@ -421,6 +422,7 @@ private:
     bool layerRepaintTargetsBackingSharingLayer(RenderLayer&, BackingSharingState&) const;
 
     void computeExtent(const LayerOverlapMap&, const RenderLayer&, OverlapExtent&) const;
+    void computeClippingScopes(const RenderLayer&, OverlapExtent&) const;
     void addToOverlapMap(LayerOverlapMap&, const RenderLayer&, OverlapExtent&) const;
     void addDescendantsToOverlapMapRecursive(LayerOverlapMap&, const RenderLayer&, const RenderLayer* ancestorLayer = nullptr) const;
     void updateOverlapMap(LayerOverlapMap&, const RenderLayer&, OverlapExtent&, bool didPushContainer, bool addLayerToOverlap, bool addDescendantsToOverlap = false) const;

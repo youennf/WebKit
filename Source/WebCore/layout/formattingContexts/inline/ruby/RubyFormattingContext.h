@@ -33,18 +33,23 @@ struct InlineItemRange;
 
 class RubyFormattingContext {
 public:
-    RubyFormattingContext(const InlineFormattingContext& parentFormattingContext, const InlineItems&);
+    RubyFormattingContext(const InlineFormattingContext& parentFormattingContext);
 
-    void layoutInlineAxis(const InlineItemRange&, Line&, InlineLayoutUnit availableWidth);
+    void layoutInlineAxis(const InlineItemRange&, const InlineItems&, Line&, InlineLayoutUnit availableWidth);
+
+    struct OverUnder {
+        InlineLayoutUnit over { 0.f };
+        InlineLayoutUnit under { 0.f };
+    };
+    OverUnder annotationExtent(const Box& rubyBaseLayoutBox);
 
 private:
-    size_t layoutRubyBaseInlineAxis(Line&, const Box& rubyBaseLayoutBox, size_t rubyBaseContentStart);
+    size_t layoutRubyBaseInlineAxis(Line&, const Box& rubyBaseLayoutBox, size_t rubyBaseContentStart, const InlineItems&);
 
     const InlineFormattingContext& parentFormattingContext() const { return m_parentFormattingContext; }
 
 private:
     const InlineFormattingContext& m_parentFormattingContext;
-    const InlineItems& m_inlineItems;
 };
 
 }

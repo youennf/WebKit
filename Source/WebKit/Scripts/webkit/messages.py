@@ -438,8 +438,9 @@ def types_that_cannot_be_forward_declared():
 
 def conditions_for_header(header):
     conditions = {
-        '"InputMethodState.h"': ["PLATFORM(GTK)", "PLATFORM(WPE)"],
         '"GestureTypes.h"': ["PLATFORM(IOS_FAMILY)"],
+        '"InputMethodState.h"': ["PLATFORM(GTK)", "PLATFORM(WPE)"],
+        '"RemoteAudioSessionIdentifier.h"': ["ENABLE(GPU_PROCESS) && USE(AUDIO_SESSION)"],
         '"RemoteCDMIdentifier.h"': ["ENABLE(GPU_PROCESS) && ENABLE(ENCRYPTED_MEDIA)"],
         '"RemoteCDMInstanceIdentifier.h"': ["ENABLE(GPU_PROCESS) && ENABLE(ENCRYPTED_MEDIA)"],
         '"RemoteCDMInstanceSessionIdentifier.h"': ["ENABLE(GPU_PROCESS) && ENABLE(ENCRYPTED_MEDIA)"],
@@ -451,6 +452,7 @@ def conditions_for_header(header):
         '<WebCore/CVUtilities.h>': ["PLATFORM(COCOA)", ],
         '<WebCore/DataDetectorType.h>': ["ENABLE(DATA_DETECTION)"],
         '<WebCore/MediaPlaybackTargetContext.h>': ["ENABLE(WIRELESS_PLAYBACK_TARGET)"],
+        '<WebCore/PlaybackTargetClientContextIdentifier.h>': ["ENABLE(WIRELESS_PLAYBACK_TARGET)"],
         '<WebCore/VideoFrameCV.h>': ["PLATFORM(COCOA)", ],
     }
     if not header in conditions:
@@ -846,7 +848,7 @@ def headers_for_type(type):
         'WebCore::WebGPU::BufferBindingType': ['<WebCore/WebGPUBufferBindingType.h>'],
         'WebCore::WebGPU::BufferDynamicOffset': ['<WebCore/WebGPUIntegralTypes.h>'],
         'WebCore::WebGPU::BufferUsageFlags': ['<WebCore/WebGPUBufferUsage.h>'],
-        'WebCore::WebGPU::CanvasCompositingAlphaMode': ['<WebCore/WebGPUCanvasCompositingAlphaMode.h>'],
+        'WebCore::WebGPU::CanvasAlphaMode': ['<WebCore/WebGPUCanvasAlphaMode.h>'],
         'WebCore::WebGPU::ColorWriteFlags': ['<WebCore/WebGPUColorWrite.h>'],
         'WebCore::WebGPU::CompareFunction': ['<WebCore/WebGPUCompareFunction.h>'],
         'WebCore::WebGPU::CompilationMessageType': ['<WebCore/WebGPUCompilationMessageType.h>'],

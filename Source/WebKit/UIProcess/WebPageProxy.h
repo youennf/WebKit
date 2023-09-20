@@ -33,6 +33,7 @@
 #include <wtf/OptionSet.h>
 #include <wtf/ProcessID.h>
 #include <wtf/UniqueRef.h>
+#include <wtf/WeakHashSet.h>
 
 namespace API {
 class Attachment;
@@ -895,6 +896,7 @@ public:
     void dynamicViewportSizeUpdate(const DynamicViewportSizeUpdate&);
 
     void setViewportConfigurationViewLayoutSize(const WebCore::FloatSize&, double scaleFactor, double minimumEffectiveDeviceWidth);
+    void setSceneIdentifier(String&&);
     void setDeviceOrientation(WebCore::IntDegrees);
     WebCore::IntDegrees deviceOrientation() const { return m_deviceOrientation; }
     void setOverrideViewportArguments(const std::optional<WebCore::ViewportArguments>&);
@@ -2961,7 +2963,7 @@ private:
     RetainPtr<NSArray> m_dataDetectionResults;
 #endif
 
-    HashSet<WebEditCommandProxy*> m_editCommandSet;
+    WeakHashSet<WebEditCommandProxy> m_editCommandSet;
 
 #if PLATFORM(COCOA)
     HashSet<String> m_knownKeypressCommandNames;

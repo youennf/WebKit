@@ -49,6 +49,7 @@
 #include <memory>
 #include <pal/SessionID.h>
 #include <wtf/Assertions.h>
+#include <wtf/CheckedPtr.h>
 #include <wtf/Forward.h>
 #include <wtf/Function.h>
 #include <wtf/HashSet.h>
@@ -278,7 +279,7 @@ constexpr auto allRenderingUpdateSteps = updateRenderingSteps | OptionSet<Render
 };
 
 
-class Page : public Supplementable<Page>, public CanMakeWeakPtr<Page> {
+class Page : public Supplementable<Page>, public CanMakeWeakPtr<Page>, public CanMakeCheckedPtr {
     WTF_MAKE_NONCOPYABLE(Page);
     WTF_MAKE_FAST_ALLOCATED;
     friend class SettingsBase;
@@ -1060,6 +1061,11 @@ public:
 
     bool isWaitingForLoadToFinish() const { return m_isWaitingForLoadToFinish; }
 
+#if PLATFORM(IOS_FAMILY)
+    WEBCORE_EXPORT void setSceneIdentifier(String&&);
+#endif
+    WEBCORE_EXPORT String sceneIdentifier() const;
+
 private:
     struct Navigation {
         RegistrableDomain domain;
@@ -1434,6 +1440,10 @@ private:
     Ref<HistoryItemClient> m_historyItemClient;
 
     HashMap<RegistrableDomain, uint64_t> m_noiseInjectionHashSalts;
+
+#if PLATFORM(IOS_FAMILY)
+    String m_sceneIdentifier;
+#endif
 };
 
 inline PageGroup& Page::group()
