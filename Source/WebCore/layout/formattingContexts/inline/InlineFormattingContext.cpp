@@ -179,10 +179,11 @@ InlineLayoutResult InlineFormattingContext::lineLayout(AbstractLineBuilder& line
 
         auto lineInitialRect = InlineRect { lineLogicalTop, constraints.horizontal().logicalLeft, constraints.horizontal().logicalWidth, formattingGeometry().initialLineHeight(!previousLine.has_value()) };
         auto lineInput = LineInput { { leadingInlineItemPosition, needsLayoutRange.end }, lineInitialRect };
-        auto lineLayoutResult = lineBuilder.layoutInlineContent(lineInput, previousLine);
-
         auto lineIndex = previousLine ? (previousLine->lineIndex + 1) : 0lu;
-        auto lineLogicalRect = createDisplayContentForInlineContent(lineIndex, lineLayoutResult, constraints, inlineLayoutState, layoutResult.displayContent);
+
+        auto lineLayoutResult = lineBuilder.layoutInlineContent(lineInput, previousLine);
+        auto lineBox = LineBoxBuilder { *this, inlineLayoutState, lineLayoutResult }.build(lineIndex);
+        auto lineLogicalRect = createDisplayContentForInlineContent(lineBox, lineLayoutResult, constraints, inlineLayoutState, layoutResult.displayContent);
         updateBoxGeometryForPlacedFloats(lineLayoutResult.floatContent.placedFloats);
         updateInlineLayoutStateWithLineLayoutResult(lineLayoutResult, inlineLayoutState, lineLogicalRect, floatingContext);
 
@@ -221,10 +222,10 @@ void InlineFormattingContext::layoutFloatContentOnly(const ConstraintsForInlineC
             auto& floatBoxGeometry = inlineFormattingState.boxGeometry(floatBox);
             auto staticPosition = LayoutPoint { constraints.horizontal().logicalLeft, constraints.logicalTop() };
             staticPosition.move(floatBoxGeometry.marginStart(), floatBoxGeometry.marginBefore());
-            floatBoxGeometry.setLogicalTopLeft(staticPosition);
+            floatBoxGeometry.setTopLeft(staticPosition);
 
             auto floatBoxTopLeft = floatingContext.positionForFloat(floatBox, floatBoxGeometry, constraints.horizontal());
-            floatBoxGeometry.setLogicalTopLeft(floatBoxTopLeft);
+            floatBoxGeometry.setTopLeft(floatBoxTopLeft);
             floatingState.append(floatingContext.makeFloatItem(floatBox, floatBoxGeometry));
             continue;
         }
@@ -270,25 +271,26 @@ void InlineFormattingContext::updateBoxGeometryForPlacedFloats(const LineLayoutR
         }
         auto& boxGeometry = formattingState().boxGeometry(*floatItem.layoutBox());
         auto usedGeometry = floatItem.boxGeometry();
-        boxGeometry.setLogicalTopLeft(BoxGeometry::borderBoxTopLeft(usedGeometry));
+        boxGeometry.setTopLeft(BoxGeometry::borderBoxTopLeft(usedGeometry));
         // Adopt trimmed inline direction margin.
         boxGeometry.setHorizontalMargin(usedGeometry.horizontalMargin());
     }
 }
 
-InlineRect InlineFormattingContext::createDisplayContentForInlineContent(size_t lineIndex, const LineLayoutResult& lineLayoutResult, const ConstraintsForInlineContent& constraints, InlineLayoutState& inlineLayoutState, InlineDisplay::Content& displayContent)
+InlineRect InlineFormattingContext::createDisplayContentForInlineContent(const LineBox& lineBox, const LineLayoutResult& lineLayoutResult, const ConstraintsForInlineContent& constraints, InlineLayoutState& inlineLayoutState, InlineDisplay::Content& displayContent)
 {
+    auto lineIndex = lineBox.lineIndex();
     auto numberOfVisibleLinesAllowed = [&] () -> std::optional<size_t> {
         if (auto lineClamp = inlineLayoutState.parentBlockLayoutState().lineClamp())
             return lineClamp->maximumLineCount > lineClamp->currentLineCount ? lineClamp->maximumLineCount - lineClamp->currentLineCount : 0;
         return { };
     }();
 
-    auto ellipsisPolicy = lineEndingEllipsisPolicy(root().style(), lineIndex, numberOfVisibleLinesAllowed);
     auto lineIsFullyTruncatedInBlockDirection = numberOfVisibleLinesAllowed && lineIndex + 1 > *numberOfVisibleLinesAllowed;
-    auto lineBox = LineBoxBuilder { *this, inlineLayoutState, lineLayoutResult }.build(lineIndex);
     auto displayLine = InlineDisplayLineBuilder { constraints, *this }.build(lineLayoutResult, lineBox, lineIsFullyTruncatedInBlockDirection);
     auto boxes = InlineDisplayContentBuilder { constraints, *this, formattingState(), displayLine, lineIndex }.build(lineLayoutResult, lineBox);
+
+    auto ellipsisPolicy = lineEndingEllipsisPolicy(root().style(), lineIndex, numberOfVisibleLinesAllowed);
     if (auto ellipsisRect = InlineDisplayLineBuilder::trailingEllipsisVisualRectAfterTruncation(ellipsisPolicy, displayLine, boxes, lineLayoutResult.isFirstLast.isLastLineWithInlineContent)) {
         displayLine.setEllipsisVisualRect(*ellipsisRect);
         if (ellipsisPolicy == LineEndingEllipsisPolicy::WhenContentOverflowsInBlockDirection)
@@ -312,7 +314,7 @@ void InlineFormattingContext::resetGeometryForClampedContent(const InlineItemRan
         if (!hasBoxGeometry)
             continue;
         auto& boxGeometry = formattingState().boxGeometry(inlineItem.layoutBox());
-        boxGeometry.setLogicalTopLeft(topleft);
+        boxGeometry.setTopLeft(topleft);
         boxGeometry.setContentBoxHeight({ });
         boxGeometry.setContentBoxWidth({ });
     }
@@ -356,7 +358,8 @@ bool InlineFormattingContext::createDisplayContentForLineFromCachedContent(const
     lineBreakingResult.lineGeometry.logicalTopLeft = { constraints.horizontal().logicalLeft, constraints.logicalTop() };
     lineBreakingResult.lineGeometry.logicalWidth = constraints.horizontal().logicalWidth;
     lineBreakingResult.contentGeometry.logicalLeft = InlineFormattingGeometry::horizontalAlignmentOffset(root().style(), lineBreakingResult.contentGeometry.logicalWidth, lineBreakingResult.lineGeometry.logicalWidth, lineBreakingResult.hangingContent.logicalWidth, lineBreakingResult.inlineContent, true);
-    createDisplayContentForInlineContent(0, lineBreakingResult, constraints, inlineLayoutState, layoutResult.displayContent);
+    auto lineBox = LineBoxBuilder { *this, inlineLayoutState, lineBreakingResult }.build({ });
+    createDisplayContentForInlineContent(lineBox, lineBreakingResult, constraints, inlineLayoutState, layoutResult.displayContent);
     return true;
 }
 

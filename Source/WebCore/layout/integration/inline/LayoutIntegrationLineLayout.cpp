@@ -621,7 +621,7 @@ void LineLayout::updateRenderTreePositions(const Vector<LineAdjustment>& lineAdj
         renderer.setLocation(Layout::BoxGeometry::borderBoxRect(logicalGeometry).topLeft() + logicalOffset);
     }
 
-    HashMap<CheckedRef<const Layout::Box>, std::optional<LayoutSize>> floatPaginationOffsetMap;
+    HashMap<CheckedRef<const Layout::Box>, LayoutSize> floatPaginationOffsetMap;
     if (!lineAdjustments.isEmpty()) {
         for (auto& floatItem : m_blockFormattingState.floatingState().floats()) {
             if (!floatItem.layoutBox() || !floatItem.placedByLine())
@@ -650,7 +650,7 @@ void LineLayout::updateRenderTreePositions(const Vector<LineAdjustment>& lineAdj
             auto visualMarginBoxRect = LayoutRect { Layout::BoxGeometry::marginBoxRect(visualGeometry) };
             auto visualBorderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(visualGeometry) };
 
-            auto paginationOffset = floatPaginationOffsetMap.get(layoutBox);
+            auto paginationOffset = floatPaginationOffsetMap.getOptional(layoutBox);
 
             if (paginationOffset) {
                 visualMarginBoxRect.move(*paginationOffset);
@@ -796,7 +796,7 @@ void LineLayout::prepareFloatingState()
             return LayoutRect { logicalLeft, logicalTop, logicalWidth, logicalHeight };
         }();
 
-        boxGeometry.setLogicalTopLeft(logicalRect.location());
+        boxGeometry.setTopLeft(logicalRect.location());
         boxGeometry.setContentBoxWidth(logicalRect.width());
         boxGeometry.setContentBoxHeight(logicalRect.height());
         boxGeometry.setBorder({ });
