@@ -1958,9 +1958,9 @@ void RenderBox::paintMaskImages(const PaintInfo& paintInfo, const LayoutRect& pa
 
         // Don't render a masked element until all the mask images have loaded, to prevent a flash of unmasked content.
         if (auto* maskBorder = style().maskBorder().image())
-            allMaskImagesLoaded &= maskBorder->isLoaded();
+            allMaskImagesLoaded &= maskBorder->isLoaded(this);
 
-        allMaskImagesLoaded &= style().maskLayers().imagesAreLoaded();
+        allMaskImagesLoaded &= style().maskLayers().imagesAreLoaded(this);
 
         paintInfo.context().setCompositeOperation(CompositeOperator::DestinationIn);
         paintInfo.context().beginTransparencyLayer(1);
@@ -2065,7 +2065,7 @@ bool RenderBox::repaintLayerRectsForImage(WrappedImagePtr image, const FillLayer
     RenderBox* layerRenderer = nullptr;
 
     for (auto* layer = &layers; layer; layer = layer->next()) {
-        if (layer->image() && image == layer->image()->data() && (layer->image()->isLoaded() || layer->image()->canRender(this, style().effectiveZoom()))) {
+        if (layer->image() && image == layer->image()->data() && (layer->image()->isLoaded(this) || layer->image()->canRender(this, style().effectiveZoom()))) {
             // Now that we know this image is being used, compute the renderer and the rect if we haven't already.
             bool drawingRootBackground = drawingBackground && (isDocumentElementRenderer() || (isBody() && !document().documentElement()->renderer()->hasBackground()));
             if (!layerRenderer) {
@@ -5070,24 +5070,6 @@ bool RenderBox::establishesIndependentFormattingContext() const
     return isGridItem() || RenderElement::establishesIndependentFormattingContext();
 }
 
-bool RenderBox::establishesBlockFormattingContext() const
-{
-    const auto& boxStyle = style();
-    if (!boxStyle.isDisplayBlockLevel())
-        return false;
-    auto isBlockWithOverFlowOtherThanVisibleAndClip = [&]() {
-        auto boxOverflowX = effectiveOverflowX();
-        auto boxOverflowY = effectiveOverflowY();
-        return boxOverflowX != Overflow::Visible && boxOverflowX != Overflow::Clip
-            && boxOverflowY != Overflow::Visible && boxOverflowY != Overflow::Clip;
-    };
-    return dynamicDowncast<HTMLHtmlElement>(element()) || isFloatingOrOutOfFlowPositioned() 
-    || isInlineBlockOrInlineTable() || isTableCell() || isTableCaption() || isBlockWithOverFlowOtherThanVisibleAndClip()
-    || boxStyle.display() == DisplayType::FlowRoot || boxStyle.containsLayoutOrPaint()
-    || isFlexItemIncludingDeprecated() || isGridItem() || boxStyle.specifiesColumns()
-    || boxStyle.columnSpan() == ColumnSpan::All || style().blockStepSize();
-}
-
 bool RenderBox::avoidsFloats() const
 {
     return isReplacedOrInlineBlock() || isLegend() || isFieldset() || createsNewFormattingContext();
@@ -5756,16 +5738,6 @@ std::optional<LayoutUnit> RenderBox::explicitIntrinsicInnerHeight() const
     auto height = style().containIntrinsicHeight();
     ASSERT(height.has_value());
     return std::optional<LayoutUnit> { height->value() };
-}
-
-const RenderBlockFlow* RenderBox::blockFormattingContextRoot() const
-{
-    // This method should probably not be called on the initial containing block
-    ASSERT(!is<HTMLHtmlElement>(element()));
-    auto blockContainer = containingBlock();
-    while (blockContainer && !blockContainer->establishesBlockFormattingContext())
-        blockContainer = blockContainer->containingBlock();
-    return dynamicDowncast<RenderBlockFlow>(blockContainer);
 }
 
 // hasAutoZIndex only returns true if the element is positioned or a flex-item since

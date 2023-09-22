@@ -334,6 +334,11 @@ enum class DimensionsCheck : uint8_t {
     All = 1 << 2, // FIXME: This is probably meant to be Width | Height instead.
 };
 
+enum class LayoutOptions : uint8_t {
+    RunPostLayoutTasksSynchronously = 1 << 0,
+    IgnorePendingStylesheets = 1 << 1,
+};
+
 enum class HttpEquivPolicy {
     Enabled,
     DisabledBySettings,
@@ -666,12 +671,11 @@ public:
     bool needsStyleRecalc() const;
     unsigned lastStyleUpdateSizeForTesting() const { return m_lastStyleUpdateSizeForTesting; }
 
-    WEBCORE_EXPORT void updateLayout();
+    WEBCORE_EXPORT void updateLayout(OptionSet<LayoutOptions> = { });
     
     // updateLayoutIgnorePendingStylesheets() forces layout even if we are waiting for pending stylesheet loads,
     // so calling this may cause a flash of unstyled content (FOUC).
-    enum class RunPostLayoutTasks : bool { Asynchronously, Synchronously };
-    WEBCORE_EXPORT void updateLayoutIgnorePendingStylesheets(RunPostLayoutTasks = RunPostLayoutTasks::Asynchronously);
+    void updateLayoutIgnorePendingStylesheets(OptionSet<LayoutOptions> = { });
 
     std::unique_ptr<RenderStyle> styleForElementIgnoringPendingStylesheets(Element&, const RenderStyle* parentStyle, PseudoId = PseudoId::None);
 
@@ -2009,7 +2013,7 @@ private:
 
     std::unique_ptr<Style::Update> m_pendingRenderTreeUpdate;
 
-    WeakPtr<Element, WeakPtrImplWithEventTargetData> m_cssTarget;
+    CheckedPtr<Element> m_cssTarget;
 
     std::unique_ptr<LazyLoadImageObserver> m_lazyLoadImageObserver;
 
@@ -2067,8 +2071,8 @@ private:
     WeakPtr<HTMLMediaElement, WeakPtrImplWithEventTargetData> m_mediaElementShowingTextTrack;
 #endif
 
-    WeakPtr<Element, WeakPtrImplWithEventTargetData> m_mainArticleElement;
-    WeakHashSet<Element, WeakPtrImplWithEventTargetData> m_articleElements;
+    CheckedPtr<Element> m_mainArticleElement;
+    HashSet<CheckedPtr<Element>> m_articleElements;
 
     WeakHashSet<VisibilityChangeClient> m_visibilityStateCallbackClients;
 

@@ -42,9 +42,11 @@ public:
         InlineLayoutUnit under { 0.f };
     };
     OverUnder annotationExtent(const Box& rubyBaseLayoutBox);
+    InlineLayoutPoint annotationPosition(const Box& rubyBaseLayoutBox);
 
 private:
     size_t layoutRubyBaseInlineAxis(Line&, const Box& rubyBaseLayoutBox, size_t rubyBaseContentStart, const InlineItems&);
+    void applyRubyAlign(Line&, WTF::Range<size_t> baseRunRange, const Box& rubyBaseLayoutBox, InlineLayoutUnit baseContentLogicalWidth);
 
     const InlineFormattingContext& parentFormattingContext() const { return m_parentFormattingContext; }
 

@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "AccessibilityObjectInterface.h"
+#include "AXCoreObject.h"
 #include "CharacterRange.h"
 #include "FloatQuad.h"
 #include "LayoutRect.h"
@@ -290,7 +290,7 @@ public:
     bool hasDatalist() const;
     bool supportsHasPopup() const override;
     bool pressedIsPresent() const override;
-    bool ariaIsMultiline() const override;
+    bool ariaIsMultiline() const;
     String invalidStatus() const override;
     bool supportsPressed() const;
     bool supportsExpanded() const override;
@@ -590,6 +590,7 @@ public:
     IntRect doAXBoundsForRange(const CharacterRange&) const override { return { }; }
     IntRect doAXBoundsForRangeUsingCharacterOffset(const CharacterRange&) const override { return { }; }
     static StringView listMarkerTextForNodeAndPosition(Node*, const VisiblePosition&);
+    static StringView listMarkerTextForNodeAndPosition(Node*, Position&&);
 
     unsigned doAXLineForIndex(unsigned) override;
 
@@ -615,7 +616,7 @@ public:
     bool hasContentEditableAttributeSet() const;
 
     bool supportsReadOnly() const;
-    String readOnlyValue() const override;
+    virtual String readOnlyValue() const;
 
     bool supportsAutoComplete() const;
     String autoCompleteValue() const override;
@@ -749,9 +750,6 @@ public:
     void clearIsIgnoredFromParentData() { m_isIgnoredFromParentData = { }; }
     void setIsIgnoredFromParentDataForChild(AccessibilityObject*);
 
-    PAL::SessionID sessionID() const override;
-    String documentURI() const override;
-    String documentEncoding() const override;
     AccessibilityChildrenVector documentLinks() override { return AccessibilityChildrenVector(); }
 
     AccessibilityChildrenVector relatedObjects(AXRelationType) const override;

@@ -2304,8 +2304,26 @@ bool Document::updateStyleIfNeeded()
     return true;
 }
 
-void Document::updateLayout()
+void Document::updateLayoutIgnorePendingStylesheets(OptionSet<LayoutOptions> layoutOptions)
 {
+    layoutOptions.add(LayoutOptions::IgnorePendingStylesheets);
+    updateLayout(layoutOptions);
+}
+
+void Document::updateLayout(OptionSet<LayoutOptions> layoutOptions)
+{
+    bool oldIgnore = m_ignorePendingStylesheets;
+
+    if (layoutOptions.contains(LayoutOptions::IgnorePendingStylesheets)) {
+        if (!haveStylesheetsLoaded()) {
+            m_ignorePendingStylesheets = true;
+            // FIXME: This should just invalidate elements with missing styles.
+            if (m_hasNodesWithMissingStyle)
+                scheduleFullStyleRebuild();
+        }
+        updateRelevancyOfContentVisibilityElements();
+    }
+
     ASSERT(isMainThread());
 
     RefPtr frameView = view();
@@ -2315,41 +2333,28 @@ void Document::updateLayout()
         return;
     }
 
-    RenderView::RepaintRegionAccumulator repaintRegionAccumulator(renderView());
-    ScriptDisallowedScope::InMainThread scriptDisallowedScope;
+    {
+        RenderView::RepaintRegionAccumulator repaintRegionAccumulator(renderView());
+        ScriptDisallowedScope::InMainThread scriptDisallowedScope;
 
-    if (RefPtr owner = ownerElement())
-        owner->document().updateLayout();
+        if (RefPtr owner = ownerElement())
+            owner->document().updateLayout();
 
-    updateStyleIfNeeded();
+        updateStyleIfNeeded();
 
-    StackStats::LayoutCheckPoint layoutCheckPoint;
+        StackStats::LayoutCheckPoint layoutCheckPoint;
 
-    if (!frameView || !renderView())
-        return;
-    if (!frameView->layoutContext().isLayoutPending() && !renderView()->needsLayout())
-        return;
-
-    frameView->layoutContext().layout();
-}
-
-void Document::updateLayoutIgnorePendingStylesheets(Document::RunPostLayoutTasks runPostLayoutTasks)
-{
-    bool oldIgnore = m_ignorePendingStylesheets;
-
-    if (!haveStylesheetsLoaded()) {
-        m_ignorePendingStylesheets = true;
-        // FIXME: This should just invalidate elements with missing styles.
-        if (m_hasNodesWithMissingStyle)
-            scheduleFullStyleRebuild();
+        if (frameView && renderView() && (frameView->layoutContext().isLayoutPending() || renderView()->needsLayout()))
+            frameView->layoutContext().layout();
     }
 
-    updateRelevancyOfContentVisibilityElements();
-
-    updateLayout();
-
-    if (runPostLayoutTasks == RunPostLayoutTasks::Synchronously && view())
+    if (layoutOptions.contains(LayoutOptions::RunPostLayoutTasksSynchronously) && view())
         view()->flushAnyPendingPostLayoutTasks();
+
+    if (layoutOptions.contains(LayoutOptions::IgnorePendingStylesheets)) {
+        if (RefPtr frameView = view())
+            frameView->updateScrollAnchoringPositionForScrollableAreas();
+    }
 
     m_ignorePendingStylesheets = oldIgnore;
 }
@@ -4634,6 +4639,9 @@ void Document::runScrollSteps()
         }
         if (scrollAnimationsInProgress)
             page()->scheduleRenderingUpdate({ RenderingUpdateStep::Scroll });
+
+        frameView->updateScrollAnchoringElement();
+        frameView->updateScrollAnchoringPositionForScrollableAreas();
     }
 
     // FIXME: The order of dispatching is not specified: https://github.com/WICG/visual-viewport/issues/66.
@@ -8693,12 +8701,12 @@ std::optional<FrameIdentifier> Document::frameID() const
 
 void Document::registerArticleElement(Element& article)
 {
-    m_articleElements.add(article);
+    m_articleElements.add(&article);
 }
 
 void Document::unregisterArticleElement(Element& article)
 {
-    m_articleElements.remove(article);
+    m_articleElements.remove(&article);
     if (m_mainArticleElement == &article)
         m_mainArticleElement = nullptr;
 }
@@ -8718,7 +8726,7 @@ void Document::updateMainArticleElementAfterLayout()
 
     m_mainArticleElement = nullptr;
 
-    auto numberOfArticles = m_articleElements.computeSize();
+    auto numberOfArticles = m_articleElements.size();
     if (!numberOfArticles || numberOfArticles > maxNumberOfArticlesBeforeIgnoringMainContentArticle)
         return;
 
@@ -8728,19 +8736,19 @@ void Document::updateMainArticleElementAfterLayout()
     float secondTallestArticleHeight = 0;
 
     for (auto& article : m_articleElements) {
-        auto* box = article.renderBox();
+        auto* box = article.get()->renderBox();
         float height = box ? box->height().toFloat() : 0;
         if (height >= tallestArticleHeight) {
             secondTallestArticleHeight = tallestArticleHeight;
             tallestArticleHeight = height;
             tallestArticleWidth = box ? box->width().toFloat() : 0;
-            tallestArticle = &article;
+            tallestArticle = article.get();
         } else if (height >= secondTallestArticleHeight)
             secondTallestArticleHeight = height;
     }
 
     if (numberOfArticles == 1) {
-        m_mainArticleElement = tallestArticle;
+        m_mainArticleElement = tallestArticle.get();
         return;
     }
 
@@ -8754,7 +8762,7 @@ void Document::updateMainArticleElementAfterLayout()
     if (tallestArticleWidth * tallestArticleHeight < minimumViewportAreaFactor * (viewportSize.width() * viewportSize.height()).toFloat())
         return;
 
-    m_mainArticleElement = tallestArticle;
+    m_mainArticleElement = tallestArticle.get();
 }
 
 #if ENABLE(TRACKING_PREVENTION)

@@ -1813,7 +1813,6 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     _private->page->settings().setDefaultFontSize([_private->preferences defaultFontSize]);
     _private->page->settings().setDefaultFixedFontSize(13);
     _private->page->settings().setAcceleratedDrawingEnabled([preferences acceleratedDrawingEnabled]);
-    _private->page->settings().setDisplayListDrawingEnabled([preferences displayListDrawingEnabled]);
 
     _private->page->settings().setFontFallbackPrefersPictographs(true);
     _private->page->settings().setPictographFontFamily("AppleColorEmoji"_s);
@@ -1891,7 +1890,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
                 continue;
             auto *document = localFrame->document();
             if (document)
-                document->updateLayoutIgnorePendingStylesheets();
+                document->updateLayout(WebCore::LayoutOptions::IgnorePendingStylesheets);
         }
     });
 }

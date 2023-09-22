@@ -354,7 +354,6 @@ Ref<GraphicsLayer> RenderLayerBacking::createGraphicsLayer(const String& name, G
 
 #if PLATFORM(COCOA) && USE(CA)
     graphicsLayer->setAcceleratesDrawing(compositor().acceleratedDrawingEnabled());
-    graphicsLayer->setUsesDisplayListDrawing(compositor().displayListDrawingEnabled());
 #endif
 
 #if ENABLE(LAYER_BASED_SVG_ENGINE)
@@ -557,7 +556,6 @@ void RenderLayerBacking::createPrimaryGraphicsLayer()
 #if ENABLE(FILTERS_LEVEL_2)
     updateBackdropFilters(style);
 #endif
-    updateBackdropRoot();
 #if ENABLE(CSS_COMPOSITING)
     updateBlendMode(style);
 #endif
@@ -806,14 +804,6 @@ void RenderLayerBacking::updateBackdropFiltersGeometry()
 }
 #endif
 
-bool RenderLayerBacking::updateBackdropRoot()
-{
-    if (m_graphicsLayer->isBackdropRoot() == m_owningLayer.isBackdropRoot())
-        return false;
-    m_graphicsLayer->setIsBackdropRoot(m_owningLayer.isBackdropRoot());
-    return true;
-}
-
 #if ENABLE(CSS_COMPOSITING)
 void RenderLayerBacking::updateBlendMode(const RenderStyle& style)
 {
@@ -1038,7 +1028,6 @@ void RenderLayerBacking::updateConfigurationAfterStyleChange()
 #if ENABLE(FILTERS_LEVEL_2)
     updateBackdropFilters(style);
 #endif
-    updateBackdropRoot();
 #if ENABLE(CSS_COMPOSITING)
     updateBlendMode(style);
 #endif
@@ -1210,9 +1199,6 @@ bool RenderLayerBacking::updateConfiguration(const RenderLayer* compositingAnces
         m_graphicsLayer->setContentsRectClipsDescendants(true);
         updateContentsRects();
     }
-
-    if (updateBackdropRoot())
-        layerConfigChanged = true;
 
     if (layerConfigChanged)
         updatePaintingPhases();
@@ -1394,7 +1380,6 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
 #if ENABLE(FILTERS_LEVEL_2)
     updateBackdropFilters(style);
 #endif
-    updateBackdropRoot();
 #if ENABLE(CSS_COMPOSITING)
     updateBlendMode(style);
 #endif
@@ -2669,8 +2654,10 @@ static inline bool hasVisibleBoxDecorations(const RenderStyle& style)
     return style.hasVisibleBorder() || style.hasBorderRadius() || style.hasOutline() || style.hasEffectiveAppearance() || style.boxShadow() || style.hasFilter();
 }
 
-static bool canDirectlyCompositeBackgroundBackgroundImage(const RenderStyle& style)
+static bool canDirectlyCompositeBackgroundBackgroundImage(const RenderElement& renderer)
 {
+    const RenderStyle& style = renderer.style();
+
     if (!GraphicsLayer::supportsContentsTiling())
         return false;
 
@@ -2678,7 +2665,7 @@ static bool canDirectlyCompositeBackgroundBackgroundImage(const RenderStyle& sty
     if (fillLayer.next())
         return false;
 
-    if (!fillLayer.imagesAreLoaded())
+    if (!fillLayer.imagesAreLoaded(&renderer))
         return false;
 
     if (fillLayer.attachment() != FillAttachment::ScrollBackground)
@@ -2701,15 +2688,17 @@ static bool canDirectlyCompositeBackgroundBackgroundImage(const RenderStyle& sty
     return true;
 }
 
-static bool hasPaintedBoxDecorationsOrBackgroundImage(const RenderStyle& style)
+static bool hasPaintedBoxDecorationsOrBackgroundImage(const RenderElement& renderer)
 {
+    const RenderStyle& style = renderer.style();
+
     if (hasVisibleBoxDecorations(style))
         return true;
 
     if (!style.hasBackgroundImage())
         return false;
 
-    return !canDirectlyCompositeBackgroundBackgroundImage(style);
+    return !canDirectlyCompositeBackgroundBackgroundImage(renderer);
 }
 
 static inline bool hasPerspectiveOrPreserves3D(const RenderStyle& style)
@@ -2847,7 +2836,7 @@ static bool supportsDirectlyCompositedBoxDecorations(const RenderLayerModelObjec
     if (renderer.hasClip())
         return false;
 
-    if (hasPaintedBoxDecorationsOrBackgroundImage(style))
+    if (hasPaintedBoxDecorationsOrBackgroundImage(renderer))
         return false;
 
     // FIXME: We can't create a directly composited background if this
@@ -3174,7 +3163,7 @@ void RenderLayerBacking::contentChanged(ContentChangeType changeType)
     }
 #endif
 
-    if ((changeType == BackgroundImageChanged) && canDirectlyCompositeBackgroundBackgroundImage(renderer().style()))
+    if ((changeType == BackgroundImageChanged) && canDirectlyCompositeBackgroundBackgroundImage(renderer()))
         m_owningLayer.setNeedsCompositingConfigurationUpdate();
 
     if ((changeType == MaskImageChanged) && m_maskLayer)

@@ -507,6 +507,7 @@ Modules/webxr/XRInputSourceEvent.cpp
 Modules/webxr/XRInputSourcesChangeEvent.cpp
 Modules/webxr/XRReferenceSpaceEvent.cpp
 Modules/webxr/XRSessionEvent.cpp
+accessibility/AXCoreObject.cpp
 accessibility/AXGeometryManager.cpp
 accessibility/AXImage.cpp
 accessibility/AXLogger.cpp
@@ -2283,6 +2284,7 @@ platform/graphics/MediaPlayerPrivate.cpp
 platform/graphics/MediaSourcePrivate.cpp
 platform/graphics/Model.cpp
 platform/graphics/NamedImageGeneratedImage.cpp
+platform/graphics/NullImageBufferBackend.cpp
 platform/graphics/NativeImage.cpp
 platform/graphics/Path.cpp
 platform/graphics/PathImpl.cpp
@@ -2693,6 +2695,8 @@ rendering/style/RenderStyle.cpp
 rendering/style/RenderStyleConstants.cpp
 rendering/style/SVGRenderStyle.cpp
 rendering/style/SVGRenderStyleDefs.cpp
+rendering/style/ScrollbarColor.cpp
+rendering/style/ScrollbarGutter.cpp
 rendering/style/ShadowData.cpp
 rendering/style/ShapeValue.cpp
 rendering/style/StyleBackgroundData.cpp
@@ -2723,8 +2727,6 @@ rendering/style/StyleNonInheritedData.cpp
 rendering/style/StylePaintImage.cpp
 rendering/style/StyleRareInheritedData.cpp
 rendering/style/StyleRareNonInheritedData.cpp
-rendering/style/ScrollbarColor.cpp
-rendering/style/ScrollbarGutter.cpp
 rendering/style/StyleSelfAlignmentData.cpp
 rendering/style/StyleSurroundData.cpp
 rendering/style/StyleTransformData.cpp
@@ -2993,6 +2995,7 @@ svg/animation/SVGSMILElement.cpp
 svg/graphics/SVGImage.cpp
 svg/graphics/SVGImageCache.cpp
 svg/graphics/SVGImageForContainer.cpp
+svg/graphics/SVGResourceImage.cpp
 svg/graphics/filters/SVGFilter.cpp
 svg/properties/SVGAnimatedProperty.cpp
 svg/properties/SVGAnimationAdditiveValueFunctionImpl.cpp

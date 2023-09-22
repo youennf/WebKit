@@ -313,8 +313,6 @@ RenderLayer::RenderLayer(RenderLayerModelObject& renderer)
     , m_forcedStackingContext(renderer.isMedia())
     , m_isNormalFlowOnly(false)
     , m_isCSSStackingContext(false)
-    , m_canBeBackdropRoot(false)
-    , m_hasBackdropFilterDescendantsWithoutRoot(false)
     , m_isOpportunisticStackingContext(false)
     , m_zOrderListsDirty(false)
     , m_normalFlowListDirty(true)
@@ -356,7 +354,6 @@ RenderLayer::RenderLayer(RenderLayerModelObject& renderer)
 {
     setIsNormalFlowOnly(shouldBeNormalFlowOnly());
     setIsCSSStackingContext(shouldBeCSSStackingContext());
-    setCanBeBackdropRoot(computeCanBeBackdropRoot());
 
     m_isSelfPaintingLayer = shouldBeSelfPaintingLayer();
 
@@ -610,20 +607,6 @@ bool RenderLayer::shouldBeCSSStackingContext() const
     return !renderer().style().hasAutoUsedZIndex() || renderer().shouldApplyLayoutOrPaintContainment() || isRenderViewLayer();
 }
 
-bool RenderLayer::computeCanBeBackdropRoot() const
-{
-    return renderer().isTransparent()
-        || renderer().hasBackdropFilter()
-        || renderer().hasClipPath()
-        || renderer().hasFilter()
-#if ENABLE(CSS_COMPOSITING)
-        || renderer().hasBlendMode()
-#endif
-        || renderer().hasMask()
-        || renderer().isDocumentElementRenderer()
-        || (renderer().style().willChange() && renderer().style().willChange()->canBeBackdropRoot());
-}
-
 bool RenderLayer::setIsNormalFlowOnly(bool isNormalFlowOnly)
 {
     if (isNormalFlowOnly == m_isNormalFlowOnly)
@@ -665,14 +648,6 @@ bool RenderLayer::setIsCSSStackingContext(bool isCSSStackingContext)
         return false;
 
     isStackingContextChanged();
-    return true;
-}
-
-bool RenderLayer::setCanBeBackdropRoot(bool canBeBackdropRoot)
-{
-    if (m_canBeBackdropRoot == canBeBackdropRoot)
-        return false;
-    m_canBeBackdropRoot = canBeBackdropRoot;
     return true;
 }
 
@@ -3119,7 +3094,7 @@ void RenderLayer::setupClipPath(GraphicsContext& context, GraphicsContextStateSa
 
     if (is<ReferencePathOperation>(style.clipPath())) {
         auto& referenceClipPathOperation = downcast<ReferencePathOperation>(*style.clipPath());
-        if (auto* clipperRenderer = renderer().ensureReferencedSVGResources().referencedClipperRenderer(renderer().treeScopeForSVGReferences(), referenceClipPathOperation)) {
+        if (auto* clipperRenderer = ReferencedSVGResources::referencedClipperRenderer(renderer().treeScopeForSVGReferences(), referenceClipPathOperation)) {
             // Use the border box as the reference box, even though this is not clearly specified: https://github.com/w3c/csswg-drafts/issues/5786.
             // clippedContentBounds is used as the reference box for inlines, which is also poorly specified: https://github.com/w3c/csswg-drafts/issues/6383.
             auto referenceBox = referenceBoxRectForClipPath(CSSBoxType::BorderBox, offsetFromRoot, clippedContentBounds);
@@ -5407,7 +5382,6 @@ bool RenderLayer::isVisuallyNonEmpty(PaintedContentRequest* request) const
 void RenderLayer::styleChanged(StyleDifference diff, const RenderStyle* oldStyle)
 {
     setIsNormalFlowOnly(shouldBeNormalFlowOnly());
-    setCanBeBackdropRoot(computeCanBeBackdropRoot());
 
     if (setIsCSSStackingContext(shouldBeCSSStackingContext())) {
 #if ENABLE(CSS_COMPOSITING)

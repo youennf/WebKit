@@ -38,4 +38,7 @@
 
     [MainWorldOnly] readonly attribute any lastError;
 
+    // readonly attribute WebExtensionAPIEvent onConnect;
+    readonly attribute WebExtensionAPIEvent onMessage;
+
 };

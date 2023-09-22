@@ -555,9 +555,6 @@ void AXIsolatedTree::updateNodeProperties(AXCoreObject& axObject, const Vector<A
         case AXPropertyName::PosInSet:
             propertyMap.set(AXPropertyName::PosInSet, axObject.posInSet());
             break;
-        case AXPropertyName::ReadOnlyValue:
-            propertyMap.set(AXPropertyName::ReadOnlyValue, axObject.readOnlyValue().isolatedCopy());
-            break;
         case AXPropertyName::RoleDescription:
             propertyMap.set(AXPropertyName::RoleDescription, axObject.roleDescription().isolatedCopy());
             break;
@@ -579,6 +576,9 @@ void AXIsolatedTree::updateNodeProperties(AXCoreObject& axObject, const Vector<A
             break;
         case AXPropertyName::SupportsARIAOwns:
             propertyMap.set(AXPropertyName::SupportsARIAOwns, axObject.supportsARIAOwns());
+            break;
+        case AXPropertyName::SupportsExpanded:
+            propertyMap.set(AXPropertyName::SupportsExpanded, axObject.supportsExpanded());
             break;
         case AXPropertyName::SupportsPosInSet:
             propertyMap.set(AXPropertyName::SupportsPosInSet, axObject.supportsPosInSet());

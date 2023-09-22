@@ -93,6 +93,7 @@ public:
     void visit(AST::CompoundAssignmentStatement&) override;
     void visit(AST::CompoundStatement&) override;
     void visit(AST::DecrementIncrementStatement&) override;
+    void visit(AST::DiscardStatement&) override;
     void visit(AST::IfStatement&) override;
     void visit(AST::PhonyAssignmentStatement&) override;
     void visit(AST::ReturnStatement&) override;
@@ -396,6 +397,7 @@ bool FunctionDefinitionWriter::emitPackedVector(const Types::Vector& vector)
     case Types::Primitive::TextureExternal:
     case Types::Primitive::AccessMode:
     case Types::Primitive::TexelFormat:
+    case Types::Primitive::AddressSpace:
         RELEASE_ASSERT_NOT_REACHED();
     }
     return true;
@@ -582,6 +584,7 @@ void FunctionDefinitionWriter::visit(const Type* type)
                 break;
             case Types::Primitive::AccessMode:
             case Types::Primitive::TexelFormat:
+            case Types::Primitive::AddressSpace:
                 RELEASE_ASSERT_NOT_REACHED();
             }
         },
@@ -718,6 +721,32 @@ void FunctionDefinitionWriter::visit(const Type* type)
             m_stringBuilder.append(addressSpace, " ");
             visit(reference.element);
             m_stringBuilder.append("&");
+        },
+        [&](const Pointer& pointer) {
+            const char* addressSpace = nullptr;
+            switch (pointer.addressSpace) {
+            case AddressSpace::Function:
+            case AddressSpace::Private:
+                addressSpace = "thread";
+                break;
+            case AddressSpace::Workgroup:
+                addressSpace = "threadgroup";
+                break;
+            case AddressSpace::Uniform:
+                addressSpace = "constant";
+                break;
+            case AddressSpace::Storage:
+                addressSpace = "device";
+                break;
+            case AddressSpace::Handle:
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            if (pointer.accessMode == AccessMode::Read)
+                m_stringBuilder.append("const ");
+            if (addressSpace)
+                m_stringBuilder.append(addressSpace, " ");
+            visit(pointer.element);
+            m_stringBuilder.append("*");
         },
         [&](const Function&) {
             RELEASE_ASSERT_NOT_REACHED();
@@ -994,11 +1023,11 @@ void FunctionDefinitionWriter::visit(AST::UnaryExpression& unary)
     case AST::UnaryOperation::Not:
         m_stringBuilder.append("!");
         break;
-
     case AST::UnaryOperation::AddressOf:
+        m_stringBuilder.append("&");
+        break;
     case AST::UnaryOperation::Dereference:
-        // FIXME: Implement these
-        RELEASE_ASSERT_NOT_REACHED();
+        m_stringBuilder.append("*");
         break;
     }
     visit(unary.expression());
@@ -1138,13 +1167,19 @@ void FunctionDefinitionWriter::visit(AST::Unsigned32Literal& literal)
 void FunctionDefinitionWriter::visit(AST::AbstractFloatLiteral& literal)
 {
     // FIXME: this might not serialize all values correctly
-    m_stringBuilder.append(literal.value());
+    NumberToStringBuffer buffer;
+    WTF::numberToStringWithTrailingPoint(literal.value(), buffer);
+
+    m_stringBuilder.append(&buffer[0]);
 }
 
 void FunctionDefinitionWriter::visit(AST::Float32Literal& literal)
 {
     // FIXME: this might not serialize all values correctly
-    m_stringBuilder.append(literal.value());
+    NumberToStringBuffer buffer;
+    WTF::numberToStringWithTrailingPoint(literal.value(), buffer);
+
+    m_stringBuilder.append(&buffer[0]);
 }
 
 void FunctionDefinitionWriter::visit(AST::Statement& statement)
@@ -1212,6 +1247,11 @@ void FunctionDefinitionWriter::visit(AST::DecrementIncrementStatement& statement
         m_stringBuilder.append("--");
         break;
     }
+}
+
+void FunctionDefinitionWriter::visit(AST::DiscardStatement&)
+{
+    m_stringBuilder.append("discard_fragment()");
 }
 
 void FunctionDefinitionWriter::visit(AST::IfStatement& statement)

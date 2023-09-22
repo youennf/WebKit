@@ -637,6 +637,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/websockets/WebSocketIdentifier.h
     Modules/websockets/WebSocketHandshake.h
 
+    accessibility/AXCoreObject.h
     accessibility/AXGeometryManager.h
     accessibility/AXLogger.h
     accessibility/AXObjectCache.h
@@ -648,7 +649,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     accessibility/AccessibilityMockObject.h
     accessibility/AccessibilityNodeObject.h
     accessibility/AccessibilityObject.h
-    accessibility/AccessibilityObjectInterface.h
     accessibility/AccessibilityRenderObject.h
     accessibility/AccessibilityScrollView.h
     accessibility/ForcedAccessibilityValue.h
@@ -1948,6 +1948,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/Model.h
     platform/graphics/NativeImage.h
     platform/graphics/NullGraphicsContext.h
+    platform/graphics/NullImageBufferBackend.h
     platform/graphics/Path.h
     platform/graphics/PathElement.h
     platform/graphics/PathImpl.h
@@ -2038,7 +2039,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     platform/graphics/displaylists/DisplayList.h
     platform/graphics/displaylists/DisplayListDrawingContext.h
-    platform/graphics/displaylists/DisplayListImageBuffer.h
     platform/graphics/displaylists/DisplayListItem.h
     platform/graphics/displaylists/DisplayListItems.h
     platform/graphics/displaylists/DisplayListRecorder.h

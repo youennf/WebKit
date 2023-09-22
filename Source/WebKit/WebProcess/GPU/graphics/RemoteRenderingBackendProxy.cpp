@@ -85,9 +85,10 @@ void RemoteRenderingBackendProxy::ensureGPUProcessConnection()
 {
     if (!m_streamConnection) {
         static constexpr auto connectionBufferSizeLog2 = 21;
-        auto [streamConnection, serverHandle] = IPC::StreamClientConnection::create(connectionBufferSizeLog2);
-        if (!streamConnection)
+        auto connectionPair = IPC::StreamClientConnection::create(connectionBufferSizeLog2);
+        if (!connectionPair)
             CRASH();
+        auto [streamConnection, serverHandle] = WTFMove(*connectionPair);
         m_streamConnection = WTFMove(streamConnection);
         // RemoteRenderingBackendProxy behaves as the dispatcher for the connection to obtain isolated state for its
         // connection. This prevents waits on RemoteRenderingBackendProxy to process messages from other connections.
@@ -158,9 +159,7 @@ RefPtr<ImageBuffer> RemoteRenderingBackendProxy::createImageBuffer(const FloatSi
             imageBuffer = RemoteImageBufferProxy::create<AcceleratedImageBufferShareableMappedBackend>(size, resolutionScale, colorSpace, pixelFormat, purpose, *this, avoidBackendSizeCheck);
         else
             imageBuffer = RemoteImageBufferProxy::create<AcceleratedImageBufferRemoteBackend>(size, resolutionScale, colorSpace, pixelFormat, purpose, *this, avoidBackendSizeCheck);
-    }
-
-    if (!imageBuffer)
+    } else
         imageBuffer = RemoteImageBufferProxy::create<UnacceleratedImageBufferShareableBackend>(size, resolutionScale, colorSpace, pixelFormat, purpose, *this, avoidBackendSizeCheck);
 
     if (imageBuffer) {
@@ -249,21 +248,6 @@ RefPtr<ShareableBitmap> RemoteRenderingBackendProxy::getShareableBitmap(Renderin
         return { };
     handle->takeOwnershipOfMemory(MemoryLedger::Graphics);
     return ShareableBitmap::create(WTFMove(*handle));
-}
-
-RefPtr<Image> RemoteRenderingBackendProxy::getFilteredImage(RenderingResourceIdentifier imageBuffer, Filter& filter)
-{
-    auto sendResult = sendSync(Messages::RemoteImageBuffer::GetFilteredImage(filter), imageBuffer);
-    auto [handle] = sendResult.takeReply();
-    if (!handle)
-        return { };
-
-    handle->takeOwnershipOfMemory(MemoryLedger::Graphics);
-    auto bitmap = ShareableBitmap::create(WTFMove(*handle));
-    if (!bitmap)
-        return { };
-
-    return bitmap->createImage();
 }
 
 void RemoteRenderingBackendProxy::cacheNativeImage(ShareableBitmap::Handle&& handle, RenderingResourceIdentifier renderingResourceIdentifier)

@@ -2306,7 +2306,6 @@ imported/blink/fast/pagination/div-x-vertical-lr-ltr.html [ ImageOnlyFailure ]
 imported/blink/fast/pagination/div-x-vertical-lr-rtl.html [ ImageOnlyFailure ]
 imported/blink/fast/pagination/viewport-x-vertical-lr-ltr.html [ ImageOnlyFailure ]
 imported/blink/fast/pagination/viewport-x-vertical-lr-rtl.html [ ImageOnlyFailure ]
-fast/multicol/newmulticol/hide-box-vertical-lr.html [ ImageOnlyFailure ]
 
 # Failing tests related to picture element
 webkit.org/b/152141 fast/picture/image-picture-1x.html [ Skip ]
@@ -3637,6 +3636,9 @@ webkit.org/b/237433 editing/pasteboard/paste-and-sanitize.html [ Timeout Pass Fa
 webkit.org/b/237955 imported/w3c/web-platform-tests/css/css-contain/content-visibility/content-visibility-044.html [ Failure ]
 
 webkit.org/b/239625 imported/w3c/web-platform-tests/css/css-color/opacity-overlapping-letters.html [ ImageOnlyFailure ]
+
+imported/w3c/web-platform-tests/css/css-color/system-color-hightlights-vs-getSelection-001.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-color/system-color-hightlights-vs-getSelection-002.html [ ImageOnlyFailure ]
 
 webkit.org/b/239567 tables/mozilla/bugs/bug26178.html [ Pass Failure ]
 

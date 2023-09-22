@@ -141,11 +141,14 @@ def types_that_must_be_moved():
         'IPC::Signal',
         'IPC::StreamServerConnection::Handle',
         'MachSendRight',
+        'std::optional<WebKit::SharedVideoFrame>',
         'Vector<WebKit::SharedMemory::Handle>',
+        'WebKit::WebGPU::ExternalTextureDescriptor',
         'WebCore::GraphicsContextGL::EGLImageSource',
         'WebKit::ConsumerSharedCARingBuffer::Handle',
         'WebKit::GPUProcessConnectionParameters',
         'WebKit::ImageBufferBackendHandle',
+        'std::optional<WebKit::ImageBufferBackendHandle>',
         'WebKit::ShareableBitmap::Handle',
         'WebKit::ShareableResource::Handle',
         'WebKit::SharedMemory::Handle',
@@ -229,6 +232,13 @@ def message_to_struct_declaration(receiver, message):
         else:
             result.append('    static constexpr auto callbackThread = WTF::CompletionHandlerCallThread::ConstructionThread;\n')
         result.append('    using ReplyArguments = std::tuple<%s>;\n' % ', '.join([parameter.type for parameter in message.reply_parameters]))
+        if not message.has_attribute(SYNCHRONOUS_ATTRIBUTE):
+            if len(message.reply_parameters) == 0:
+                result.append('    using Promise = WTF::NativePromise<void, IPC::Error, true>;\n')
+            elif len(message.reply_parameters) == 1:
+                result.append('    using Promise = WTF::NativePromise<%s, IPC::Error, true>;\n' % message.reply_parameters[0].type)
+            else:
+                result.append('    using Promise = WTF::NativePromise<std::tuple<%s>, IPC::Error, true>;\n' % ', '.join([parameter.type for parameter in message.reply_parameters]))
 
     if len(function_parameters):
         result.append('    %s%s(%s)' % (len(function_parameters) == 1 and 'explicit ' or '', message.name, ', '.join([' '.join(x) for x in function_parameters])))
@@ -353,6 +363,7 @@ def serialized_identifiers():
         'WebKit::VideoEncoderIdentifier',
         'WebKit::WebExtensionContextIdentifier',
         'WebKit::WebExtensionControllerIdentifier',
+        'WebKit::WebExtensionFrameIdentifier',
         'WebKit::WebExtensionTabIdentifier',
         'WebKit::WebExtensionWindowIdentifier',
         'WebKit::WebGPUIdentifier',
@@ -952,7 +963,6 @@ def headers_for_type(type):
         'WebKit::WebGPU::ExternalTextureBindingLayout': ['"WebGPUExternalTextureBindingLayout.h"'],
         'WebKit::WebGPU::ExternalTextureDescriptor': ['"WebGPUExternalTextureDescriptor.h"'],
         'WebKit::WebGPU::FragmentState': ['"WebGPUFragmentState.h"'],
-        'WebKit::WebGPU::HTMLVideoElementIdentifier': ['"WebGPUExternalTextureDescriptor.h"'],
         'WebKit::WebGPU::Identifier': ['"WebGPUIdentifier.h"'],
         'WebKit::WebGPU::ImageCopyBuffer': ['"WebGPUImageCopyBuffer.h"'],
         'WebKit::WebGPU::ImageCopyExternalImage': ['"WebGPUImageCopyExternalImage.h"'],
@@ -994,7 +1004,6 @@ def headers_for_type(type):
         'WebKit::WebGPU::VertexAttribute': ['"WebGPUVertexAttribute.h"'],
         'WebKit::WebGPU::VertexBufferLayout': ['"WebGPUVertexBufferLayout.h"'],
         'WebKit::WebGPU::VertexState': ['"WebGPUVertexState.h"'],
-        'WebKit::WebGPU::WebCodecsVideoFrameIdentifier': ['"WebGPUExternalTextureDescriptor.h"'],
         'WebKit::WebPushD::PushMessageForTesting': ['"PushMessageForTesting.h"'],
         'WebKit::WebPushD::WebPushDaemonConnectionConfiguration': ['"WebPushDaemonConnectionConfiguration.h"'],
         'WebKit::WebScriptMessageHandlerData': ['"WebUserContentControllerDataTypes.h"'],

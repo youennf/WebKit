@@ -35,7 +35,13 @@
 #import "CocoaHelpers.h"
 #import "JSWebExtensionWrapper.h"
 #import "Logging.h"
+#import "WebExtensionAPITabs.h"
+#import "WebExtensionMessageSenderParameters.h"
 #import <objc/runtime.h>
+
+static NSString * const frameIdKey = @"frameId";
+static NSString * const tabKey = @"tab";
+static NSString * const urlKey = @"url";
 
 namespace WebKit {
 
@@ -50,6 +56,7 @@ static NSString *classToClassString(Class classType, bool plural = false)
         [classTypeToSingularClassString setObject:@"a boolean" forKey:@YES.class];
         [classTypeToSingularClassString setObject:@"a number" forKey:NSNumber.class];
         [classTypeToSingularClassString setObject:@"a string" forKey:NSString.class];
+        [classTypeToSingularClassString setObject:@"a value" forKey:JSValue.class];
         [classTypeToSingularClassString setObject:@"null" forKey:NSNull.class];
         [classTypeToSingularClassString setObject:@"an array" forKey:NSArray.class];
         [classTypeToSingularClassString setObject:@"an object" forKey:NSDictionary.class];
@@ -58,6 +65,7 @@ static NSString *classToClassString(Class classType, bool plural = false)
         [classTypeToPluralClassString setObject:@"booleans" forKey:@YES.class];
         [classTypeToPluralClassString setObject:@"numbers" forKey:NSNumber.class];
         [classTypeToPluralClassString setObject:@"strings" forKey:NSString.class];
+        [classTypeToPluralClassString setObject:@"values" forKey:JSValue.class];
         [classTypeToPluralClassString setObject:@"null values" forKey:NSNull.class];
         [classTypeToPluralClassString setObject:@"arrays" forKey:NSArray.class];
         [classTypeToPluralClassString setObject:@"objects" forKey:NSDictionary.class];
@@ -335,6 +343,22 @@ NSString *toWebAPI(NSLocale *locale)
     if (locale.countryCode.length)
         return [NSString stringWithFormat:@"%@-%@", locale.languageCode, locale.countryCode];
     return locale.languageCode;
+}
+
+NSDictionary *toWebAPI(const WebExtensionMessageSenderParameters& parameters)
+{
+    NSMutableDictionary *result = [NSMutableDictionary dictionary];
+
+    if (parameters.tabParameters)
+        result[tabKey] = toWebAPI(parameters.tabParameters.value());
+
+    if (parameters.frameIdentifier)
+        result[frameIdKey] = @(toWebAPI(parameters.frameIdentifier.value()));
+
+    if (parameters.url.isValid())
+        result[urlKey] = (NSURL *)parameters.url;
+
+    return [result copy];
 }
 
 } // namespace WebKit

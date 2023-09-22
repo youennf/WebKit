@@ -91,7 +91,6 @@
 #include "TextIterator.h"
 #include "UserGestureIndicator.h"
 #include "VisibleUnits.h"
-#include <pal/SessionID.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuilder.h>
@@ -1456,13 +1455,13 @@ VisiblePositionRange AccessibilityObject::visiblePositionRangeForUnorderedPositi
 
 VisiblePositionRange AccessibilityObject::positionOfLeftWord(const VisiblePosition& visiblePos) const
 {
-    auto start = startOfWord(visiblePos, LeftWordIfOnBoundary);
+    auto start = startOfWord(visiblePos, WordSide::LeftWordIfOnBoundary);
     return { start, endOfWord(start) };
 }
 
 VisiblePositionRange AccessibilityObject::positionOfRightWord(const VisiblePosition& visiblePos) const
 {
-    auto start = startOfWord(visiblePos, RightWordIfOnBoundary);
+    auto start = startOfWord(visiblePos, WordSide::RightWordIfOnBoundary);
     return { start, endOfWord(start) };
 }
 
@@ -1688,17 +1687,26 @@ static RenderListItem* renderListItemContainerForNode(Node* node)
     return nullptr;
 }
 
-// Returns the text representing a list marker if node is contained within a list item.
-StringView AccessibilityObject::listMarkerTextForNodeAndPosition(Node* node, const VisiblePosition& visiblePositionStart)
+// Returns the text representing a list marker.
+static StringView listMarkerText(RenderListItem& listItem, const VisiblePosition& startVisiblePosition)
+{
+    // Only include the list marker if the range includes the line start (where the marker would be), and is in the same line as the marker.
+    if (!isStartOfLine(startVisiblePosition) || !inSameLine(startVisiblePosition, firstPositionInNode(&listItem.element())))
+        return { };
+    return listItem.markerTextWithSuffix();
+}
+
+StringView AccessibilityObject::listMarkerTextForNodeAndPosition(Node* node, Position&& startPosition)
 {
     auto* listItem = renderListItemContainerForNode(node);
-    if (!listItem)
-        return { };
+    // Constructing a VisiblePosition from a Position can be expensive, so only do it if we have a list item.
+    return listItem ? listMarkerText(*listItem, WTFMove(startPosition)) : StringView();
+}
 
-    // Only include the list marker if the range includes the line start (where the marker would be), and is in the same line as the marker.
-    if (!isStartOfLine(visiblePositionStart) || !inSameLine(visiblePositionStart, firstPositionInNode(&listItem->element())))
-        return { };
-    return listItem->markerTextWithSuffix();
+StringView AccessibilityObject::listMarkerTextForNodeAndPosition(Node* node, const VisiblePosition& startVisiblePosition)
+{
+    auto* listItem = renderListItemContainerForNode(node);
+    return listItem ? listMarkerText(*listItem, startVisiblePosition) : StringView();
 }
 
 String AccessibilityObject::stringForRange(const SimpleRange& range) const
@@ -3332,7 +3340,7 @@ bool AccessibilityObject::supportsPressed() const
     const AtomString& expanded = getAttribute(aria_pressedAttr);
     return equalLettersIgnoringASCIICase(expanded, "true"_s) || equalLettersIgnoringASCIICase(expanded, "false"_s);
 }
-    
+
 bool AccessibilityObject::supportsExpanded() const
 {
     // If this object can toggle an HTML popover, it supports the reporting of its expanded state (which is based on the expanded / collapsed state of that popover).
@@ -4050,29 +4058,6 @@ AccessibilityObject* AccessibilityObject::radioGroupAncestor() const
     return Accessibility::findAncestor<AccessibilityObject>(*this, false, [] (const AccessibilityObject& object) {
         return object.isRadioGroup();
     });
-}
-
-String AccessibilityObject::documentURI() const
-{
-    if (auto* document = this->document())
-        return document->documentURI();
-    return String();
-}
-
-String AccessibilityObject::documentEncoding() const
-{
-    if (auto* document = this->document())
-        return document->encoding();
-    return String();
-}
-
-PAL::SessionID AccessibilityObject::sessionID() const
-{
-    if (auto* document = topDocument()) {
-        if (auto* page = document->page())
-            return page->sessionID();
-    }
-    return PAL::SessionID(PAL::SessionID::SessionConstants::HashTableEmptyValueID);
 }
 
 AtomString AccessibilityObject::tagName() const
