@@ -313,6 +313,8 @@ RenderLayer::RenderLayer(RenderLayerModelObject& renderer)
     , m_forcedStackingContext(renderer.isMedia())
     , m_isNormalFlowOnly(false)
     , m_isCSSStackingContext(false)
+    , m_canBeBackdropRoot(false)
+    , m_hasBackdropFilterDescendantsWithoutRoot(false)
     , m_isOpportunisticStackingContext(false)
     , m_zOrderListsDirty(false)
     , m_normalFlowListDirty(true)
@@ -354,6 +356,7 @@ RenderLayer::RenderLayer(RenderLayerModelObject& renderer)
 {
     setIsNormalFlowOnly(shouldBeNormalFlowOnly());
     setIsCSSStackingContext(shouldBeCSSStackingContext());
+    setCanBeBackdropRoot(computeCanBeBackdropRoot());
 
     m_isSelfPaintingLayer = shouldBeSelfPaintingLayer();
 
@@ -607,6 +610,23 @@ bool RenderLayer::shouldBeCSSStackingContext() const
     return !renderer().style().hasAutoUsedZIndex() || renderer().shouldApplyLayoutOrPaintContainment() || isRenderViewLayer();
 }
 
+bool RenderLayer::computeCanBeBackdropRoot() const
+{
+    if (!renderer().settings().cssUnprefixedBackdropFilterEnabled())
+        return false;
+
+    return renderer().isTransparent()
+        || renderer().hasBackdropFilter()
+        || renderer().hasClipPath()
+        || renderer().hasFilter()
+#if ENABLE(CSS_COMPOSITING)
+        || renderer().hasBlendMode()
+#endif
+        || renderer().hasMask()
+        || renderer().isDocumentElementRenderer()
+        || (renderer().style().willChange() && renderer().style().willChange()->canBeBackdropRoot());
+}
+
 bool RenderLayer::setIsNormalFlowOnly(bool isNormalFlowOnly)
 {
     if (isNormalFlowOnly == m_isNormalFlowOnly)
@@ -648,6 +668,14 @@ bool RenderLayer::setIsCSSStackingContext(bool isCSSStackingContext)
         return false;
 
     isStackingContextChanged();
+    return true;
+}
+
+bool RenderLayer::setCanBeBackdropRoot(bool canBeBackdropRoot)
+{
+    if (m_canBeBackdropRoot == canBeBackdropRoot)
+        return false;
+    m_canBeBackdropRoot = canBeBackdropRoot;
     return true;
 }
 
@@ -3094,7 +3122,7 @@ void RenderLayer::setupClipPath(GraphicsContext& context, GraphicsContextStateSa
 
     if (is<ReferencePathOperation>(style.clipPath())) {
         auto& referenceClipPathOperation = downcast<ReferencePathOperation>(*style.clipPath());
-        if (auto* clipperRenderer = ReferencedSVGResources::referencedClipperRenderer(renderer().treeScopeForSVGReferences(), referenceClipPathOperation)) {
+        if (auto* clipperRenderer = renderer().ensureReferencedSVGResources().referencedClipperRenderer(renderer().treeScopeForSVGReferences(), referenceClipPathOperation)) {
             // Use the border box as the reference box, even though this is not clearly specified: https://github.com/w3c/csswg-drafts/issues/5786.
             // clippedContentBounds is used as the reference box for inlines, which is also poorly specified: https://github.com/w3c/csswg-drafts/issues/6383.
             auto referenceBox = referenceBoxRectForClipPath(CSSBoxType::BorderBox, offsetFromRoot, clippedContentBounds);
@@ -3162,13 +3190,18 @@ GraphicsContext* RenderLayer::setupFilters(GraphicsContext& destinationContext, 
 
 void RenderLayer::applyFilters(GraphicsContext& originalContext, const LayerPaintingInfo& paintingInfo, OptionSet<PaintBehavior> behavior, const LayerFragments& layerFragments)
 {
-    // FIXME: Handle more than one fragment.
-    ClipRect backgroundRect = layerFragments.isEmpty() ? ClipRect() : layerFragments[0].backgroundRect;
-
     GraphicsContextStateSaver stateSaver(originalContext, false);
-    RegionContextStateSaver regionContextStateSaver(paintingInfo.regionContext);
+    bool needsClipping = m_filters->hasSourceImage();
 
-    clipToRect(originalContext, stateSaver, regionContextStateSaver, paintingInfo, behavior, backgroundRect);
+    if (needsClipping) {
+        // FIXME: Handle more than one fragment.
+        ClipRect backgroundRect = layerFragments.isEmpty() ? ClipRect() : layerFragments[0].backgroundRect;
+
+        RegionContextStateSaver regionContextStateSaver(paintingInfo.regionContext);
+
+        clipToRect(originalContext, stateSaver, regionContextStateSaver, paintingInfo, behavior, backgroundRect);
+    }
+
     m_filters->applyFilterEffect(originalContext);
 }
 
@@ -5382,6 +5415,7 @@ bool RenderLayer::isVisuallyNonEmpty(PaintedContentRequest* request) const
 void RenderLayer::styleChanged(StyleDifference diff, const RenderStyle* oldStyle)
 {
     setIsNormalFlowOnly(shouldBeNormalFlowOnly());
+    setCanBeBackdropRoot(computeCanBeBackdropRoot());
 
     if (setIsCSSStackingContext(shouldBeCSSStackingContext())) {
 #if ENABLE(CSS_COMPOSITING)

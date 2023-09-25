@@ -167,6 +167,17 @@ AXCoreObject::AccessibilityChildrenVector AXCoreObject::contents()
     return { };
 }
 
+AXCoreObject::AccessibilityChildrenVector AXCoreObject::ariaTreeItemContent()
+{
+    AccessibilityChildrenVector result;
+    // The content of a treeitem excludes other treeitems or their containing groups.
+    for (const auto& child : children()) {
+        if (!child->isGroup() && child->roleValue() != AccessibilityRole::TreeItem)
+            result.append(child);
+    }
+    return result;
+}
+
 String AXCoreObject::currentValue() const
 {
     switch (currentState()) {
@@ -274,6 +285,26 @@ unsigned AXCoreObject::tableLevel() const
         current = current->exposedTableAncestor(false);
     }
     return level;
+}
+
+bool AXCoreObject::isTableCellInSameRowGroup(AXCoreObject* otherTableCell)
+{
+    if (!otherTableCell)
+        return false;
+
+    AXID ancestorID = rowGroupAncestorID();
+    return ancestorID.isValid() && ancestorID == otherTableCell->rowGroupAncestorID();
+}
+
+bool AXCoreObject::isTableCellInSameColGroup(AXCoreObject* tableCell)
+{
+    if (!tableCell)
+        return false;
+
+    auto columnRange = columnIndexRange();
+    auto otherColumnRange = tableCell->columnIndexRange();
+
+    return columnRange.first <= otherColumnRange.first + otherColumnRange.second;
 }
 
 String AXCoreObject::ariaLandmarkRoleDescription() const

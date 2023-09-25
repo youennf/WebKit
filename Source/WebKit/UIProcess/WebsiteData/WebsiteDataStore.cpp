@@ -66,6 +66,7 @@
 #include <WebCore/SecurityOriginData.h>
 #include <WebCore/WebLockRegistry.h>
 #include <wtf/CallbackAggregator.h>
+#include <wtf/CheckedPtr.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/FileSystem.h>
@@ -106,10 +107,10 @@ static HashMap<String, PAL::SessionID>& activeGeneralStorageDirectories()
     return directoryToSessionMap;
 }
 
-static HashMap<PAL::SessionID, WebsiteDataStore*>& allDataStores()
+static HashMap<PAL::SessionID, CheckedPtr<WebsiteDataStore>>& allDataStores()
 {
     RELEASE_ASSERT(isUIThread());
-    static NeverDestroyed<HashMap<PAL::SessionID, WebsiteDataStore*>> map;
+    static NeverDestroyed<HashMap<PAL::SessionID, CheckedPtr<WebsiteDataStore>>> map;
     return map;
 }
 
@@ -121,7 +122,7 @@ WorkQueue& WebsiteDataStore::websiteDataStoreIOQueue()
 
 void WebsiteDataStore::forEachWebsiteDataStore(Function<void(WebsiteDataStore&)>&& function)
 {
-    for (auto* dataStore : allDataStores().values())
+    for (auto& dataStore : allDataStores().values())
         function(*dataStore);
 }
 
@@ -245,9 +246,9 @@ bool WebsiteDataStore::defaultDataStoreExists()
 
 RefPtr<WebsiteDataStore> WebsiteDataStore::existingDataStoreForIdentifier(const WTF::UUID& identifier)
 {
-    for (auto* dataStore : allDataStores().values()) {
-        if (dataStore && dataStore->configuration().identifier() == identifier)
-            return dataStore;
+    for (auto& dataStore : allDataStores().values()) {
+        if (dataStore && dataStore.get()->configuration().identifier() == identifier)
+            return dataStore.get();
     }
 
     return nullptr;
@@ -259,8 +260,8 @@ Ref<WebsiteDataStore> WebsiteDataStore::dataStoreForIdentifier(const WTF::UUID& 
     RELEASE_ASSERT(uuid.isValid());
 
     InitializeWebKit2();
-    for (auto* dataStore : allDataStores().values()) {
-        if (dataStore && dataStore->configuration().identifier() == uuid)
+    for (auto& dataStore : allDataStores().values()) {
+        if (dataStore && dataStore.get()->configuration().identifier() == uuid)
             return Ref { *dataStore };
     }
 
@@ -296,9 +297,9 @@ static Ref<NetworkProcessProxy> networkProcessForSession(PAL::SessionID sessionI
 #if ((PLATFORM(GTK) || PLATFORM(WPE)) && !ENABLE(2022_GLIB_API))
     if (sessionID.isEphemeral()) {
         // Reuse a previous persistent session network process for ephemeral sessions.
-        for (auto* dataStore : allDataStores().values()) {
-            if (dataStore->isPersistent())
-                return dataStore->networkProcess();
+        for (auto& dataStore : allDataStores().values()) {
+            if (dataStore.get()->isPersistent())
+                return dataStore.get()->networkProcess();
         }
     }
     return NetworkProcessProxy::create();
@@ -1830,7 +1831,7 @@ void WebsiteDataStore::setCacheModelSynchronouslyForTesting(CacheModel cacheMode
 Vector<WebsiteDataStoreParameters> WebsiteDataStore::parametersFromEachWebsiteDataStore()
 {
     return WTF::map(allDataStores(), [](auto& entry) {
-        return entry.value->parameters();
+        return entry.value.get()->parameters();
     });
 }
 
@@ -2245,8 +2246,8 @@ void WebsiteDataStore::forwardAppBoundDomainsToITPIfInitialized(CompletionHandle
 
     propagateAppBoundDomains(globalDefaultDataStore().get(), *appBoundDomains);
 
-    for (auto* store : allDataStores().values())
-        propagateAppBoundDomains(store, *appBoundDomains);
+    for (auto& store : allDataStores().values())
+        propagateAppBoundDomains(store.get(), *appBoundDomains);
 }
 
 void WebsiteDataStore::setAppBoundDomainsForITP(const HashSet<WebCore::RegistrableDomain>& domains, CompletionHandler<void()>&& completionHandler)
@@ -2276,8 +2277,8 @@ void WebsiteDataStore::forwardManagedDomainsToITPIfInitialized(CompletionHandler
 
     propagateManagedDomains(globalDefaultDataStore().get(), *managedDomains);
 
-    for (auto* store : allDataStores().values())
-        propagateManagedDomains(store, *managedDomains);
+    for (auto& store : allDataStores().values())
+        propagateManagedDomains(store.get(), *managedDomains);
 }
 
 void WebsiteDataStore::setManagedDomainsForITP(const HashSet<WebCore::RegistrableDomain>& domains, CompletionHandler<void()>&& completionHandler)
@@ -2511,21 +2512,37 @@ void WebsiteDataStore::removePage(WebPageProxy& page)
 void WebsiteDataStore::processPushMessage(WebPushMessage&& pushMessage, CompletionHandler<void(bool)>&& completionHandler)
 {
 #if ENABLE(DECLARATIVE_WEB_PUSH)
-    if (pushMessage.notificationPayload && !pushMessage.notificationPayload->isMutable && m_configuration->isDeclarativeWebPushEnabled()) {
-        RELEASE_LOG(Push, "Handling immutable declarative web push message for scope %" SENSITIVE_LOG_STRING, pushMessage.registrationURL.string().utf8().data());
+    bool isDeclarative = !!pushMessage.notificationPayload;
+    auto innerHandler = [this, protectedThis = Ref { *this }, isDeclarative, pushMessageCopy = pushMessage, completionHandler = WTFMove(completionHandler)](bool handled, std::optional<WebCore::NotificationPayload>&& resultPayload) mutable {
+        if (!isDeclarative || !m_configuration->isDeclarativeWebPushEnabled()) {
+            completionHandler(handled);
+            return;
+        }
 
-        bool handled = showPersistentNotification(nullptr, pushMessage.notificationPayloadToCoreData());
+        // There was a proposed payload going in, so we require there be one to display now.
+        RELEASE_ASSERT(resultPayload);
+        pushMessageCopy.notificationPayload = WTFMove(*resultPayload);
 
-        if (pushMessage.notificationPayload->appBadge)
-            m_client->workerUpdatedAppBadge(WebCore::SecurityOriginData::fromURL(pushMessage.registrationURL), *pushMessage.notificationPayload->appBadge);
+        handled = showPersistentNotification(nullptr, pushMessageCopy.notificationPayloadToCoreData());
 
+        if (pushMessageCopy.notificationPayload->appBadge)
+            m_client->workerUpdatedAppBadge(WebCore::SecurityOriginData::fromURL(pushMessageCopy.registrationURL), *pushMessageCopy.notificationPayload->appBadge);
         completionHandler(handled);
+    };
+
+    // For immutable, declarative push messages, display the payload right now.
+    if (pushMessage.notificationPayload && !pushMessage.notificationPayload->isMutable && m_configuration->isDeclarativeWebPushEnabled()) {
+        innerHandler(true, WTFMove(pushMessage.notificationPayload));
         return;
     }
-#endif
+#else
+    auto innerHandler = [completionHandler = WTFMove(completionHandler)] (bool handled, std::optional<WebCore::NotificationPayload>&&) mutable {
+        completionHandler(handled);
+    };
+#endif // ENABLE(DECLARATIVE_WEB_PUSH)
 
-    RELEASE_LOG(Push, "Sending push message for scope %" SENSITIVE_LOG_STRING " to network process to handle", pushMessage.registrationURL.string().utf8().data());
-    networkProcess().processPushMessage(sessionID(), WTFMove(pushMessage), WTFMove(completionHandler));
+    RELEASE_LOG(Push, "Sending push message to network process to handle");
+    networkProcess().processPushMessage(sessionID(), WTFMove(pushMessage), WTFMove(innerHandler));
 }
 
 } // namespace WebKit

@@ -428,18 +428,18 @@ AlternateFullScreenControlDesignEnabled:
 
 AlternateWebMPlayerEnabled:
   type: bool
-  status: unstable
+  status: stable
   category: media
   humanReadableName: "Alternate WebM Player"
   humanReadableDescription: "Enable Alternate WebM Player"
-  condition: ENABLE(ALTERNATE_WEBM_PLAYER)
+  condition: ENABLE(ALTERNATE_WEBM_PLAYER) && ENABLE(MEDIA_SOURCE)
   defaultValue:
     WebKitLegacy:
-     default: false
+     default: true
     WebKit:
-      default: false
+      default: true
     WebCore:
-      default: false
+      default: true
 
 AlwaysZoomOnDoubleTap:
   type: bool
@@ -1046,17 +1046,17 @@ CSSContainmentEnabled:
 
 CSSContentVisibilityEnabled:
   type: bool
-  status: testable
+  status: stable
   category: css
   humanReadableName: "CSS Content Visibility"
   humanReadableDescription: "Enable CSS content-visibility"
   defaultValue:
     WebKitLegacy:
-      default: false
+      default: true
     WebKit:
-      default: false
+      default: true
     WebCore:
-      default: false
+      default: true
 
 CSSCounterStyleAtRuleImageSymbolsEnabled:
   type: bool
@@ -1494,6 +1494,25 @@ CSSTypedOMEnabled:
       default: true
     WebCore:
       default: true
+
+CSSUnprefixedBackdropFilterEnabled:
+  type: bool
+  status: testable
+  category: css
+  humanReadableName: "CSS Unprefixed Backdrop Filter"
+  humanReadableDescription: "Enable unprefixed backdrop-filter CSS property"
+  condition: ENABLE(FILTERS_LEVEL_2)
+  defaultValue:
+    WebKitLegacy:
+      "ENABLE(UNPREFIXED_BACKDROP_FILTER)": true
+      default: false
+    WebKit:
+      "ENABLE(UNPREFIXED_BACKDROP_FILTER)": true
+      default: false
+    WebCore:
+      "ENABLE(UNPREFIXED_BACKDROP_FILTER)": true
+      default: false
+
 
 CSSWhiteSpaceLonghandsEnabled:
   type: bool
@@ -2994,18 +3013,19 @@ GoogleAntiFlickerOptimizationQuirkEnabled:
 
 GraphicsContextFiltersEnabled:
    type: bool
-   status: unstable
+   status: stable
+   category: media
    webcoreOnChange: setNeedsRelayoutAllFrames
    humanReadableName: "GraphicsContext Filter Rendering"
    humanReadableDescription: "GraphicsContext Filter Rendering"
    condition: USE(GRAPHICS_CONTEXT_FILTERS)
    defaultValue:
      WebKitLegacy:
-       default: false
+       default: true
      WebKit:
-       default: false
+       default: true
      WebCore:
-       default: false
+       default: true
 
 HTTPEquivEnabled:
   type: bool
@@ -6771,6 +6791,20 @@ UndoManagerAPIEnabled:
   category: dom
   humanReadableName: "UndoManager DOM API"
   humanReadableDescription: "Enable the UndoManager DOM API"
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
+      default: false
+
+UnifiedPDFEnabled:
+  type: bool
+  status: internal
+  category: security
+  humanReadableName: "Unified PDF Viewer"
+  humanReadableDescription: "Enable Unified PDF Viewer"
   defaultValue:
     WebKitLegacy:
       default: false

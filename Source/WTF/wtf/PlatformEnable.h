@@ -626,6 +626,9 @@
 #define ENABLE_CFPREFS_DIRECT_MODE 0
 #endif
 
+#if !defined(ENABLE_UNPREFIXED_BACKDROP_FILTER)
+#define ENABLE_UNPREFIXED_BACKDROP_FILTER 0
+#endif
 
 
 /* FIXME: This section of the file has not been cleaned up yet and needs major work. */
@@ -1032,4 +1035,12 @@
 
 #if ENABLE(WEBXR_HANDS) && !ENABLE(WEBXR)
 #error "ENABLE(WEBXR_HANDS) requires ENABLE(WEBXR)"
+#endif
+
+#if !defined(ENABLE_WEBPROCESS_CACHE) && (PLATFORM(GTK) || PLATFORM(WPE))
+#define ENABLE_WEBPROCESS_CACHE 1
+#endif
+
+#if !defined(ENABLE_WEBPROCESS_CACHE)
+#define ENABLE_WEBPROCESS_CACHE 0
 #endif

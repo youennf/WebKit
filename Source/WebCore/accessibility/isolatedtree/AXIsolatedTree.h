@@ -52,7 +52,6 @@ class Page;
 enum class AXStreamOptions : uint8_t;
 
 enum class AXPropertyName : uint16_t {
-    ARIATreeItemContent,
     ARIATreeRows,
     AttributedText,
     AXColumnCount,
@@ -76,6 +75,7 @@ enum class AXPropertyName : uint16_t {
     CaretBrowsingEnabled,
 #endif
     Cells,
+    CellScope,
     CellSlots,
     ColorValue,
     Columns,
@@ -117,6 +117,7 @@ enum class AXPropertyName : uint16_t {
     IsAttachment,
     IsBusy,
     IsChecked,
+    IsColumnHeader,
     IsControl,
     IsEnabled,
     IsExpanded,
@@ -146,6 +147,7 @@ enum class AXPropertyName : uint16_t {
     IsMultiSelectable,
     IsPressed,
     IsRequired,
+    IsRowHeader,
     IsSecureField,
     IsSelected,
     IsSelectedOptionActive,
@@ -193,6 +195,8 @@ enum class AXPropertyName : uint16_t {
     RolePlatformString,
     RoleDescription,
     Rows,
+    RowGroupAncestorID,
+    RowHeader,
     RowHeaders,
     RowIndex,
     RowIndexRange,

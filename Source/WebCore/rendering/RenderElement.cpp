@@ -814,6 +814,9 @@ void RenderElement::styleWillChange(StyleDifference diff, const RenderStyle& new
         if (contentVisibilityChanged) {
             if (oldStyle->contentVisibility() == ContentVisibility::Auto)
                 ContentVisibilityDocumentState::unobserve(*element());
+            auto wasSkippedContent = oldStyle->contentVisibility() == ContentVisibility::Hidden ? IsSkippedContent::Yes : IsSkippedContent::No;
+            auto isSkippedContent = newStyle.contentVisibility() == ContentVisibility::Hidden ? IsSkippedContent::Yes : IsSkippedContent::No;
+            ContentVisibilityDocumentState::updateAnimations(*element(), wasSkippedContent, isSkippedContent);
         }
         if ((contentVisibilityChanged || !oldStyle) && newStyle.contentVisibility() == ContentVisibility::Auto)
             ContentVisibilityDocumentState::observe(*element());
@@ -1409,7 +1412,7 @@ bool RenderElement::borderImageIsLoadedAndCanBeRendered() const
     ASSERT(style().hasBorder());
 
     StyleImage* borderImage = style().borderImage().image();
-    return borderImage && borderImage->canRender(this, style().effectiveZoom()) && borderImage->isLoaded(this);
+    return borderImage && borderImage->canRender(this, style().effectiveZoom()) && borderImage->isLoaded();
 }
 
 bool RenderElement::mayCauseRepaintInsideViewport(const IntRect* optionalViewportRect) const
@@ -2260,11 +2263,11 @@ FloatRect RenderElement::referenceBoxRect(CSSBoxType boxType) const
     };
 
     switch (boxType) {
-    case CSSBoxType::BoxMissing:
     case CSSBoxType::ContentBox:
     case CSSBoxType::PaddingBox:
     case CSSBoxType::FillBox:
         return alignReferenceBox(objectBoundingBox());
+    case CSSBoxType::BoxMissing:
     case CSSBoxType::BorderBox:
     case CSSBoxType::MarginBox:
     case CSSBoxType::StrokeBox:
@@ -2299,5 +2302,22 @@ bool RenderElement::hasEligibleContainmentForSizeQuery() const
     return false;
 }
 
+void RenderElement::clearNeedsLayoutForDescendants()
+{
+    for (auto& descendant : descendantsOfType<RenderObject>(*this))
+        descendant.clearNeedsLayout();
+}
+
+void RenderElement::layoutIfNeeded()
+{
+    if (!needsLayout())
+        return;
+    if (isSkippedContentForLayout()) {
+        clearNeedsLayoutForDescendants();
+        clearNeedsLayout();
+        return;
+    }
+    layout();
+}
 
 }

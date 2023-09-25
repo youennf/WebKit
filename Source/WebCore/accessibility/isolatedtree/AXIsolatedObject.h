@@ -160,6 +160,10 @@ private:
     std::pair<unsigned, unsigned> columnIndexRange() const override { return pairAttributeValue<unsigned>(AXPropertyName::ColumnIndexRange); }
     int axColumnIndex() const override { return intAttributeValue(AXPropertyName::AXColumnIndex); }
     int axRowIndex() const override { return intAttributeValue(AXPropertyName::AXRowIndex); }
+    bool isColumnHeader() const final { return boolAttributeValue(AXPropertyName::IsColumnHeader); }
+    bool isRowHeader() const final { return boolAttributeValue(AXPropertyName::IsRowHeader); }
+    String cellScope() const final { return stringAttributeValue(AXPropertyName::CellScope); }
+    AXID rowGroupAncestorID() const final { return propertyValue<AXID>(AXPropertyName::RowGroupAncestorID); }
 
     // Table column support.
     bool isTableColumn() const override { return boolAttributeValue(AXPropertyName::IsTableColumn); }
@@ -169,6 +173,7 @@ private:
     // Table row support.
     bool isTableRow() const override { return boolAttributeValue(AXPropertyName::IsTableRow); }
     unsigned rowIndex() const override { return unsignedAttributeValue(AXPropertyName::RowIndex); }
+    AXCoreObject* rowHeader() final { return objectAttributeValue(AXPropertyName::RowHeader); };
 
     // ARIA tree/grid row support.
     bool isARIATreeGridRow() const override { return boolAttributeValue(AXPropertyName::IsARIATreeGridRow); }
@@ -256,7 +261,6 @@ private:
     bool isValueAutofillAvailable() const override { return boolAttributeValue(AXPropertyName::IsValueAutofillAvailable); }
     AutoFillButtonType valueAutofillButtonType() const override { return static_cast<AutoFillButtonType>(intAttributeValue(AXPropertyName::ValueAutofillButtonType)); }
     void ariaTreeRows(AccessibilityChildrenVector& children) override { fillChildrenVectorForProperty(AXPropertyName::ARIATreeRows, children); }
-    AccessibilityChildrenVector ariaTreeItemContent() override { return tree()->objectsForIDs(vectorAttributeValue<AXID>(AXPropertyName::ARIATreeItemContent)); }
     URL url() const override { return urlAttributeValue(AXPropertyName::URL); }
     String accessKey() const override { return stringAttributeValue(AXPropertyName::AccessKey); }
     String localizedActionVerb() const override { return stringAttributeValue(AXPropertyName::LocalizedActionVerb); }
@@ -466,7 +470,6 @@ private:
     AXCoreObject* correspondingControlForLabelElement() const override;
     bool inheritsPresentationalRole() const override;
     void setAccessibleName(const AtomString&) override;
-    bool hasAttributesRequiredForInclusion() const override;
 
     String title() const override { return stringAttributeValue(AXPropertyName::Title); }
     String description() const override { return stringAttributeValue(AXPropertyName::Description); }

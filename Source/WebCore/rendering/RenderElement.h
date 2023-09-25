@@ -84,6 +84,7 @@ public:
 
     // This is null for anonymous renderers.
     Element* element() const { return downcast<Element>(RenderObject::node()); }
+    RefPtr<Element> protectedElement() const { return element(); }
     Element* nonPseudoElement() const { return downcast<Element>(RenderObject::nonPseudoNode()); }
     Element* generatingElement() const;
 
@@ -160,7 +161,7 @@ public:
     virtual void layout();
 
     /* This function performs a layout only if one is needed. */
-    void layoutIfNeeded() { if (needsLayout()) layout(); }
+    void layoutIfNeeded();
 
     // Updates only the local style ptr of the object. Does not update the state of the object,
     // and so only should be called when the style is known not to have changed (or from setStyle).
@@ -291,6 +292,8 @@ public:
     bool createsNewFormattingContext() const;
 
     bool isSkippedContentRoot() const;
+
+    void clearNeedsLayoutForDescendants();
 
 protected:
     enum BaseTypeFlag {

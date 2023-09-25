@@ -25,8 +25,6 @@
 
 #pragma once
 
-// FIXME: Should rename this file AXCoreObject.h.
-
 #include "CharacterRange.h"
 #include "ColorConversion.h"
 #include "HTMLTextFormControlElement.h"
@@ -893,6 +891,12 @@ public:
     // Table cell support.
     virtual bool isTableCell() const = 0;
     virtual bool isExposedTableCell() const = 0;
+    virtual bool isColumnHeader() const { return false; }
+    virtual bool isRowHeader() const { return false; }
+    bool isTableCellInSameRowGroup(AXCoreObject*);
+    bool isTableCellInSameColGroup(AXCoreObject*);
+    virtual AXID rowGroupAncestorID() const { return { }; }
+    virtual String cellScope() const { return { }; }
     // Returns the start location and row span of the cell.
     virtual std::pair<unsigned, unsigned> rowIndexRange() const = 0;
     // Returns the start location and column span of the cell.
@@ -908,6 +912,7 @@ public:
     // Table row support.
     virtual bool isTableRow() const = 0;
     virtual unsigned rowIndex() const = 0;
+    virtual AXCoreObject* rowHeader() { return nullptr; }
 
     // ARIA tree/grid row support.
     virtual bool isARIATreeGridRow() const = 0;
@@ -1123,7 +1128,6 @@ public:
     virtual void accessibilityText(Vector<AccessibilityText>&) const = 0;
     // A programmatic way to set a name on an AccessibleObject.
     virtual void setAccessibleName(const AtomString&) = 0;
-    virtual bool hasAttributesRequiredForInclusion() const = 0;
 
     virtual String title() const = 0;
     virtual String description() const = 0;
@@ -1316,7 +1320,7 @@ public:
     // Used by an ARIA tree to get all its rows.
     virtual void ariaTreeRows(AccessibilityChildrenVector&) = 0;
     // Used by an ARIA tree item to get only its content, and not its child tree items and groups.
-    virtual AccessibilityChildrenVector ariaTreeItemContent() = 0;
+    AccessibilityChildrenVector ariaTreeItemContent();
 
     // ARIA live-region features.
     static bool liveRegionStatusIsEnabled(const AtomString&);
