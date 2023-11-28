@@ -622,19 +622,14 @@ int LibvpxVp9Encoder::InitEncode(const VideoCodec* inst,
   vpx_img_fmt img_fmt = VPX_IMG_FMT_NONE;
   unsigned int bits_for_storage = 8;
   switch (profile_) {
-    case VP9Profile::kProfile0:
-      img_fmt = previous_img_fmt.value_or(VPX_IMG_FMT_I420);
-      bits_for_storage = 8;
-      config_->g_bit_depth = VPX_BITS_8;
-      config_->g_profile = 0;
-      config_->g_input_bit_depth = 8;
-      break;
     case VP9Profile::kProfile1:
       // Encoding of profile 1 is not implemented. It would require extended
       // support for I444, I422, and I440 buffers.
       RTC_DCHECK_NOTREACHED();
       break;
     case VP9Profile::kProfile2:
+      case VP9Profile::kProfile0:
+          img_fmt = previous_img_fmt.value_or(VPX_IMG_FMT_I420);
       img_fmt = VPX_IMG_FMT_I42016;
       bits_for_storage = 16;
       config_->g_bit_depth = VPX_BITS_10;
