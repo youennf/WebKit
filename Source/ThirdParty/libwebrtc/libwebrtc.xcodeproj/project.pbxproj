@@ -2308,8 +2308,8 @@
 		419BA9C02B15F3B000E0D825 /* highbd_idct32x32_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 419100E82152ED1600A6F17B /* highbd_idct32x32_add_neon.c */; };
 		419BA9C12B15F3B300E0D825 /* highbd_idct32x32_34_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 419100F12152ED1800A6F17B /* highbd_idct32x32_34_add_neon.c */; };
 		419BA9C22B15F3B800E0D825 /* highbd_idct32x32_135_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 419478762152ED4000275257 /* highbd_idct32x32_135_add_neon.c */; };
-		419BA9C32B15F3BC00E0D825 /* highbd_idct32x32_1024_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 4194788A2152ED4600275257 /* highbd_idct32x32_1024_add_neon.c */; };
 		419BA9C42B15F3C000E0D825 /* highbd_idct16x16_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 419478702152ED3E00275257 /* highbd_idct16x16_add_neon.c */; };
+		419BA9C52B15F90800E0D825 /* highbd_idct32x32_1024_add_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 4194788A2152ED4600275257 /* highbd_idct32x32_1024_add_neon.c */; };
 		419C829A1FE20CA10040C30F /* interval_budget.cc in Sources */ = {isa = PBXBuildFile; fileRef = 419C82991FE20CA10040C30F /* interval_budget.cc */; };
 		419C829D1FE20D1C0040C30F /* audio_processing_statistics.cc in Sources */ = {isa = PBXBuildFile; fileRef = 419C829B1FE20D1B0040C30F /* audio_processing_statistics.cc */; };
 		419C829E1FE20D1C0040C30F /* audio_processing_statistics.h in Headers */ = {isa = PBXBuildFile; fileRef = 419C829C1FE20D1C0040C30F /* audio_processing_statistics.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -23233,7 +23233,7 @@
 				419BA9C42B15F3C000E0D825 /* highbd_idct16x16_add_neon.c in Sources */,
 				41B675B7216599A80040A75D /* highbd_idct16x16_add_sse2.c in Sources */,
 				4140361824AA2B9700BCE9B2 /* highbd_idct16x16_add_sse4.c in Sources */,
-				419BA9C32B15F3BC00E0D825 /* highbd_idct32x32_1024_add_neon.c in Sources */,
+				419BA9C52B15F90800E0D825 /* highbd_idct32x32_1024_add_neon.c in Sources */,
 				419BA9C22B15F3B800E0D825 /* highbd_idct32x32_135_add_neon.c in Sources */,
 				419BA9C12B15F3B300E0D825 /* highbd_idct32x32_34_add_neon.c in Sources */,
 				419BA9C02B15F3B000E0D825 /* highbd_idct32x32_add_neon.c in Sources */,
