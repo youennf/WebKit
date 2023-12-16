@@ -109,7 +109,7 @@ MediaStreamTrack::MediaStreamTrack(ScriptExecutionContext& context, Ref<MediaStr
             m_groupId = mediaDevices->hashedGroupId(settings.groupId());
     }
 
-    m_isInterrupted = m_private->source().interrupted();
+    m_isInterrupted = m_private->interrupted();
     allCaptureTracks().add(this);
 
     if (m_private->isAudio())
@@ -536,7 +536,7 @@ void MediaStreamTrack::updateToPageMutedState()
     if (!page)
         return;
 
-    switch (source().deviceType()) {
+    switch (privateTrack().deviceType()) {
     case CaptureDevice::DeviceType::Microphone:
 #if PLATFORM(IOS_FAMILY)
         if (document.settings().manageCaptureStatusBarInGPUProcessEnabled() && !document.settings().interruptAudioOnPageVisibilityChangeEnabled())
@@ -609,7 +609,7 @@ void MediaStreamTrack::trackEnded(MediaStreamTrackPrivate&)
 
     ALWAYS_LOG(LOGIDENTIFIER);
 
-    if (m_isCaptureTrack && m_private->source().captureDidFail() && m_readyState != State::Ended)
+    if (m_isCaptureTrack && m_private->captureDidFail() && m_readyState != State::Ended)
         scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, "A MediaStreamTrack ended due to a capture failure"_s);
 
     // http://w3c.github.io/mediacapture-main/#life-cycle
@@ -664,8 +664,8 @@ void MediaStreamTrack::trackMutedChanged(MediaStreamTrackPrivate&)
     configureTrackRendering();
 
     bool wasInterrupted = m_isInterrupted;
-    m_isInterrupted = m_private->source().interrupted();
-    if (isCaptureTrack() && wasInterrupted != m_isInterrupted && m_private->source().type() == RealtimeMediaSource::Type::Audio && context->settingsValues().muteCameraOnMicrophoneInterruptionEnabled)
+    m_isInterrupted = m_private->interrupted();
+    if (isCaptureTrack() && wasInterrupted != m_isInterrupted && m_private->type() == RealtimeMediaSource::Type::Audio && context->settingsValues().muteCameraOnMicrophoneInterruptionEnabled)
         updateVideoCaptureAccordingMicrophoneInterruption(*downcast<Document>(context), m_isInterrupted);
 }
 

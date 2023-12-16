@@ -60,10 +60,20 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&&
 MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& trackLogger, Ref<RealtimeMediaSource>&& source, String&& id)
     : m_source(WTFMove(source))
     , m_id(WTFMove(id))
+    , m_label(m_source->name())
+    , m_type(m_source->type())
+    , m_deviceType(m_source->deviceType())
+    , m_isCaptureTrack(m_source->isCaptureSource())
+    , m_captureDidFail(m_source->captureDidFail())
     , m_logger(WTFMove(trackLogger))
 #if !RELEASE_LOG_DISABLED
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
+    , m_isProducingData(m_source->isProducingData())
+    , m_isMuted(m_source->muted())
+    , m_isInterrupted(m_source->interrupted())
+    , m_settings(m_source->settings())
+    , m_capabilities(m_source->capabilities())
 {
     ASSERT(isMainThread());
     UNUSED_PARAM(trackLogger);
@@ -102,29 +112,15 @@ void MediaStreamTrackPrivate::removeObserver(MediaStreamTrackPrivate::Observer& 
     m_observers.remove(observer);
 }
 
-const String& MediaStreamTrackPrivate::label() const
-{
-    return m_source->name();
-}
-
 void MediaStreamTrackPrivate::setContentHint(HintValue hintValue)
 {
     m_contentHint = hintValue;
 }
-    
-bool MediaStreamTrackPrivate::muted() const
-{
-    return m_source->muted();
-}
 
-bool MediaStreamTrackPrivate::interrupted() const
+void MediaStreamTrackPrivate::setMuted(bool muted)
 {
-    return m_source->interrupted();
-}
-
-bool MediaStreamTrackPrivate::isCaptureTrack() const
-{
-    return m_source->isCaptureSource();
+    m_isMuted = muted;
+    m_source->setMuted(muted);
 }
 
 void MediaStreamTrackPrivate::setEnabled(bool enabled)
@@ -173,22 +169,11 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::clone()
     clonedMediaStreamTrackPrivate->m_contentHint = this->m_contentHint;
     clonedMediaStreamTrackPrivate->updateReadyState();
 
-    if (m_source->isProducingData())
+    if (m_isProducingData)
         clonedMediaStreamTrackPrivate->startProducingData();
 
     return clonedMediaStreamTrackPrivate;
 }
-
-const RealtimeMediaSourceSettings& MediaStreamTrackPrivate::settings() const
-{
-    return m_source->settings();
-}
-
-const RealtimeMediaSourceCapabilities& MediaStreamTrackPrivate::capabilities() const
-{
-    return m_source->capabilities();
-}
-
 Ref<RealtimeMediaSource::PhotoCapabilitiesNativePromise> MediaStreamTrackPrivate::getPhotoCapabilities()
 {
     return m_source->getPhotoCapabilities();
@@ -226,6 +211,7 @@ void MediaStreamTrackPrivate::sourceStarted()
 {
     ALWAYS_LOG(LOGIDENTIFIER);
 
+    m_isProducingData = true;
     forEachObserver([this](auto& observer) {
         observer.trackStarted(*this);
     });
@@ -233,6 +219,8 @@ void MediaStreamTrackPrivate::sourceStarted()
 
 void MediaStreamTrackPrivate::sourceStopped()
 {
+    m_isProducingData = false;
+
     if (m_isEnded)
         return;
 
@@ -250,6 +238,8 @@ void MediaStreamTrackPrivate::sourceMutedChanged()
 {
     ALWAYS_LOG(LOGIDENTIFIER);
 
+    m_isInterrupted = m_source->interrupted();
+    m_isMuted = m_source->muted();
     forEachObserver([this](auto& observer) {
         observer.trackMutedChanged(*this);
     });
@@ -259,6 +249,8 @@ void MediaStreamTrackPrivate::sourceSettingsChanged()
 {
     ALWAYS_LOG(LOGIDENTIFIER);
 
+    m_settings = m_source->settings();
+    m_capabilities = m_source->capabilities();
     forEachObserver([this](auto& observer) {
         observer.trackSettingsChanged(*this);
     });
@@ -268,6 +260,8 @@ void MediaStreamTrackPrivate::sourceConfigurationChanged()
 {
     ALWAYS_LOG(LOGIDENTIFIER);
 
+    m_settings = m_source->settings();
+    m_capabilities = m_source->capabilities();
     forEachObserver([this](auto& observer) {
         observer.trackConfigurationChanged(*this);
     });

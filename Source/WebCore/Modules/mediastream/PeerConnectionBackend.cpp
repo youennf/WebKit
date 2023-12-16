@@ -281,7 +281,7 @@ void PeerConnectionBackend::setLocalDescriptionSucceeded(std::optional<Descripti
             }
             for (auto& track : muteTrackList) {
                 track->setShouldFireMuteEventImmediately(true);
-                track->source().setMuted(true);
+                track->privateTrack().setMuted(true);
                 track->setShouldFireMuteEventImmediately(false);
                 if (m_peerConnection.isClosed())
                     return;
@@ -374,7 +374,7 @@ void PeerConnectionBackend::setRemoteDescriptionSucceeded(std::optional<Descript
 
             for (auto& track : muteTrackList) {
                 track->setShouldFireMuteEventImmediately(true);
-                track->source().setMuted(true);
+                track->privateTrack().setMuted(true);
                 track->setShouldFireMuteEventImmediately(false);
                 if (m_peerConnection.isClosed())
                     return;
@@ -398,7 +398,7 @@ void PeerConnectionBackend::setRemoteDescriptionSucceeded(std::optional<Descript
                 if (m_peerConnection.isClosed())
                     return;
 
-                track->source().setMuted(false);
+                track->privateTrack().setMuted(false);
             }
         } else {
             // FIXME: Move ports out of m_pendingTrackEvents.
@@ -415,13 +415,13 @@ void PeerConnectionBackend::dispatchTrackEvent(PendingTrackEvent& event)
     auto& track = event.track.get();
 
     m_peerConnection.dispatchEvent(RTCTrackEvent::create(eventNames().trackEvent, Event::CanBubble::No, Event::IsCancelable::No, WTFMove(event.receiver), WTFMove(event.track), WTFMove(event.streams), WTFMove(event.transceiver)));
-    ALWAYS_LOG(LOGIDENTIFIER, "Dispatched if feasible track of type ", track.source().type());
+    ALWAYS_LOG(LOGIDENTIFIER, "Dispatched if feasible track of type ", track.privateTrack().type());
 
     if (m_peerConnection.isClosed())
         return;
 
     // FIXME: As per spec, we should set muted to 'false' when starting to receive the content from network.
-    track.source().setMuted(false);
+    track.privateTrack().setMuted(false);
 }
 
 void PeerConnectionBackend::setRemoteDescriptionFailed(Exception&& exception)

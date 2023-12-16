@@ -5946,7 +5946,7 @@ void Internals::setMediaStreamSourceInterrupted(MediaStreamTrack& track, bool in
 
 bool Internals::isMediaStreamSourceInterrupted(MediaStreamTrack& track) const
 {
-    return track.source().interrupted();
+    return track.privateTrack().interrupted();
 }
 
 bool Internals::isMediaStreamSourceEnded(MediaStreamTrack& track) const

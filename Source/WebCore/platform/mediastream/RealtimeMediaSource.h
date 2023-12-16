@@ -241,7 +241,6 @@ public:
     virtual bool isMockSource() const { return false; }
     virtual bool isCaptureSource() const { return false; }
     virtual CaptureDevice::DeviceType deviceType() const { return CaptureDevice::DeviceType::Unknown; }
-    virtual bool isVideoSource() const;
     WEBCORE_EXPORT virtual VideoFrameRotation videoFrameRotation() const;
     WEBCORE_EXPORT virtual IntSize computeResizedVideoFrameSize(IntSize desiredSize, IntSize actualSize);
 
@@ -415,11 +414,6 @@ inline void RealtimeMediaSource::setName(const AtomString& name)
 inline void RealtimeMediaSource::whenReady(CompletionHandler<void(CaptureSourceError&&)>&& callback)
 {
     callback({ });
-}
-
-inline bool RealtimeMediaSource::isVideoSource() const
-{
-    return false;
 }
 
 inline bool RealtimeMediaSource::isProducingData() const

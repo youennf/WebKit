@@ -68,7 +68,7 @@ public:
     WEBCORE_EXPORT virtual ~MediaStreamTrackPrivate();
 
     const String& id() const { return m_id; }
-    const String& label() const;
+    const String& label() const { return m_label; }
 
     bool isActive() const { return enabled() && !ended() && !muted(); }
 
@@ -80,15 +80,16 @@ public:
     
     void startProducingData() { m_source->start(); }
     void stopProducingData() { m_source->stop(); }
-    bool isProducingData() { return m_source->isProducingData(); }
+    bool isProducingData() { return m_isProducingData; }
 
-    bool muted() const;
-    void setMuted(bool muted) { m_source->setMuted(muted); }
-    bool interrupted() const;
+    bool muted() const { return m_isMuted; }
+    void setMuted(bool);
+    bool interrupted() const { return m_isInterrupted; }
+    bool captureDidFail() const { return m_captureDidFail; }
 
     void setIsInBackground(bool value) { m_source->setIsInBackground(value); }
 
-    bool isCaptureTrack() const;
+    bool isCaptureTrack() const { return m_isCaptureTrack; }
 
     bool enabled() const { return m_isEnabled; }
     void setEnabled(bool);
@@ -96,11 +97,12 @@ public:
     Ref<MediaStreamTrackPrivate> clone();
 
     RealtimeMediaSource& source() { return m_source.get(); }
-    const RealtimeMediaSource& source() const { return m_source.get(); }
-    RealtimeMediaSource::Type type() const { return m_source->type(); }
-    CaptureDevice::DeviceType deviceType() const { return m_source->deviceType(); }
-    bool isVideo() const { return m_source->isVideo(); }
-    bool isAudio() const { return m_source->isAudio(); }
+    bool hasSource(const RealtimeMediaSource* source) const { return m_source.ptr() == source; }
+
+    RealtimeMediaSource::Type type() const { return m_type; }
+    CaptureDevice::DeviceType deviceType() const { return m_deviceType; }
+    bool isVideo() const { return m_type == RealtimeMediaSource::Type::Video; }
+    bool isAudio() const { return m_type == RealtimeMediaSource::Type::Audio; }
 
     void endTrack();
 
@@ -108,8 +110,8 @@ public:
     void removeObserver(Observer&);
     bool hasObserver(Observer& observer) const { return m_observers.contains(observer); }
 
-    WEBCORE_EXPORT const RealtimeMediaSourceSettings& settings() const;
-    const RealtimeMediaSourceCapabilities& capabilities() const;
+    const RealtimeMediaSourceSettings& settings() const { return m_settings; }
+    const RealtimeMediaSourceCapabilities& capabilities() const { return m_capabilities; }
 
     Ref<RealtimeMediaSource::TakePhotoNativePromise> takePhoto(PhotoSettings&&);
     Ref<RealtimeMediaSource::PhotoCapabilitiesNativePromise> getPhotoCapabilities();
@@ -157,15 +159,25 @@ private:
     Ref<RealtimeMediaSource> m_source;
 
     String m_id;
+    String m_label;
+    RealtimeMediaSource::Type m_type;
+    CaptureDevice::DeviceType m_deviceType;
     ReadyState m_readyState { ReadyState::None };
+    bool m_isCaptureTrack { false };
     bool m_isEnabled { true };
     bool m_isEnded { false };
+    bool m_captureDidFail { false };
     bool m_hasStartedProducingData { false };
     HintValue m_contentHint { HintValue::Empty };
     Ref<const Logger> m_logger;
 #if !RELEASE_LOG_DISABLED
     const void* m_logIdentifier;
 #endif
+    bool m_isProducingData { false };
+    bool m_isMuted { false };
+    bool m_isInterrupted { false };
+    RealtimeMediaSourceSettings m_settings;
+    RealtimeMediaSourceCapabilities m_capabilities;
 };
 
 typedef Vector<Ref<MediaStreamTrackPrivate>> MediaStreamTrackPrivateVector;
