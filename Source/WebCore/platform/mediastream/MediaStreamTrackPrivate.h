@@ -80,7 +80,7 @@ public:
     
     void startProducingData() { m_source->start(); }
     void stopProducingData() { m_source->stop(); }
-    bool isProducingData() { return m_isProducingData; }
+    bool isProducingData() const { return m_isProducingData; }
 
     bool muted() const { return m_isMuted; }
     void setMuted(bool);

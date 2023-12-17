@@ -71,7 +71,7 @@ static HashSet<MediaStreamTrack*>& allCaptureTracks()
     return captureTracks;
 }
 
-static MediaProducerMediaStateFlags sourceCaptureState(RealtimeMediaSource&);
+static MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate&);
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(MediaStreamTrack);
 
@@ -439,42 +439,42 @@ MediaProducerMediaStateFlags MediaStreamTrack::mediaState() const
     if (!context || !is<Document>(context) || !downcast<Document>(context)->page())
         return MediaProducer::IsNotPlaying;
 
-    return sourceCaptureState(source());
+    return trackCaptureState(privateTrack());
 }
 
-MediaProducerMediaStateFlags sourceCaptureState(RealtimeMediaSource& source)
+MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate& privateTrack)
 {
-    switch (source.deviceType()) {
+    switch (privateTrack.deviceType()) {
     case CaptureDevice::DeviceType::Microphone:
-        if (source.muted())
+        if (privateTrack.muted())
             return MediaProducerMediaState::HasMutedAudioCaptureDevice;
-        if (source.interrupted())
+        if (privateTrack.interrupted())
             return MediaProducerMediaState::HasInterruptedAudioCaptureDevice;
-        if (source.isProducingData())
+        if (privateTrack.isProducingData())
             return MediaProducerMediaState::HasActiveAudioCaptureDevice;
         break;
     case CaptureDevice::DeviceType::Camera:
-        if (source.muted())
+        if (privateTrack.muted())
             return MediaProducerMediaState::HasMutedVideoCaptureDevice;
-        if (source.interrupted())
+        if (privateTrack.interrupted())
             return MediaProducerMediaState::HasInterruptedVideoCaptureDevice;
-        if (source.isProducingData())
+        if (privateTrack.isProducingData())
             return MediaProducerMediaState::HasActiveVideoCaptureDevice;
         break;
     case CaptureDevice::DeviceType::Screen:
-        if (source.muted())
+        if (privateTrack.muted())
             return MediaProducerMediaState::HasMutedScreenCaptureDevice;
-        if (source.interrupted())
+        if (privateTrack.interrupted())
             return MediaProducerMediaState::HasInterruptedScreenCaptureDevice;
-        if (source.isProducingData())
+        if (privateTrack.isProducingData())
             return MediaProducerMediaState::HasActiveScreenCaptureDevice;
         break;
     case CaptureDevice::DeviceType::Window:
-        if (source.muted())
+        if (privateTrack.muted())
             return MediaProducerMediaState::HasMutedWindowCaptureDevice;
-        if (source.interrupted())
+        if (privateTrack.interrupted())
             return MediaProducerMediaState::HasInterruptedWindowCaptureDevice;
-        if (source.isProducingData())
+        if (privateTrack.isProducingData())
             return MediaProducerMediaState::HasActiveWindowCaptureDevice;
         break;
     case CaptureDevice::DeviceType::SystemAudio:
@@ -492,7 +492,7 @@ MediaProducerMediaStateFlags MediaStreamTrack::captureState(Document& document)
     for (RefPtr captureTrack : allCaptureTracks()) {
         if (captureTrack->scriptExecutionContext() != &document || captureTrack->ended())
             continue;
-        state.add(sourceCaptureState(captureTrack->source()));
+        state.add(trackCaptureState(captureTrack->privateTrack()));
     }
     return state;
 }
@@ -516,9 +516,9 @@ void MediaStreamTrack::updateVideoCaptureAccordingMicrophoneInterruption(Documen
         RefPtr context = captureTrack->scriptExecutionContext();
         if (!context || downcast<Document>(context)->page() != page)
             continue;
-        auto& source = captureTrack->source();
-        if (!source.isEnded() && source.deviceType() == CaptureDevice::DeviceType::Camera)
-            source.setMuted(isMicrophoneInterrupted);
+        Ref privateTrack = captureTrack->privateTrack();
+        if (!privateTrack->ended() && privateTrack->deviceType() == CaptureDevice::DeviceType::Camera)
+            privateTrack->setMuted(isMicrophoneInterrupted);
     }
 }
 
