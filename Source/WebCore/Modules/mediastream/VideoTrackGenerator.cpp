@@ -27,14 +27,35 @@
 
 #if ENABLE(MEDIA_STREAM)
 
+#include "Exception.h"
+#include "JSWebCodecsVideoFrame.h"
 #include "MediaStreamTrack.h"
 #include "WritableStream.h"
+#include "WritableStreamSink.h"
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(VideoTrackGenerator);
 
-VideoTrackGenerator::VideoTrackGenerator(ScriptExecutionContext&)
+ExceptionOr<Ref<VideoTrackGenerator>> VideoTrackGenerator::create(ScriptExecutionContext& context)
+{
+    auto source = Source::create();
+    auto writableOrException = WritableStream::create(*JSC::jsCast<JSDOMGlobalObject*>(context.globalObject()), Sink::create(Ref { source }));
+
+    if (writableOrException.hasException())
+        return writableOrException.releaseException();
+
+    callOnMainThread([source] {
+        source->start();
+    });
+
+    auto track = MediaStreamTrack::create(context, MediaStreamTrackPrivate::create(Logger::create(&context), WTFMove(source)));
+    return adoptRef(*new VideoTrackGenerator(writableOrException.releaseReturnValue(), WTFMove(track)));
+}
+
+VideoTrackGenerator::VideoTrackGenerator(Ref<WritableStream>&& writable, Ref<MediaStreamTrack>&& track)
+    : m_writable(WTFMove(writable))
+    , m_track(WTFMove(track))
 {
 }
 
@@ -44,7 +65,62 @@ VideoTrackGenerator::~VideoTrackGenerator()
 
 void VideoTrackGenerator::setMuted(bool muted)
 {
+    // FIXME: propagate muted to source.
     m_muted = muted;
+}
+
+Ref<WritableStream> VideoTrackGenerator::writable()
+{
+    return Ref { m_writable };
+}
+
+Ref<MediaStreamTrack> VideoTrackGenerator::track()
+{
+    return Ref { m_track };
+}
+
+VideoTrackGenerator::Source::Source()
+    : RealtimeMediaSource(CaptureDevice { { }, CaptureDevice::DeviceType::Camera, emptyString() })
+{
+}
+
+VideoTrackGenerator::Sink::Sink(Ref<Source>&& source)
+    : m_source(WTFMove(source))
+{
+}
+
+void VideoTrackGenerator::Sink::write(ScriptExecutionContext&, JSC::JSValue value, DOMPromiseDeferred<void>&& promise)
+{
+    auto* jsFrameObject = jsCast<JSWebCodecsVideoFrame*>(value);
+    RefPtr frameObject = jsFrameObject ? &jsFrameObject->wrapped() : nullptr;
+    if (!frameObject) {
+        promise.reject(Exception { ExceptionCode::TypeError, "Expected a VideoFrame object"_s });
+        return;
+    }
+
+    auto videoFrame = frameObject->internalFrame();
+    if (!videoFrame) {
+        promise.reject(Exception { ExceptionCode::TypeError, "VideoFrame object is not valid"_s });
+        return;
+    }
+
+    // FIXME: Support metadata
+    m_source->writeVideoFrame(*videoFrame, { });
+
+    frameObject->close();
+    promise.resolve();
+}
+
+void VideoTrackGenerator::Sink::close()
+{
+    callOnMainThread([source = m_source] {
+        source->endImmediatly();
+    });
+}
+
+void VideoTrackGenerator::Sink::error(String&&)
+{
+    close();
 }
 
 } // namespace WebCore

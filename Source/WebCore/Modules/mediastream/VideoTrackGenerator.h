@@ -26,6 +26,10 @@
 
 #if ENABLE(MEDIA_STREAM)
 
+#include "ExceptionOr.h"
+#include "RealtimeMediaSource.h"
+#include "WritableStreamSink.h"
+
 namespace WebCore {
 
 class MediaStreamTrack;
@@ -36,16 +40,55 @@ class VideoTrackGenerator
 {
     WTF_MAKE_ISO_ALLOCATED(VideoTrackGenerator);
 public:
-    static Ref<VideoTrackGenerator> create(ScriptExecutionContext& context) { return adoptRef(*new VideoTrackGenerator(context)); }
+    static ExceptionOr<Ref<VideoTrackGenerator>> create(ScriptExecutionContext&);
     ~VideoTrackGenerator();
     
     void setMuted(bool);
     bool muted() const { return m_muted; }
-    
+
+    Ref<WritableStream> writable();
+    Ref<MediaStreamTrack> track();
+
 private:
-    explicit VideoTrackGenerator(ScriptExecutionContext&);
+    VideoTrackGenerator(Ref<WritableStream>&&, Ref<MediaStreamTrack>&&);
+
+    class Source final : public RealtimeMediaSource, public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop> {
+    public:
+        static Ref<Source> create() { return adoptRef(*new Source()); }
+
+        void ref() const final { ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop>::ref(); }
+        void deref() const final { ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop>::deref(); }
+        ThreadSafeWeakPtrControlBlock& controlBlock() const final { return ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop>::controlBlock(); }
+
+        void writeVideoFrame(VideoFrame& frame, VideoFrameTimeMetadata metadata) { videoFrameAvailable(frame, metadata); }
+
+    private:
+        Source();
+
+        const RealtimeMediaSourceCapabilities& capabilities() final { return m_capabilities; }
+        const RealtimeMediaSourceSettings& settings() final { return m_settings; }
+
+        RealtimeMediaSourceCapabilities m_capabilities;
+        RealtimeMediaSourceSettings m_settings;
+    };
+
+    class Sink final : public WritableStreamSink {
+    public:
+        static Ref<Sink> create(Ref<Source>&& source) { return adoptRef(*new Sink(WTFMove(source))); }
+
+    private:
+        explicit Sink(Ref<Source>&&);
     
+        void write(ScriptExecutionContext&, JSC::JSValue, DOMPromiseDeferred<void>&&) final;
+        void close() final;
+        void error(String&&) final;
+
+        Ref<Source> m_source;
+    };
+
     bool m_muted { false };
+    Ref<WritableStream> m_writable;
+    Ref<MediaStreamTrack> m_track;
 };
 
 } // namespace WebCore

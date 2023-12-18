@@ -31,7 +31,7 @@
 ] interface VideoTrackGenerator {
     [CallWith=CurrentScriptExecutionContext] constructor();
 
-    // readonly attribute WritableStream writable;
+    readonly attribute WritableStream writable;
     attribute boolean muted;
-    // readonly attribute MediaStreamTrack track;
+    readonly attribute MediaStreamTrack track;
 };
