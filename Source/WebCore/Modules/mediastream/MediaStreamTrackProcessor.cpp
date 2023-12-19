@@ -39,7 +39,7 @@ ExceptionOr<Ref<MediaStreamTrackProcessor>> MediaStreamTrackProcessor::create(Sc
     if (!init.track->isVideo())
         return Exception { ExceptionCode::TypeError, "Track is not video"_s };
 
-    if (!init.track->ended())
+    if (init.track->ended())
         return Exception { ExceptionCode::TypeError, "Track is ended"_s };
 
     return adoptRef(*new MediaStreamTrackProcessor(context, init.track->source()));
