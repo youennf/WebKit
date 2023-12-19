@@ -47,7 +47,7 @@ ExceptionOr<Ref<MediaStreamTrackProcessor>> MediaStreamTrackProcessor::create(Sc
 
 MediaStreamTrackProcessor::MediaStreamTrackProcessor(ScriptExecutionContext& context, Ref<RealtimeMediaSource>&& realtimeVideoSource)
     : ContextDestructionObserver(&context)
-    , m_videoFrameObserver(makeUnique<VideoFrameObserver>(context.identifier(), *this, WTFMove(realtimeVideoSource)))
+    , m_videoFrameObserverWrapper(VideoFrameObserverWrapper::create(context.identifier(), *this, WTFMove(realtimeVideoSource)))
 {
 }
 
@@ -65,7 +65,7 @@ ExceptionOr<Ref<ReadableStream>> MediaStreamTrackProcessor::readable(JSC::JSGlob
             return readableOrException.releaseException();
         m_readableStreamSource = WTFMove(readableStreamSource);
         m_readable = readableOrException.releaseReturnValue();
-        m_videoFrameObserver->start();
+        m_videoFrameObserverWrapper->start();
     }
     
     return Ref { *m_readable };
@@ -79,8 +79,7 @@ void MediaStreamTrackProcessor::contextDestroyed()
 
 void MediaStreamTrackProcessor::stopVideoFrameObserver()
 {
-    if (m_videoFrameObserver)
-        callOnMainThread([observer = WTFMove(m_videoFrameObserver)] { });
+    m_videoFrameObserverWrapper = nullptr;
 }
 
 void MediaStreamTrackProcessor::trackEnded(MediaStreamTrackPrivate&)
@@ -92,27 +91,51 @@ void MediaStreamTrackProcessor::trackEnded(MediaStreamTrackPrivate&)
 void MediaStreamTrackProcessor::tryEnqueueingVideoFrame()
 {
     RefPtr context = scriptExecutionContext();
-    if (!context || !!m_videoFrameObserver || !m_readableStreamSource || !m_readableStreamSource->isWaiting())
+    if (!context || !!m_videoFrameObserverWrapper || !m_readableStreamSource || !m_readableStreamSource->isWaiting())
         return;
 
-    if (auto videoFrame = m_videoFrameObserver->takeVideoFrame(*context))
+    if (auto videoFrame = m_videoFrameObserverWrapper->takeVideoFrame(*context))
         m_readableStreamSource->enqueue(*videoFrame, *context);
 }
 
-MediaStreamTrackProcessor::VideoFrameObserver::VideoFrameObserver(ScriptExecutionContextIdentifier identifier, MediaStreamTrackProcessor& processor, Ref<RealtimeMediaSource>&& source)
+Ref<MediaStreamTrackProcessor::VideoFrameObserverWrapper> MediaStreamTrackProcessor::VideoFrameObserverWrapper::create(ScriptExecutionContextIdentifier identifier, MediaStreamTrackProcessor& processor, Ref<RealtimeMediaSource>&& source)
+{
+    auto wrapper = adoptRef(*new VideoFrameObserverWrapper);
+    wrapper->initialize(identifier, processor, WTFMove(source));
+    return wrapper;
+}
+
+MediaStreamTrackProcessor::VideoFrameObserverWrapper::VideoFrameObserverWrapper()
+{
+}
+
+void MediaStreamTrackProcessor::VideoFrameObserverWrapper::initialize(ScriptExecutionContextIdentifier identifier, MediaStreamTrackProcessor& processor, Ref<RealtimeMediaSource>&& source)
+{
+    callOnMainThread([protectedThis = Ref { *this }, identifier, processor = WeakPtr { processor }, source = WTFMove(source)] () mutable {
+        protectedThis->m_observer = makeUnique<VideoFrameObserver>(identifier, WTFMove(processor), WTFMove(source));
+    });
+}
+
+void MediaStreamTrackProcessor::VideoFrameObserverWrapper::start()
+{
+    callOnMainThread([protectedThis = Ref { *this }] {
+        protectedThis->m_observer->start();
+    });
+}
+
+MediaStreamTrackProcessor::VideoFrameObserver::VideoFrameObserver(ScriptExecutionContextIdentifier identifier, WeakPtr<MediaStreamTrackProcessor>&& processor, Ref<RealtimeMediaSource>&& source)
     : m_contextIdentifier(identifier)
-    , m_processor(processor)
+    , m_processor(WTFMove(processor))
     , m_realtimeVideoSource(WTFMove(source))
 {
+    ASSERT(isMainThread());
 }
 
 void MediaStreamTrackProcessor::VideoFrameObserver::start()
 {
+    ASSERT(isMainThread());
     m_isStarted = true;
-    ASSERT(!isMainThread());
-    callOnMainThread([this, source = m_realtimeVideoSource] {
-        source->addVideoFrameObserver(*this);
-    });
+    m_realtimeVideoSource->addVideoFrameObserver(*this);
 }
 
 MediaStreamTrackProcessor::VideoFrameObserver::~VideoFrameObserver()

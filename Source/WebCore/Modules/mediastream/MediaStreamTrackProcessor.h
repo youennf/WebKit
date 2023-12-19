@@ -75,11 +75,10 @@ private:
     class VideoFrameObserver final : private RealtimeMediaSource::VideoFrameObserver {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        explicit VideoFrameObserver(ScriptExecutionContextIdentifier, MediaStreamTrackProcessor&, Ref<RealtimeMediaSource>&&);
+        explicit VideoFrameObserver(ScriptExecutionContextIdentifier, WeakPtr<MediaStreamTrackProcessor>&&, Ref<RealtimeMediaSource>&&);
         ~VideoFrameObserver();
 
         void start();
-
         RefPtr<WebCodecsVideoFrame> takeVideoFrame(ScriptExecutionContext&);
 
     private:
@@ -94,6 +93,21 @@ private:
         Lock m_videoFrameLock;
         RefPtr<VideoFrame> m_videoFrame WTF_GUARDED_BY_LOCK(m_videoFrameLock);
         VideoFrameTimeMetadata m_metadata WTF_GUARDED_BY_LOCK(m_videoFrameLock);
+    };
+
+    class VideoFrameObserverWrapper : public ThreadSafeRefCounted<VideoFrameObserverWrapper, WTF::DestructionThread::Main> {
+    public:
+        static Ref<VideoFrameObserverWrapper> create(ScriptExecutionContextIdentifier, MediaStreamTrackProcessor&, Ref<RealtimeMediaSource>&&);
+
+        void start();
+        RefPtr<WebCodecsVideoFrame> takeVideoFrame(ScriptExecutionContext& context) { return m_observer->takeVideoFrame(context); }
+
+    private:
+        VideoFrameObserverWrapper();
+
+        void initialize(ScriptExecutionContextIdentifier, MediaStreamTrackProcessor&, Ref<RealtimeMediaSource>&&);
+
+        std::unique_ptr<VideoFrameObserver> m_observer;
     };
 
     class Source final : public ReadableStreamSource {
@@ -119,7 +133,7 @@ private:
 
     RefPtr<ReadableStream> m_readable;
     RefPtr<Source> m_readableStreamSource;
-    std::unique_ptr<VideoFrameObserver> m_videoFrameObserver;
+    RefPtr<VideoFrameObserverWrapper> m_videoFrameObserverWrapper;
 };
 
 } // namespace WebCore
