@@ -63,8 +63,8 @@ public:
         virtual void readyStateChanged(MediaStreamTrackPrivate&) { };
     };
 
-    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&);
-    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id);
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, Function<void(Function<void()>&&)>&& postTask = { });
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&& postTask = { });
 
     WEBCORE_EXPORT virtual ~MediaStreamTrackPrivate();
 
@@ -137,7 +137,7 @@ public:
     friend class MediaStreamTrackPrivateSourceObserverWrapper;
 
 private:
-    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&& postTask = { });
+    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&&);
 
     // RealtimeMediaSource::Observer
     void sourceStarted() final;

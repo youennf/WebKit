@@ -130,7 +130,7 @@ public:
 
     virtual Ref<RealtimeMediaSource> clone() { return *this; }
 
-    const AtomString& hashedId() const;
+    const String& hashedId() const;
     const MediaDeviceHashSalts& deviceIDHashSalts() const;
 
     const String& persistentID() const { return m_device.persistentId(); }
@@ -340,8 +340,8 @@ private:
 
     PageIdentifier m_pageIdentifier;
     MediaDeviceHashSalts m_idHashSalts;
-    AtomString m_hashedID;
-    AtomString m_ephemeralHashedID;
+    String m_hashedID;
+    String m_ephemeralHashedID;
     Type m_type;
     String m_name;
     WeakHashSet<Observer> m_observers;

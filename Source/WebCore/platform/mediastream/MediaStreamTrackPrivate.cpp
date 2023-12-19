@@ -48,14 +48,14 @@
 
 namespace WebCore {
 
-Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source)
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, Function<void(Function<void()>&&)>&& postTask)
 {
-    return create(WTFMove(logger), WTFMove(source), createVersion4UUIDString());
+    return create(WTFMove(logger), WTFMove(source), createVersion4UUIDString(), WTFMove(postTask));
 }
 
-Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, String&& id)
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, String&& id, Function<void(Function<void()>&&)>&& postTask)
 {
-    return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(source), WTFMove(id)));
+    return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(source), WTFMove(id), WTFMove(postTask)));
 }
 
 // We need when hitting main thread to send back all source states, since they may have changed.
