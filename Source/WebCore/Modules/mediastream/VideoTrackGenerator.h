@@ -43,14 +43,15 @@ public:
     static ExceptionOr<Ref<VideoTrackGenerator>> create(ScriptExecutionContext&);
     ~VideoTrackGenerator();
     
-    void setMuted(bool);
-    bool muted() const { return m_muted; }
+    void setMuted(ScriptExecutionContext&, bool);
+    bool muted(ScriptExecutionContext&) const { return m_muted; }
 
     Ref<WritableStream> writable();
     Ref<MediaStreamTrack> track();
 
 private:
-    VideoTrackGenerator(Ref<WritableStream>&&, Ref<MediaStreamTrack>&&);
+    class Sink;
+    VideoTrackGenerator(Ref<Sink>&&, Ref<WritableStream>&&, Ref<MediaStreamTrack>&&);
 
     class Source final : public RealtimeMediaSource, public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop> {
     public:
@@ -76,6 +77,8 @@ private:
     public:
         static Ref<Sink> create(Ref<Source>&& source) { return adoptRef(*new Sink(WTFMove(source))); }
 
+        void setMuted(bool muted) { m_muted = muted;}
+
     private:
         explicit Sink(Ref<Source>&&);
     
@@ -83,10 +86,13 @@ private:
         void close() final;
         void error(String&&) final;
 
+        bool m_muted { false };
         Ref<Source> m_source;
     };
 
     bool m_muted { false };
+    bool m_hasMutedChanged { false };
+    Ref<Sink> m_sink;
     Ref<WritableStream> m_writable;
     Ref<MediaStreamTrack> m_track;
 };

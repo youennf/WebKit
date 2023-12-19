@@ -40,7 +40,8 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(VideoTrackGenerator);
 ExceptionOr<Ref<VideoTrackGenerator>> VideoTrackGenerator::create(ScriptExecutionContext& context)
 {
     auto source = Source::create();
-    auto writableOrException = WritableStream::create(*JSC::jsCast<JSDOMGlobalObject*>(context.globalObject()), Sink::create(Ref { source }));
+    auto sink = Sink::create(Ref { source });
+    auto writableOrException = WritableStream::create(*JSC::jsCast<JSDOMGlobalObject*>(context.globalObject()), Ref { sink });
 
     if (writableOrException.hasException())
         return writableOrException.releaseException();
@@ -54,11 +55,12 @@ ExceptionOr<Ref<VideoTrackGenerator>> VideoTrackGenerator::create(ScriptExecutio
             task();
         });
     }));
-    return adoptRef(*new VideoTrackGenerator(writableOrException.releaseReturnValue(), WTFMove(track)));
+    return adoptRef(*new VideoTrackGenerator(WTFMove(sink), writableOrException.releaseReturnValue(), WTFMove(track)));
 }
 
-VideoTrackGenerator::VideoTrackGenerator(Ref<WritableStream>&& writable, Ref<MediaStreamTrack>&& track)
-    : m_writable(WTFMove(writable))
+VideoTrackGenerator::VideoTrackGenerator(Ref<Sink>&& sink, Ref<WritableStream>&& writable, Ref<MediaStreamTrack>&& track)
+    : m_sink(WTFMove(sink))
+    , m_writable(WTFMove(writable))
     , m_track(WTFMove(track))
 {
 }
@@ -67,10 +69,21 @@ VideoTrackGenerator::~VideoTrackGenerator()
 {
 }
 
-void VideoTrackGenerator::setMuted(bool muted)
+void VideoTrackGenerator::setMuted(ScriptExecutionContext& context, bool muted)
 {
-    // FIXME: propagate muted to source.
+    if (muted == m_muted)
+        return;
+
     m_muted = muted;
+    if (m_hasMutedChanged)
+        return;
+
+    m_hasMutedChanged = true;
+    context.postTask([this, protectedThis = Ref { *this }] (auto&) {
+        m_hasMutedChanged = false;
+        m_track->privateTrack().setMuted(m_muted);
+        m_sink->setMuted(m_muted);
+    });
 }
 
 Ref<WritableStream> VideoTrackGenerator::writable()
@@ -95,6 +108,9 @@ VideoTrackGenerator::Sink::Sink(Ref<Source>&& source)
 
 void VideoTrackGenerator::Sink::write(ScriptExecutionContext&, JSC::JSValue value, DOMPromiseDeferred<void>&& promise)
 {
+    if (m_muted)
+        return;
+
     auto* jsFrameObject = jsCast<JSWebCodecsVideoFrame*>(value);
     RefPtr frameObject = jsFrameObject ? &jsFrameObject->wrapped() : nullptr;
     if (!frameObject) {
@@ -108,8 +124,8 @@ void VideoTrackGenerator::Sink::write(ScriptExecutionContext&, JSC::JSValue valu
         return;
     }
 
-    // FIXME: Support metadata
-    m_source->writeVideoFrame(*videoFrame, { });
+    if (!m_muted)
+        m_source->writeVideoFrame(*videoFrame, { });
 
     frameObject->close();
     promise.resolve();
