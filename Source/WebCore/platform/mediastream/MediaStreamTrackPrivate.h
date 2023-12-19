@@ -38,6 +38,7 @@ namespace WebCore {
 
 class GraphicsContext;
 class MediaSample;
+class MediaStreamTrackPrivateSourceObserverWrapper;
 class RealtimeMediaSourceCapabilities;
 class WebAudioSourceProvider;
 
@@ -133,8 +134,10 @@ public:
     const void* logIdentifier() const final { return m_logIdentifier; }
 #endif
 
+    friend class MediaStreamTrackPrivateSourceObserverWrapper;
+
 private:
-    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id);
+    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&& postTask = { });
 
     // RealtimeMediaSource::Observer
     void sourceStarted() final;
@@ -146,6 +149,10 @@ private:
     void audioUnitWillStart() final;
     void hasStartedProducingData() final;
 
+    void sourceMutedChanged(bool interrupted, bool muted);
+    void sourceSettingsChanged(RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&);
+    void sourceConfigurationChanged(RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&);
+
     void updateReadyState();
 
     void forEachObserver(const Function<void(Observer&)>&);
@@ -153,6 +160,10 @@ private:
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const final { return "MediaStreamTrackPrivate"; }
     WTFLogChannel& logChannel() const final;
+#endif
+
+#if ASSERT_ENABLED
+    bool isOnCreationThread();
 #endif
 
     WeakHashSet<Observer> m_observers;
@@ -178,6 +189,10 @@ private:
     bool m_isInterrupted { false };
     RealtimeMediaSourceSettings m_settings;
     RealtimeMediaSourceCapabilities m_capabilities;
+#if ASSERT_ENABLED
+    uint32_t m_creationThreadId { 0 };
+#endif
+    RefPtr<MediaStreamTrackPrivateSourceObserverWrapper> m_sourceObserver;
 };
 
 typedef Vector<Ref<MediaStreamTrackPrivate>> MediaStreamTrackPrivateVector;
