@@ -42,12 +42,13 @@ ExceptionOr<Ref<MediaStreamTrackProcessor>> MediaStreamTrackProcessor::create(Sc
     if (init.track->ended())
         return Exception { ExceptionCode::TypeError, "Track is ended"_s };
 
-    return adoptRef(*new MediaStreamTrackProcessor(context, init.track->source()));
+    return adoptRef(*new MediaStreamTrackProcessor(context, *init.track));
 }
 
-MediaStreamTrackProcessor::MediaStreamTrackProcessor(ScriptExecutionContext& context, Ref<RealtimeMediaSource>&& realtimeVideoSource)
+MediaStreamTrackProcessor::MediaStreamTrackProcessor(ScriptExecutionContext& context, Ref<MediaStreamTrack>&& track)
     : ContextDestructionObserver(&context)
-    , m_videoFrameObserverWrapper(VideoFrameObserverWrapper::create(context.identifier(), *this, WTFMove(realtimeVideoSource)))
+    , m_videoFrameObserverWrapper(VideoFrameObserverWrapper::create(context.identifier(), *this, Ref { track->source() }))
+    , m_track(WTFMove(track))
 {
 }
 
@@ -59,7 +60,7 @@ MediaStreamTrackProcessor::~MediaStreamTrackProcessor()
 ExceptionOr<Ref<ReadableStream>> MediaStreamTrackProcessor::readable(JSC::JSGlobalObject& globalObject)
 {
     if (!m_readable) {
-        auto readableStreamSource = Source::create();
+        auto readableStreamSource = Source::create(m_track.get(), *this);
         auto readableOrException = ReadableStream::create(*JSC::jsCast<JSDOMGlobalObject*>(&globalObject), readableStreamSource.get());
         if (readableOrException.hasException())
             return readableOrException.releaseException();
@@ -82,16 +83,10 @@ void MediaStreamTrackProcessor::stopVideoFrameObserver()
     m_videoFrameObserverWrapper = nullptr;
 }
 
-void MediaStreamTrackProcessor::trackEnded(MediaStreamTrackPrivate&)
-{
-    if (m_readableStreamSource)
-        m_readableStreamSource->close();
-}
-
 void MediaStreamTrackProcessor::tryEnqueueingVideoFrame()
 {
     RefPtr context = scriptExecutionContext();
-    if (!context || !!m_videoFrameObserverWrapper || !m_readableStreamSource || !m_readableStreamSource->isWaiting())
+    if (!context || !m_videoFrameObserverWrapper || !m_readableStreamSource || !m_readableStreamSource->isWaiting())
         return;
 
     if (auto videoFrame = m_videoFrameObserverWrapper->takeVideoFrame(*context))
@@ -151,8 +146,12 @@ RefPtr<WebCodecsVideoFrame> MediaStreamTrackProcessor::VideoFrameObserver::takeV
     if (!m_videoFrame)
         return nullptr;
 
-    // FIXME: use metadata.
-    return WebCodecsVideoFrame::create(context, m_videoFrame.releaseNonNull(), { });
+    WebCodecsVideoFrame::BufferInit init;
+    init.codedWidth = m_videoFrame->presentationSize().width();
+    init.codedHeight = m_videoFrame->presentationSize().height();
+    init.colorSpace = m_videoFrame->colorSpace();
+
+    return WebCodecsVideoFrame::create(context, m_videoFrame.releaseNonNull(), WTFMove(init));
 }
 
 void MediaStreamTrackProcessor::VideoFrameObserver::videoFrameAvailable(VideoFrame& frame, VideoFrameTimeMetadata metadata)
@@ -166,6 +165,23 @@ void MediaStreamTrackProcessor::VideoFrameObserver::videoFrameAvailable(VideoFra
         if (auto protectedProcessor = processor.get())
             protectedProcessor->tryEnqueueingVideoFrame();
     });
+}
+
+MediaStreamTrackProcessor::Source::Source(Ref<MediaStreamTrack>&& track, MediaStreamTrackProcessor& processor)
+    : m_track(WTFMove(track))
+    , m_processor(processor)
+{
+    m_track->privateTrack().addObserver(*this);
+}
+
+MediaStreamTrackProcessor::Source::~Source()
+{
+    m_track->privateTrack().removeObserver(*this);
+}
+
+void MediaStreamTrackProcessor::Source::trackEnded(MediaStreamTrackPrivate&)
+{
+    close();
 }
 
 bool MediaStreamTrackProcessor::Source::isWaiting() const
@@ -193,6 +209,13 @@ void MediaStreamTrackProcessor::Source::enqueue(WebCodecsVideoFrame& frame, Scri
     auto value = toJS(globalObject, globalObject, frame);
     if (!m_isCancelled)
         controller().enqueue(value);
+
+    pullFinished();
+}
+
+void MediaStreamTrackProcessor::Source::doStart()
+{
+    startFinished();
 }
 
 void MediaStreamTrackProcessor::Source::doPull()
