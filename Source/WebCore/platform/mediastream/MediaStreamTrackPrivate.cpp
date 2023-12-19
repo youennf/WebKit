@@ -34,6 +34,7 @@
 #include "IntRect.h"
 #include "Logging.h"
 #include "PlatformMediaSessionManager.h"
+#include <wtf/CrossThreadCopier.h>
 #include <wtf/NativePromise.h>
 #include <wtf/UUID.h>
 
@@ -64,28 +65,26 @@ public:
 
     void requestToEnd()
     {
-        callOnMainThread([protectedThis = Ref { *this }] {
+        ensureOnMainThread([protectedThis = Ref { *this }] {
             protectedThis->m_observer->requestToEnd();
         });
     }
 
     void setMuted(bool muted)
     {
-        callOnMainThread([protectedThis = Ref { *this }, muted] {
+        ensureOnMainThread([protectedThis = Ref { *this }, muted] {
             protectedThis->m_observer->setMuted(muted);
         });
     }
 
     void applyConstraints(const MediaConstraints& constraints, RealtimeMediaSource::ApplyConstraintsHandler&& completionHandler)
     {
-        // FIXME: isolate copy constraints.
         m_applyConstraintsCallbacks.add(++m_applyConstraintsCallbacksIdentifier, WTFMove(completionHandler));
-        callOnMainThread([this, protectedThis = Ref { *this }, constraints, identifier = m_applyConstraintsCallbacksIdentifier] () mutable {
+        ensureOnMainThread([this, protectedThis = Ref { *this }, constraints = crossThreadCopy(constraints), identifier = m_applyConstraintsCallbacksIdentifier] () mutable {
             m_observer->applyConstraints(constraints, [weakObserver = WeakPtr { *m_observer }, protectedThis = WTFMove(protectedThis), identifier] (auto&& result) mutable {
                 if (!weakObserver)
                     return;
-                // FIXME: isolate copy result.
-                weakObserver->postTask([protectedThis = WTFMove(protectedThis), result = WTFMove(result), identifier] () mutable {
+                weakObserver->postTask([protectedThis = WTFMove(protectedThis), result = crossThreadCopy(WTFMove(result)), identifier] () mutable {
                     if (auto callback = protectedThis->m_applyConstraintsCallbacks.take(identifier))
                         callback(WTFMove(result));
                 });
@@ -97,20 +96,36 @@ private:
     class Observer final : public RealtimeMediaSource::Observer {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        Observer(WeakPtr<MediaStreamTrackPrivate>&& privateTrack, Ref<RealtimeMediaSource>&& source, Function<void(Function<void()>&&)>&& postTask, bool shouldPreventSourceFromEnding)
+        Observer(WeakPtr<MediaStreamTrackPrivate>&& privateTrack, Ref<RealtimeMediaSource>&& source, Function<void(Function<void()>&&)>&& postTask)
             : m_privateTrack(WTFMove(privateTrack))
             , m_source(WTFMove(source))
             , m_postTask(WTFMove(postTask))
-            , m_shouldPreventSourceFromEnding(shouldPreventSourceFromEnding)
         {
             ASSERT(isMainThread());
+        }
+
+        void initialize(bool interrupted, bool muted)
+        {
+            ASSERT(isMainThread());
+            if (m_source->isEnded()) {
+                sourceStopped();
+                return;
+            }
+
+            if (muted != m_source->muted() || interrupted != m_source->interrupted())
+                sourceMutedChanged();
+
+            // FIXME: We should check for settings capabilities changes.
+
+            m_isStarted = true;
             m_source->addObserver(*this);
         }
 
         ~Observer()
         {
             ASSERT(isMainThread());
-            m_source->removeObserver(*this);
+            if (m_isStarted)
+                m_source->removeObserver(*this);
         }
 
         void requestToEnd()
@@ -152,14 +167,14 @@ private:
         void sourceMutedChanged() final
         {
             sendToMediaStreamTrackPrivate([muted = m_source->muted(), interrupted = m_source->interrupted()] (auto& privateTrack) {
-                privateTrack.sourceMutedChanged(muted, interrupted);
+                privateTrack.sourceMutedChanged(interrupted, muted);
             });
         }
 
         void sourceSettingsChanged() final
         {
             // We need to isolate copy.
-            sendToMediaStreamTrackPrivate([settings = m_source->settings(), capabilities = m_source->capabilities()] (auto& privateTrack) mutable {
+            sendToMediaStreamTrackPrivate([settings = crossThreadCopy(m_source->settings()), capabilities = crossThreadCopy(m_source->capabilities())] (auto& privateTrack) mutable {
                 privateTrack.sourceSettingsChanged(WTFMove(settings), WTFMove(capabilities));
             });
         }
@@ -167,14 +182,13 @@ private:
         void sourceConfigurationChanged() final
         {
             // We need to isolate copy.
-            sendToMediaStreamTrackPrivate([settings = m_source->settings(), capabilities = m_source->capabilities()] (auto& privateTrack) mutable {
+            sendToMediaStreamTrackPrivate([settings = crossThreadCopy(m_source->settings()), capabilities = crossThreadCopy(m_source->capabilities())] (auto& privateTrack) mutable {
                 privateTrack.sourceConfigurationChanged(WTFMove(settings), WTFMove(capabilities));
             });
         }
 
         void hasStartedProducingData() final
         {
-            // We need to isolate copy.
             sendToMediaStreamTrackPrivate([] (auto& privateTrack) {
                 privateTrack.hasStartedProducingData();
             });
@@ -196,14 +210,15 @@ private:
         Ref<RealtimeMediaSource> m_source;
         Function<void(Function<void()>&&)> m_postTask;
         bool m_shouldPreventSourceFromEnding { true };
+        bool m_isStarted { true };
     };
 
 private:
     MediaStreamTrackPrivateSourceObserverWrapper(MediaStreamTrackPrivate& privateTrack, Function<void(Function<void()>&&)>&& postTask)
     {
-        callOnMainThread([this, protectedThis = Ref { *this }, privateTrack = WeakPtr { privateTrack }, postTask = WTFMove(postTask), source = Ref { privateTrack.source() }, shouldPreventSourceFromEnding = !privateTrack.ended()] () mutable {
-            // FIXME: We need to send back muted, interrupted, ended, settings and capabilities.
-            m_observer = makeUnique<Observer>(WTFMove(privateTrack), WTFMove(source), WTFMove(postTask), shouldPreventSourceFromEnding);
+        callOnMainThread([this, protectedThis = Ref { *this }, privateTrack = WeakPtr { privateTrack }, postTask = WTFMove(postTask), source = Ref { privateTrack.source() }, interrupted = privateTrack.interrupted(), muted = privateTrack.muted()] () mutable {
+            m_observer = makeUnique<Observer>(WTFMove(privateTrack), WTFMove(source), WTFMove(postTask));
+            m_observer->initialize(interrupted, muted);
         });
     }
 
@@ -351,7 +366,6 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::clone()
 {
     ASSERT(isOnCreationThread());
 
-    // FIXME: We should be able to clone without blocking in worker thread.
     RefPtr<RealtimeMediaSource> sourceClone;
     callOnMainThreadAndWait([&] {
         sourceClone = m_source->clone();

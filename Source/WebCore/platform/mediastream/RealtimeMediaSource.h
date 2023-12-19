@@ -156,7 +156,7 @@ public:
 
     virtual bool interrupted() const { return false; }
 
-    const AtomString& name() const { return m_name; }
+    const String& name() const { return m_name; }
 
     double fitnessScore() const { return m_fitnessScore; }
 
@@ -223,6 +223,7 @@ public:
     struct ApplyConstraintsError {
         String badConstraint;
         String message;
+        ApplyConstraintsError isolatedCopy() && { return { WTFMove(badConstraint).isolatedCopy(), WTFMove(message).isolatedCopy() }; }
     };
     using ApplyConstraintsHandler = CompletionHandler<void(std::optional<ApplyConstraintsError>&&)>;
     virtual void applyConstraints(const MediaConstraints&, ApplyConstraintsHandler&&);
@@ -311,7 +312,7 @@ protected:
 
     void setType(Type);
 
-    void setName(const AtomString&);
+    void setName(const String&);
     void setPersistentId(const String&);
 
     bool hasSeveralVideoFrameObserversWithAdaptors() const { return m_videoFrameObserversWithAdaptors > 1; }
@@ -342,7 +343,7 @@ private:
     AtomString m_hashedID;
     AtomString m_ephemeralHashedID;
     Type m_type;
-    AtomString m_name;
+    String m_name;
     WeakHashSet<Observer> m_observers;
 
     mutable Lock m_audioSampleObserversLock;
@@ -406,7 +407,7 @@ struct CaptureSourceOrError {
 
 String convertEnumerationToString(RealtimeMediaSource::Type);
 
-inline void RealtimeMediaSource::setName(const AtomString& name)
+inline void RealtimeMediaSource::setName(const String& name)
 {
     m_name = name;
 }
