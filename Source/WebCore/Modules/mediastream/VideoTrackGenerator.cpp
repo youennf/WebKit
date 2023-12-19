@@ -49,7 +49,11 @@ ExceptionOr<Ref<VideoTrackGenerator>> VideoTrackGenerator::create(ScriptExecutio
         source->start();
     });
 
-    auto track = MediaStreamTrack::create(context, MediaStreamTrackPrivate::create(Logger::create(&context), WTFMove(source)));
+    auto track = MediaStreamTrack::create(context, MediaStreamTrackPrivate::create(Logger::create(&context), WTFMove(source), [identifier = context.identifier()](Function<void()>&& task) {
+        ScriptExecutionContext::postTaskTo(identifier, [task = WTFMove(task)] (auto&) mutable {
+            task();
+        });
+    }));
     return adoptRef(*new VideoTrackGenerator(writableOrException.releaseReturnValue(), WTFMove(track)));
 }
 
