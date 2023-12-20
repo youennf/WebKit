@@ -742,6 +742,29 @@ bool MediaStreamTrack::wantsToCaptureAudio() const
     return !ended() && (!muted() || m_private->interrupted());
 }
 
+UniqueRef<MediaStreamTrackDataHolder> MediaStreamTrack::toDataHolder()
+{
+    // FIXME: We need to clone the track if it is a capture track to keep the privacy indicator ok.
+    m_isDetached = true;
+    return m_private->toDataHolder();
+}
+
+Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder)
+{
+    RefPtr<MediaStreamTrackPrivate> privateTrack;
+    if (context.isDocument())
+        privateTrack = MediaStreamTrackPrivate::create(downcast<Document>(context).logger(), WTFMove(dataHolder->source), WTFMove(dataHolder->trackId));
+    else {
+        privateTrack = MediaStreamTrackPrivate::create(Logger::create(&context), WTFMove(dataHolder), [identifier = context.identifier()](Function<void()>&& task) {
+            ScriptExecutionContext::postTaskTo(identifier, [task = WTFMove(task)] (auto&) mutable {
+                task();
+            });
+        });
+    }
+
+    return MediaStreamTrack::create(context, privateTrack.releaseNonNull());
+}
+
 #if !RELEASE_LOG_DISABLED
 WTFLogChannel& MediaStreamTrack::logChannel() const
 {

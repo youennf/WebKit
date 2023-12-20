@@ -38,6 +38,7 @@ namespace WebCore {
 
 class GraphicsContext;
 class MediaSample;
+struct MediaStreamTrackDataHolder;
 class MediaStreamTrackPrivateSourceObserverWrapper;
 class RealtimeMediaSourceCapabilities;
 class WebAudioSourceProvider;
@@ -63,6 +64,7 @@ public:
         virtual void readyStateChanged(MediaStreamTrackPrivate&) { };
     };
 
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, Function<void(Function<void()>&&)>&&);
     static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, Function<void(Function<void()>&&)>&& postTask = { });
     static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&& postTask = { });
 
@@ -136,8 +138,11 @@ public:
 
     friend class MediaStreamTrackPrivateSourceObserverWrapper;
 
+    UniqueRef<MediaStreamTrackDataHolder> toDataHolder();
+
 private:
     MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&&);
+    MediaStreamTrackPrivate(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, Function<void(Function<void()>&&)>&&);
 
     // RealtimeMediaSource::Observer
     void sourceStarted() final;

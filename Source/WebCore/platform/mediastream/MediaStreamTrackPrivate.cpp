@@ -33,6 +33,7 @@
 #include "GraphicsContext.h"
 #include "IntRect.h"
 #include "Logging.h"
+#include "MediaStreamTrackDataHolder.h"
 #include "PlatformMediaSessionManager.h"
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/NativePromise.h>
@@ -56,6 +57,11 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&&
 Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, String&& id, Function<void(Function<void()>&&)>&& postTask)
 {
     return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(source), WTFMove(id), WTFMove(postTask)));
+}
+
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, Function<void(Function<void()>&&)>&& postTask)
+{
+    return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(dataHolder), WTFMove(postTask)));
 }
 
 // We need when hitting main thread to send back all source states, since they may have changed.
@@ -261,6 +267,31 @@ MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& trackLogger
 #endif
 
     m_source->addObserver(*this);
+}
+
+MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, Function<void(Function<void()>&&)>&& postTask)
+    : m_source(WTFMove(dataHolder->source))
+    , m_id(WTFMove(dataHolder->trackId))
+    , m_label(WTFMove(dataHolder->label))
+    , m_type(dataHolder->type)
+    , m_deviceType(dataHolder->deviceType)
+    , m_isCaptureTrack(false)
+    , m_captureDidFail(false)
+    , m_logger(WTFMove(logger))
+#if !RELEASE_LOG_DISABLED
+    , m_logIdentifier(uniqueLogIdentifier())
+#endif
+    , m_isProducingData(dataHolder->isProducingData)
+    , m_isMuted(dataHolder->muted)
+    , m_isInterrupted(dataHolder->interrupted)
+    , m_settings(WTFMove(dataHolder->settings))
+    , m_capabilities(WTFMove(dataHolder->capabilities))
+#if ASSERT_ENABLED
+    , m_creationThreadId(isMainThread() ? 0 : Thread::current().uid())
+#endif
+{
+    ASSERT(postTask);
+    m_sourceObserver = MediaStreamTrackPrivateSourceObserverWrapper::create(*this, WTFMove(postTask));
 }
 
 MediaStreamTrackPrivate::~MediaStreamTrackPrivate()
@@ -552,6 +583,23 @@ void MediaStreamTrackPrivate::audioUnitWillStart()
     ASSERT(isMainThread());
     if (!m_isEnded)
         PlatformMediaSessionManager::sharedManager().sessionCanProduceAudioChanged();
+}
+
+UniqueRef<MediaStreamTrackDataHolder> MediaStreamTrackPrivate::toDataHolder()
+{
+    return makeUniqueRef<MediaStreamTrackDataHolder>(
+        m_isProducingData,
+        m_isEnabled,
+        m_isEnded,
+        m_isMuted,
+        m_isInterrupted,
+        m_id.isolatedCopy(),
+        m_label.isolatedCopy(),
+        m_type,
+        m_deviceType,
+        m_settings.isolatedCopy(),
+        m_capabilities.isolatedCopy(),
+        Ref { m_source });
 }
 
 #if !RELEASE_LOG_DISABLED
