@@ -397,11 +397,7 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::clone()
 {
     ASSERT(isOnCreationThread());
 
-    RefPtr<RealtimeMediaSource> sourceClone;
-    callOnMainThreadAndWait([&] {
-        sourceClone = m_source->clone();
-    });
-    auto clonedMediaStreamTrackPrivate = create(m_logger.copyRef(), sourceClone.releaseNonNull());
+    auto clonedMediaStreamTrackPrivate = create(m_logger.copyRef(), m_source->clone());
 
     ALWAYS_LOG(LOGIDENTIFIER, clonedMediaStreamTrackPrivate->logIdentifier());
 

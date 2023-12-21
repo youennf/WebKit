@@ -128,6 +128,7 @@ public:
 
     virtual ~RealtimeMediaSource();
 
+    // Can be called in worker threads.
     virtual Ref<RealtimeMediaSource> clone() { return *this; }
 
     const String& hashedId() const;
