@@ -101,6 +101,38 @@ VideoTrackGenerator::Source::Source()
 {
 }
 
+void VideoTrackGenerator::Source::writeVideoFrame(VideoFrame& frame, VideoFrameTimeMetadata metadata)
+{
+    auto frameSize = IntSize(frame.presentationSize());
+    if (frame.rotation() == VideoFrame::Rotation::Left || frame.rotation() == VideoFrame::Rotation::Right)
+        frameSize = frameSize.transposedSize();
+
+    if (m_videoFrameSize != frameSize) {
+        m_videoFrameSize = frameSize;
+        callOnMainThread([this, protectedThis = Ref { *this }, frameSize] {
+            RealtimeMediaSourceSupportedConstraints supportedConstraints;
+            supportedConstraints.setSupportsWidth(true);
+            supportedConstraints.setSupportsHeight(true);
+
+            if (m_maxVideoFrameSize.width() < frameSize.width() || m_maxVideoFrameSize.height() < frameSize.height()) {
+                m_maxVideoFrameSize.clampToMinimumSize(frameSize);
+
+                m_capabilities = RealtimeMediaSourceCapabilities { supportedConstraints };
+                m_capabilities.setWidth({ 0, m_maxVideoFrameSize.width() });
+                m_capabilities.setHeight({ 0, m_maxVideoFrameSize.height() });
+            }
+
+            m_settings.setSupportedConstraints(supportedConstraints);
+            m_settings.setWidth(frameSize.width());
+            m_settings.setHeight(frameSize.height());
+
+            setSize(frameSize);
+        });
+    }
+
+    videoFrameAvailable(frame, metadata);
+}
+
 VideoTrackGenerator::Sink::Sink(Ref<Source>&& source)
     : m_source(WTFMove(source))
 {
@@ -108,9 +140,6 @@ VideoTrackGenerator::Sink::Sink(Ref<Source>&& source)
 
 void VideoTrackGenerator::Sink::write(ScriptExecutionContext&, JSC::JSValue value, DOMPromiseDeferred<void>&& promise)
 {
-    if (m_muted)
-        return;
-
     auto* jsFrameObject = jsCast<JSWebCodecsVideoFrame*>(value);
     RefPtr frameObject = jsFrameObject ? &jsFrameObject->wrapped() : nullptr;
     if (!frameObject) {

@@ -61,7 +61,7 @@ private:
         void deref() const final { ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop>::deref(); }
         ThreadSafeWeakPtrControlBlock& controlBlock() const final { return ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<Source, WTF::DestructionThread::MainRunLoop>::controlBlock(); }
 
-        void writeVideoFrame(VideoFrame& frame, VideoFrameTimeMetadata metadata) { videoFrameAvailable(frame, metadata); }
+        void writeVideoFrame(VideoFrame&, VideoFrameTimeMetadata);
 
     private:
         Source();
@@ -71,6 +71,8 @@ private:
 
         RealtimeMediaSourceCapabilities m_capabilities;
         RealtimeMediaSourceSettings m_settings;
+        IntSize m_videoFrameSize;
+        IntSize m_maxVideoFrameSize;
     };
 
     class Sink final : public WritableStreamSink {
