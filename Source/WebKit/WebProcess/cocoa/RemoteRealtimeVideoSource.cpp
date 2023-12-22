@@ -78,6 +78,7 @@ Ref<RealtimeMediaSource> RemoteRealtimeVideoSource::clone()
 
         clone = adoptRef(*new RemoteRealtimeVideoSource(proxy().clone(), MediaDeviceHashSalts { deviceIDHashSalts() }, manager(), pageIdentifier()));
 
+        clone->m_registerOwnerCallback = m_registerOwnerCallback;
         clone->setSettings(RealtimeMediaSourceSettings { settings() });
         clone->setCapabilities(RealtimeMediaSourceCapabilities { capabilities() });
 

@@ -378,6 +378,9 @@ void RealtimeMediaSource::start()
     m_isProducingData = true;
     startProducingData();
 
+    if (m_registerOwnerCallback)
+        m_registerOwnerCallback(*this);
+
     if (!m_isProducingData)
         return;
 
@@ -426,10 +429,19 @@ void RealtimeMediaSource::end(Observer* callingObserver)
     m_isEnded = true;
     didEnd();
 
+    if (m_registerOwnerCallback)
+        m_registerOwnerCallback(*this);
+
     forEachObserver([&callingObserver](auto& observer) {
         if (&observer != callingObserver)
             observer.sourceStopped();
     });
+}
+
+void RealtimeMediaSource::registerOwnerCallback(std::function<void(RealtimeMediaSource&)>&& callback)
+{
+    ASSERT(isMainThread());
+    m_registerOwnerCallback = WTFMove(callback);
 }
 
 void RealtimeMediaSource::captureFailed()

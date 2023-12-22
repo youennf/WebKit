@@ -49,17 +49,17 @@
 
 namespace WebCore {
 
-Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, Function<void(Function<void()>&&)>&& postTask)
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, std::function<void(Function<void()>&&)>&& postTask)
 {
     return create(WTFMove(logger), WTFMove(source), createVersion4UUIDString(), WTFMove(postTask));
 }
 
-Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, String&& id, Function<void(Function<void()>&&)>&& postTask)
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, Ref<RealtimeMediaSource>&& source, String&& id, std::function<void(Function<void()>&&)>&& postTask)
 {
     return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(source), WTFMove(id), WTFMove(postTask)));
 }
 
-Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, Function<void(Function<void()>&&)>&& postTask)
+Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, std::function<void(Function<void()>&&)>&& postTask)
 {
     return adoptRef(*new MediaStreamTrackPrivate(WTFMove(logger), WTFMove(dataHolder), WTFMove(postTask)));
 }
@@ -67,7 +67,26 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::create(Ref<const Logger>&&
 // We need when hitting main thread to send back all source states, since they may have changed.
 class MediaStreamTrackPrivateSourceObserverWrapper : public ThreadSafeRefCounted<MediaStreamTrackPrivateSourceObserverWrapper, WTF::DestructionThread::Main> {
 public:
-    static Ref<MediaStreamTrackPrivateSourceObserverWrapper> create(MediaStreamTrackPrivate& privateTrack, Function<void(Function<void()>&&)>&& postTask) { return adoptRef(*new MediaStreamTrackPrivateSourceObserverWrapper(privateTrack, WTFMove(postTask))); }
+    static Ref<MediaStreamTrackPrivateSourceObserverWrapper> create(MediaStreamTrackPrivate& privateTrack, std::function<void(Function<void()>&&)>&& postTask) { return adoptRef(*new MediaStreamTrackPrivateSourceObserverWrapper(privateTrack, WTFMove(postTask))); }
+
+    std::function<void(Function<void()>&&)> getPostTask()
+    {
+        return m_postTask;
+    }
+
+    void start()
+    {
+        ensureOnMainThread([protectedThis = Ref { *this }] {
+            protectedThis->m_observer->start();
+        });
+    }
+
+    void stop()
+    {
+        ensureOnMainThread([protectedThis = Ref { *this }] {
+            protectedThis->m_observer->stop();
+        });
+    }
 
     void requestToEnd()
     {
@@ -102,12 +121,17 @@ private:
     class Observer final : public RealtimeMediaSource::Observer {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        Observer(WeakPtr<MediaStreamTrackPrivate>&& privateTrack, Ref<RealtimeMediaSource>&& source, Function<void(Function<void()>&&)>&& postTask)
+        Observer(WeakPtr<MediaStreamTrackPrivate>&& privateTrack, Ref<RealtimeMediaSource>&& source, std::function<void(Function<void()>&&)>&& postTask)
             : m_privateTrack(WTFMove(privateTrack))
             , m_source(WTFMove(source))
             , m_postTask(WTFMove(postTask))
         {
             ASSERT(isMainThread());
+        }
+
+        std::function<void(Function<void()>&&)> getPostTask()
+        {
+            return m_postTask;
         }
 
         void initialize(bool interrupted, bool muted)
@@ -132,6 +156,16 @@ private:
             ASSERT(isMainThread());
             if (m_isStarted)
                 m_source->removeObserver(*this);
+        }
+
+        void start()
+        {
+            m_source->start();
+        }
+
+        void stop()
+        {
+            m_source->stop();
         }
 
         void requestToEnd()
@@ -214,14 +248,15 @@ private:
 
         WeakPtr<MediaStreamTrackPrivate> m_privateTrack;
         Ref<RealtimeMediaSource> m_source;
-        Function<void(Function<void()>&&)> m_postTask;
+        std::function<void(Function<void()>&&)> m_postTask;
         bool m_shouldPreventSourceFromEnding { true };
         bool m_isStarted { true };
     };
 
 private:
-    MediaStreamTrackPrivateSourceObserverWrapper(MediaStreamTrackPrivate& privateTrack, Function<void(Function<void()>&&)>&& postTask)
+    MediaStreamTrackPrivateSourceObserverWrapper(MediaStreamTrackPrivate& privateTrack, std::function<void(Function<void()>&&)>&& postTask)
     {
+        m_postTask = postTask;
         callOnMainThread([this, protectedThis = Ref { *this }, privateTrack = WeakPtr { privateTrack }, postTask = WTFMove(postTask), source = Ref { privateTrack.source() }, interrupted = privateTrack.interrupted(), muted = privateTrack.muted()] () mutable {
             m_observer = makeUnique<Observer>(WTFMove(privateTrack), WTFMove(source), WTFMove(postTask));
             m_observer->initialize(interrupted, muted);
@@ -229,11 +264,12 @@ private:
     }
 
     std::unique_ptr<Observer> m_observer;
+    std::function<void(Function<void()>&&)> m_postTask;
     HashMap<uint64_t, RealtimeMediaSource::ApplyConstraintsHandler> m_applyConstraintsCallbacks;
     uint64_t m_applyConstraintsCallbacksIdentifier { 0 };
 };
 
-MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& trackLogger, Ref<RealtimeMediaSource>&& source, String&& id, Function<void(Function<void()>&&)>&& postTask)
+MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& trackLogger, Ref<RealtimeMediaSource>&& source, String&& id, std::function<void(Function<void()>&&)>&& postTask)
     : m_source(WTFMove(source))
     , m_id(WTFMove(id))
     , m_label(m_source->name())
@@ -269,7 +305,7 @@ MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& trackLogger
     m_source->addObserver(*this);
 }
 
-MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, Function<void(Function<void()>&&)>&& postTask)
+MediaStreamTrackPrivate::MediaStreamTrackPrivate(Ref<const Logger>&& logger, UniqueRef<MediaStreamTrackDataHolder>&& dataHolder, std::function<void(Function<void()>&&)>&& postTask)
     : m_source(WTFMove(dataHolder->source))
     , m_id(WTFMove(dataHolder->trackId))
     , m_label(WTFMove(dataHolder->label))
@@ -338,6 +374,33 @@ void MediaStreamTrackPrivate::setContentHint(HintValue hintValue)
     m_contentHint = hintValue;
 }
 
+void MediaStreamTrackPrivate::startProducingData()
+{
+    if (m_sourceObserver) {
+        m_sourceObserver->start();
+        return;
+    }
+
+
+    m_source->start();
+}
+
+void MediaStreamTrackPrivate::stopProducingData()
+{
+    if (m_sourceObserver) {
+        m_sourceObserver->stop();
+        return;
+    }
+
+    m_source->stop();
+}
+
+void MediaStreamTrackPrivate::setIsInBackground(bool value)
+{
+    ASSERT(isMainThread());
+    m_source->setIsInBackground(value);
+}
+
 void MediaStreamTrackPrivate::setMuted(bool muted)
 {
     ASSERT(isOnCreationThread());
@@ -397,7 +460,10 @@ Ref<MediaStreamTrackPrivate> MediaStreamTrackPrivate::clone()
 {
     ASSERT(isOnCreationThread());
 
-    auto clonedMediaStreamTrackPrivate = create(m_logger.copyRef(), m_source->clone());
+    std::function<void(Function<void()>&&)> postTask;
+    if (m_sourceObserver)
+        postTask = m_sourceObserver->getPostTask();
+    auto clonedMediaStreamTrackPrivate = create(m_logger.copyRef(), m_source->clone(), WTFMove(postTask));
 
     ALWAYS_LOG(LOGIDENTIFIER, clonedMediaStreamTrackPrivate->logIdentifier());
 

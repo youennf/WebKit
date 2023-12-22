@@ -33,21 +33,18 @@ class PreventSourceFromEndingObserverWrapper : public ThreadSafeRefCounted<Preve
 public:
     static Ref<PreventSourceFromEndingObserverWrapper> create(Ref<RealtimeMediaSource>&& source)
     {
-        auto wrapper = adoptRef(*new PreventSourceFromEndingObserverWrapper(WTFMove(source)));
-        wrapper->initialize();
+        auto wrapper = adoptRef(*new PreventSourceFromEndingObserverWrapper);
+        wrapper->initialize(WTFMove(source));
         return wrapper;
     }
 
 private:
-    explicit PreventSourceFromEndingObserverWrapper(Ref<RealtimeMediaSource>&& source)
-        : m_observer(makeUniqueRef<PreventSourceFromEndingObserver>(WTFMove(source)))
-    {
-    }
+    PreventSourceFromEndingObserverWrapper() = default;
 
-    void initialize()
+    void initialize(Ref<RealtimeMediaSource>&& source)
     {
-        ensureOnMainThread([protectedThis = Ref { *this }] {
-            protectedThis->m_observer->initialize();
+        ensureOnMainThread([protectedThis = Ref { *this }, source = WTFMove(source)] () mutable {
+            protectedThis->m_observer = makeUnique<PreventSourceFromEndingObserver>(WTFMove(source));
         });
     }
 
@@ -57,25 +54,21 @@ private:
         explicit PreventSourceFromEndingObserver(Ref<RealtimeMediaSource>&& source)
             : m_source(WTFMove(source))
         {
-        }
-
-        void initialize()
-        {
-            ASSERT(isMainThread());
             m_source->addObserver(*this);
         }
         
-        ~PreventSourceFromEndingObserver() {
-            ASSERT(isMainThread());
+        ~PreventSourceFromEndingObserver()
+        {
             m_source->removeObserver(*this);
         }
+
     private:
         bool preventSourceFromEnding() final { return true; }
         
         Ref<RealtimeMediaSource> m_source;
     };
 
-    UniqueRef<PreventSourceFromEndingObserver> m_observer;
+    std::unique_ptr<PreventSourceFromEndingObserver> m_observer;
 };
 
 MediaStreamTrackDataHolder::MediaStreamTrackDataHolder(bool isProducingData, bool enabled, bool ended, bool muted, bool interrupted, String&& trackId, String&& label, RealtimeMediaSource::Type type, CaptureDevice::DeviceType deviceType, RealtimeMediaSourceSettings&& settings, RealtimeMediaSourceCapabilities&& capabilities, Ref<RealtimeMediaSource>&& source)

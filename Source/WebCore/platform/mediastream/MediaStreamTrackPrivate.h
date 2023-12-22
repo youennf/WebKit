@@ -64,9 +64,9 @@ public:
         virtual void readyStateChanged(MediaStreamTrackPrivate&) { };
     };
 
-    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, Function<void(Function<void()>&&)>&&);
-    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, Function<void(Function<void()>&&)>&& postTask = { });
-    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&& postTask = { });
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, std::function<void(Function<void()>&&)>&&);
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, std::function<void(Function<void()>&&)>&& postTask = { });
+    static Ref<MediaStreamTrackPrivate> create(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, std::function<void(Function<void()>&&)>&& postTask = { });
 
     WEBCORE_EXPORT virtual ~MediaStreamTrackPrivate();
 
@@ -81,8 +81,8 @@ public:
     HintValue contentHint() const { return m_contentHint; }
     void setContentHint(HintValue);
     
-    void startProducingData() { m_source->start(); }
-    void stopProducingData() { m_source->stop(); }
+    void startProducingData();
+    void stopProducingData();
     bool isProducingData() const { return m_isProducingData; }
 
     bool muted() const { return m_isMuted; }
@@ -90,7 +90,7 @@ public:
     bool interrupted() const { return m_isInterrupted; }
     bool captureDidFail() const { return m_captureDidFail; }
 
-    void setIsInBackground(bool value) { m_source->setIsInBackground(value); }
+    void setIsInBackground(bool);
 
     bool isCaptureTrack() const { return m_isCaptureTrack; }
 
@@ -141,8 +141,8 @@ public:
     UniqueRef<MediaStreamTrackDataHolder> toDataHolder();
 
 private:
-    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, Function<void(Function<void()>&&)>&&);
-    MediaStreamTrackPrivate(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, Function<void(Function<void()>&&)>&&);
+    MediaStreamTrackPrivate(Ref<const Logger>&&, Ref<RealtimeMediaSource>&&, String&& id, std::function<void(Function<void()>&&)>&&);
+    MediaStreamTrackPrivate(Ref<const Logger>&&, UniqueRef<MediaStreamTrackDataHolder>&&, std::function<void(Function<void()>&&)>&&);
 
     // RealtimeMediaSource::Observer
     void sourceStarted() final;

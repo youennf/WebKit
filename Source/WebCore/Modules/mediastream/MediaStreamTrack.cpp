@@ -65,14 +65,6 @@
 
 namespace WebCore {
 
-static HashSet<MediaStreamTrack*>& allCaptureTracks()
-{
-    static NeverDestroyed<HashSet<MediaStreamTrack*>> captureTracks;
-    return captureTracks;
-}
-
-static MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate&);
-
 WTF_MAKE_ISO_ALLOCATED_IMPL(MediaStreamTrack);
 
 Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, Ref<MediaStreamTrackPrivate>&& privateTrack)
@@ -81,7 +73,7 @@ Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, 
     track->suspendIfNeeded();
 
     if (track->isCaptureTrack())
-        track->updateToPageMutedState();
+        downcast<Document>(context).addCaptureSource(track->privateTrack().source());
 
     return track;
 }
@@ -110,7 +102,6 @@ MediaStreamTrack::MediaStreamTrack(ScriptExecutionContext& context, Ref<MediaStr
     }
 
     m_isInterrupted = m_private->interrupted();
-    allCaptureTracks().add(this);
 
     if (m_private->isAudio())
         PlatformMediaSessionManager::sharedManager().addAudioCaptureSource(*this);
@@ -122,8 +113,6 @@ MediaStreamTrack::~MediaStreamTrack()
 
     if (!isCaptureTrack())
         return;
-
-    allCaptureTracks().remove(this);
 
     if (m_private->isAudio())
         PlatformMediaSessionManager::sharedManager().removeAudioCaptureSource(*this);
@@ -430,19 +419,7 @@ void MediaStreamTrack::removeObserver(Observer& observer)
     m_observers.removeFirst(&observer);
 }
 
-MediaProducerMediaStateFlags MediaStreamTrack::mediaState() const
-{
-    if (m_ended || !isCaptureTrack())
-        return MediaProducer::IsNotPlaying;
-
-    RefPtr context = scriptExecutionContext();
-    if (!context || !is<Document>(context) || !downcast<Document>(context)->page())
-        return MediaProducer::IsNotPlaying;
-
-    return trackCaptureState(privateTrack());
-}
-
-MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate& privateTrack)
+static MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate& privateTrack)
 {
     switch (privateTrack.deviceType()) {
     case CaptureDevice::DeviceType::Microphone:
@@ -486,114 +463,16 @@ MediaProducerMediaStateFlags trackCaptureState(const MediaStreamTrackPrivate& pr
     return MediaProducer::IsNotPlaying;
 }
 
-MediaProducerMediaStateFlags MediaStreamTrack::captureState(Document& document)
+MediaProducerMediaStateFlags MediaStreamTrack::mediaState() const
 {
-    MediaProducerMediaStateFlags state;
-    for (RefPtr captureTrack : allCaptureTracks()) {
-        if (captureTrack->scriptExecutionContext() != &document || captureTrack->ended())
-            continue;
-        state.add(trackCaptureState(captureTrack->privateTrack()));
-    }
-    return state;
-}
+    if (m_ended || !isCaptureTrack())
+        return MediaProducer::IsNotPlaying;
 
-void MediaStreamTrack::updateCaptureAccordingToMutedState(Document& document)
-{
-    RELEASE_LOG_INFO(WebRTC, "MediaStreamTrack::updateCaptureAccordingToMutedState");
-
-    for (RefPtr captureTrack : allCaptureTracks()) {
-        if (captureTrack->scriptExecutionContext() == &document && !captureTrack->ended())
-            captureTrack->updateToPageMutedState();
-    }
-}
-
-void MediaStreamTrack::updateVideoCaptureAccordingMicrophoneInterruption(Document& document, bool isMicrophoneInterrupted)
-{
-    RELEASE_LOG_INFO(WebRTC, "MediaStreamTrack::updateVideoCaptureAccordingMicrophoneInterruption %d", isMicrophoneInterrupted);
-
-    auto* page = document.page();
-    for (RefPtr captureTrack : allCaptureTracks()) {
-        RefPtr context = captureTrack->scriptExecutionContext();
-        if (!context || downcast<Document>(context)->page() != page)
-            continue;
-        Ref privateTrack = captureTrack->privateTrack();
-        if (!privateTrack->ended() && privateTrack->deviceType() == CaptureDevice::DeviceType::Camera)
-            privateTrack->setMuted(isMicrophoneInterrupted);
-    }
-}
-
-void MediaStreamTrack::updateToPageMutedState()
-{
-    ASSERT(isCaptureTrack());
     RefPtr context = scriptExecutionContext();
+    if (!context || !is<Document>(context) || !downcast<Document>(context)->page())
+        return MediaProducer::IsNotPlaying;
 
-    if (!context)
-        return;
-
-    ASSERT(is<Document>(context));
-    auto& document = downcast<Document>(*context);
-    auto* page = document.page();
-    if (!page)
-        return;
-
-    switch (privateTrack().deviceType()) {
-    case CaptureDevice::DeviceType::Microphone:
-#if PLATFORM(IOS_FAMILY)
-        if (document.settings().manageCaptureStatusBarInGPUProcessEnabled() && !document.settings().interruptAudioOnPageVisibilityChangeEnabled())
-            m_private->setIsInBackground(document.hidden());
-#endif
-        m_private->setMuted(page->mutedState().contains(MediaProducerMutedState::AudioCaptureIsMuted)
-            || (document.hidden() && document.settings().interruptAudioOnPageVisibilityChangeEnabled()));
-        break;
-    case CaptureDevice::DeviceType::Camera:
-        m_private->setMuted(page->mutedState().contains(MediaProducerMutedState::VideoCaptureIsMuted)
-            || (document.hidden() && document.settings().interruptVideoOnPageVisibilityChangeEnabled()));
-        break;
-    case CaptureDevice::DeviceType::Screen:
-    case CaptureDevice::DeviceType::Window:
-        m_private->setMuted(page->mutedState().contains(MediaProducerMutedState::ScreenCaptureIsMuted));
-        break;
-    case CaptureDevice::DeviceType::SystemAudio:
-    case CaptureDevice::DeviceType::Speaker:
-    case CaptureDevice::DeviceType::Unknown:
-        ASSERT_NOT_REACHED();
-        break;
-    }
-}
-
-static MediaProducerMediaCaptureKind trackTypeForMediaProducerCaptureKind(CaptureDevice::DeviceType type)
-{
-    switch (type) {
-    case CaptureDevice::DeviceType::Microphone:
-        return MediaProducerMediaCaptureKind::Microphone;
-    case CaptureDevice::DeviceType::SystemAudio:
-        return MediaProducerMediaCaptureKind::SystemAudio;
-    case CaptureDevice::DeviceType::Camera:
-        return MediaProducerMediaCaptureKind::Camera;
-    case CaptureDevice::DeviceType::Screen:
-    case CaptureDevice::DeviceType::Window:
-        return MediaProducerMediaCaptureKind::Display;
-    case CaptureDevice::DeviceType::Speaker:
-    case CaptureDevice::DeviceType::Unknown:
-        break;
-    }
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-void MediaStreamTrack::endCapture(Document& document, MediaProducerMediaCaptureKind kind)
-{
-    bool didEndCapture = false;
-    for (RefPtr captureTrack : allCaptureTracks()) {
-        RefPtr trackDocument = downcast<Document>(captureTrack->scriptExecutionContext());
-        if (trackDocument != &document)
-            continue;
-        if (kind != MediaProducerMediaCaptureKind::EveryKind && kind != trackTypeForMediaProducerCaptureKind(captureTrack->privateTrack().deviceType()))
-            continue;
-        captureTrack->stopTrack(MediaStreamTrack::StopMode::PostEvent);
-        didEndCapture = true;
-    }
-    if (didEndCapture)
-        document.updateIsPlayingMedia();
+    return trackCaptureState(privateTrack());
 }
 
 void MediaStreamTrack::trackStarted(MediaStreamTrackPrivate&)
@@ -665,8 +544,9 @@ void MediaStreamTrack::trackMutedChanged(MediaStreamTrackPrivate&)
 
     bool wasInterrupted = m_isInterrupted;
     m_isInterrupted = m_private->interrupted();
-    if (isCaptureTrack() && wasInterrupted != m_isInterrupted && m_private->type() == RealtimeMediaSource::Type::Audio && context->settingsValues().muteCameraOnMicrophoneInterruptionEnabled)
-        updateVideoCaptureAccordingMicrophoneInterruption(*downcast<Document>(context), m_isInterrupted);
+    if (isCaptureTrack() && wasInterrupted != m_isInterrupted && m_private->type() == RealtimeMediaSource::Type::Audio && context->settingsValues().muteCameraOnMicrophoneInterruptionEnabled) {
+        downcast<Document>(context)->updateVideoCaptureAccordingMicrophoneInterruption(m_isInterrupted);
+    }
 }
 
 void MediaStreamTrack::trackSettingsChanged(MediaStreamTrackPrivate&)
@@ -744,7 +624,6 @@ bool MediaStreamTrack::wantsToCaptureAudio() const
 
 UniqueRef<MediaStreamTrackDataHolder> MediaStreamTrack::toDataHolder()
 {
-    // FIXME: We need to clone the track if it is a capture track to keep the privacy indicator ok.
     m_isDetached = true;
     return m_private->toDataHolder();
 }

@@ -73,11 +73,6 @@ public:
     static Ref<MediaStreamTrack> create(ScriptExecutionContext&, UniqueRef<MediaStreamTrackDataHolder>&&);
     virtual ~MediaStreamTrack();
 
-    static void endCapture(Document&, MediaProducerMediaCaptureKind);
-
-    static MediaProducerMediaStateFlags captureState(Document&);
-    static void updateCaptureAccordingToMutedState(Document&);
-
     virtual bool isCanvas() const { return false; }
 
     const AtomString& kind() const;
@@ -190,7 +185,6 @@ private:
     explicit MediaStreamTrack(MediaStreamTrack&);
 
     void configureTrackRendering();
-    void updateToPageMutedState();
 
     // ActiveDOMObject API.
     void stop() final { stopTrack(); }
@@ -214,8 +208,6 @@ private:
     // PlatformMediaSession::AudioCaptureSource
     bool isCapturingAudio() const final;
     bool wantsToCaptureAudio() const final;
-
-    void updateVideoCaptureAccordingMicrophoneInterruption(Document&, bool);
 
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const final { return "MediaStreamTrack"; }

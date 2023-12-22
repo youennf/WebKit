@@ -1,0 +1,7 @@
+
+PASS Transfer MediaStreamTrack to dedicated worker and use MediaStreamTrackProcessor
+PASS Transferred audio track get muted/unmuted according page state
+PASS Transferred video track get muted/unmuted according page state
+PASS Page state gets updated when transferred tracks get stopped
+FAIL Page state gets updated when clones of transferred tracks get stopped assert_equals: expected "HasActiveAudioCaptureDevice,HasActiveVideoCaptureDevice" but got "HasActiveAudioCaptureDevice"
+
