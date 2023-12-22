@@ -154,9 +154,10 @@ private:
     void audioUnitWillStart() final;
     void hasStartedProducingData() final;
 
+    void sourceStopped(bool captureDidFail);
     void sourceMutedChanged(bool interrupted, bool muted);
     void sourceSettingsChanged(RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&);
-    void sourceConfigurationChanged(RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&);
+    void sourceConfigurationChanged(String&&, RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&);
 
     void updateReadyState();
 

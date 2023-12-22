@@ -72,7 +72,7 @@ Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, 
     auto track = adoptRef(*new MediaStreamTrack(context, WTFMove(privateTrack)));
     track->suspendIfNeeded();
 
-    if (track->isCaptureTrack())
+    if (track->isCaptureTrack() && !track->ended())
         downcast<Document>(context).addCaptureSource(track->privateTrack().source());
 
     return track;

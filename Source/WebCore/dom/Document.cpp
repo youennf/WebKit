@@ -4982,7 +4982,6 @@ void Document::addCaptureSource(Ref<RealtimeMediaSource>&& source)
 {
     ASSERT(!source->isEnded());
 
-    fprintf(stderr, "Document::addCaptureSource %p\n", source.ptr());
     RefPtr page = this->page();
     if (!page)
         return;
@@ -4994,20 +4993,15 @@ void Document::addCaptureSource(Ref<RealtimeMediaSource>&& source)
     });
 
     m_captureSources.add(WTFMove(source));
-
-    fprintf(stderr, "Document::addCaptureSource %d\n", (int)m_mediaState.toRaw());
 }
 
 void Document::captureSourceStateChanged(RealtimeMediaSource& source)
 {
-    fprintf(stderr, "Document::removeCaptureSource %p\n", &source);
     if (source.isEnded())
         m_captureSources.remove(source);
-    else
+    else if (!m_captureSources.contains(source)) // This test is needed as we might be iterating m_captureSources in Document::updateCaptureAccordingToMutedState. FIXME: find a better way, we only need to add new sources from a cloned track.
         m_captureSources.add(source);
     updateIsPlayingMedia();
-
-    fprintf(stderr, "Document::removeCaptureSource %d\n", (int)m_mediaState.toRaw());
 }
 
 void Document::updateCaptureAccordingToMutedState()
@@ -5015,7 +5009,7 @@ void Document::updateCaptureAccordingToMutedState()
     RefPtr page = this->page();
     if (!page)
         return;
-
+    
     for (auto& source : m_captureSources)
         updateCaptureSourceToPageMutedState(*this, *page, source.get());
 }

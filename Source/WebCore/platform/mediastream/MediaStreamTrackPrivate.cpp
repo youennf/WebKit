@@ -102,16 +102,24 @@ public:
         });
     }
 
-    void applyConstraints(const MediaConstraints& constraints, RealtimeMediaSource::ApplyConstraintsHandler&& completionHandler)
+    void close()
+    {
+        auto callbacks = std::exchange(m_applyConstraintsCallbacks, { });
+        for (auto& callback : callbacks.values())
+            callback(RealtimeMediaSource::ApplyConstraintsError { "applyConstraint cancelled"_s, ""_s }, { }, { });
+    }
+
+    using ApplyConstraintsHandler = CompletionHandler<void(std::optional<RealtimeMediaSource::ApplyConstraintsError>&&, RealtimeMediaSourceSettings&&, RealtimeMediaSourceCapabilities&&)>;
+    void applyConstraints(const MediaConstraints& constraints, ApplyConstraintsHandler&& completionHandler)
     {
         m_applyConstraintsCallbacks.add(++m_applyConstraintsCallbacksIdentifier, WTFMove(completionHandler));
         ensureOnMainThread([this, protectedThis = Ref { *this }, constraints = crossThreadCopy(constraints), identifier = m_applyConstraintsCallbacksIdentifier] () mutable {
             m_observer->applyConstraints(constraints, [weakObserver = WeakPtr { *m_observer }, protectedThis = WTFMove(protectedThis), identifier] (auto&& result) mutable {
                 if (!weakObserver)
                     return;
-                weakObserver->postTask([protectedThis = WTFMove(protectedThis), result = crossThreadCopy(WTFMove(result)), identifier] () mutable {
+                weakObserver->postTask([protectedThis = WTFMove(protectedThis), result = crossThreadCopy(WTFMove(result)), settings = crossThreadCopy(weakObserver->settings()), capabilities = crossThreadCopy(weakObserver->capabilities()), identifier] () mutable {
                     if (auto callback = protectedThis->m_applyConstraintsCallbacks.take(identifier))
-                        callback(WTFMove(result));
+                        callback(WTFMove(result), WTFMove(settings), WTFMove(capabilities));
                 });
             });
         });
@@ -158,6 +166,18 @@ private:
                 m_source->removeObserver(*this);
         }
 
+        const RealtimeMediaSourceCapabilities& capabilities()
+        {
+            ASSERT(isMainThread());
+            return m_source->capabilities();
+        }
+
+        const RealtimeMediaSourceSettings& settings()
+        {
+            ASSERT(isMainThread());
+            return m_source->settings();
+        }
+
         void start()
         {
             m_source->start();
@@ -199,8 +219,8 @@ private:
 
         void sourceStopped() final
         {
-            sendToMediaStreamTrackPrivate([] (auto& privateTrack) {
-                privateTrack.sourceStopped();
+            sendToMediaStreamTrackPrivate([captureDidFail = m_source->captureDidFail()] (auto& privateTrack) {
+                privateTrack.sourceStopped(captureDidFail);
             });
         }
 
@@ -213,7 +233,6 @@ private:
 
         void sourceSettingsChanged() final
         {
-            // We need to isolate copy.
             sendToMediaStreamTrackPrivate([settings = crossThreadCopy(m_source->settings()), capabilities = crossThreadCopy(m_source->capabilities())] (auto& privateTrack) mutable {
                 privateTrack.sourceSettingsChanged(WTFMove(settings), WTFMove(capabilities));
             });
@@ -221,9 +240,8 @@ private:
 
         void sourceConfigurationChanged() final
         {
-            // We need to isolate copy.
-            sendToMediaStreamTrackPrivate([settings = crossThreadCopy(m_source->settings()), capabilities = crossThreadCopy(m_source->capabilities())] (auto& privateTrack) mutable {
-                privateTrack.sourceConfigurationChanged(WTFMove(settings), WTFMove(capabilities));
+            sendToMediaStreamTrackPrivate([name = crossThreadCopy(m_source->name()), settings = crossThreadCopy(m_source->settings()), capabilities = crossThreadCopy(m_source->capabilities())] (auto& privateTrack) mutable {
+                privateTrack.sourceConfigurationChanged(WTFMove(name), WTFMove(settings), WTFMove(capabilities));
             });
         }
 
@@ -265,7 +283,7 @@ private:
 
     std::unique_ptr<Observer> m_observer;
     std::function<void(Function<void()>&&)> m_postTask;
-    HashMap<uint64_t, RealtimeMediaSource::ApplyConstraintsHandler> m_applyConstraintsCallbacks;
+    HashMap<uint64_t, ApplyConstraintsHandler> m_applyConstraintsCallbacks;
     uint64_t m_applyConstraintsCallbacksIdentifier { 0 };
 };
 
@@ -336,8 +354,10 @@ MediaStreamTrackPrivate::~MediaStreamTrackPrivate()
 
     ALWAYS_LOG(LOGIDENTIFIER);
 
-    if (m_sourceObserver)
+    if (m_sourceObserver) {
+        m_sourceObserver->close();
         return;
+    }
 
     m_source->removeObserver(*this);
 }
@@ -497,11 +517,25 @@ Ref<RealtimeMediaSource::TakePhotoNativePromise> MediaStreamTrackPrivate::takePh
 
 void MediaStreamTrackPrivate::applyConstraints(const MediaConstraints& constraints, RealtimeMediaSource::ApplyConstraintsHandler&& completionHandler)
 {
+    MediaStreamTrackPrivateSourceObserverWrapper::ApplyConstraintsHandler callback = [weakThis = WeakPtr { *this }, completionHandler = WTFMove(completionHandler)] (auto&& result, auto&& settings, auto&& capabilities) mutable {
+        if (RefPtr protectedThis = weakThis.get()) {
+            protectedThis->m_settings = WTFMove(settings);
+            protectedThis->m_capabilities = WTFMove(capabilities);
+        }
+        completionHandler(WTFMove(result));
+    };
     if (m_sourceObserver) {
-        m_sourceObserver->applyConstraints(constraints, WTFMove(completionHandler));
+        m_sourceObserver->applyConstraints(constraints, WTFMove(callback));
         return;
     }
-    m_source->applyConstraints(constraints, WTFMove(completionHandler));
+    m_source->applyConstraints(constraints, [callback = WTFMove(callback), weakThis = WeakPtr { *this }] (auto&& result) mutable {
+        if (!weakThis) {
+            callback(WTFMove(result), { }, { });
+            return;
+        }
+
+        callback(WTFMove(result), RealtimeMediaSourceSettings { weakThis->m_source->settings() }, RealtimeMediaSourceCapabilities { weakThis->m_source->capabilities() });
+    });
 }
 
 RefPtr<WebAudioSourceProvider> MediaStreamTrackPrivate::createAudioSourceProvider()
@@ -531,6 +565,11 @@ void MediaStreamTrackPrivate::sourceStarted()
 
 void MediaStreamTrackPrivate::sourceStopped()
 {
+    sourceStopped(m_source->captureDidFail());
+}
+
+void MediaStreamTrackPrivate::sourceStopped(bool captureDidFail)
+{
     ASSERT(isOnCreationThread());
     m_isProducingData = false;
 
@@ -540,6 +579,7 @@ void MediaStreamTrackPrivate::sourceStopped()
     ALWAYS_LOG(LOGIDENTIFIER);
 
     m_isEnded = true;
+    m_captureDidFail = captureDidFail;
     updateReadyState();
 
     forEachObserver([this](auto& observer) {
@@ -586,14 +626,15 @@ void MediaStreamTrackPrivate::sourceSettingsChanged(RealtimeMediaSourceSettings&
 void MediaStreamTrackPrivate::sourceConfigurationChanged()
 {
     ASSERT(isMainThread());
-    sourceConfigurationChanged(RealtimeMediaSourceSettings { m_source->settings() }, RealtimeMediaSourceCapabilities { m_source->capabilities() });
+    sourceConfigurationChanged(String { m_source->name() }, RealtimeMediaSourceSettings { m_source->settings() }, RealtimeMediaSourceCapabilities { m_source->capabilities() });
 }
 
-void MediaStreamTrackPrivate::sourceConfigurationChanged(RealtimeMediaSourceSettings&& settings, RealtimeMediaSourceCapabilities&& capabilities)
+void MediaStreamTrackPrivate::sourceConfigurationChanged(String&& label, RealtimeMediaSourceSettings&& settings, RealtimeMediaSourceCapabilities&& capabilities)
 {
     ASSERT(isOnCreationThread());
     ALWAYS_LOG(LOGIDENTIFIER);
 
+    m_label = WTFMove(label);
     m_settings = WTFMove(settings);
     m_capabilities = WTFMove(capabilities);
     forEachObserver([this](auto& observer) {
