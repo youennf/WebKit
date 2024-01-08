@@ -146,7 +146,7 @@ static inline bool isMediaStreamCorrectlyStarted(const MediaStream& stream)
         return false;
 
     return WTF::allOf(stream.getTracks(), [](auto& track) {
-        return !track->source().captureDidFail();
+        return !track->privateTrack().captureDidFail();
     });
 }
 

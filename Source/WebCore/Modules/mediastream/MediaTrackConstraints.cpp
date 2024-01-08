@@ -197,11 +197,7 @@ static Vector<MediaTrackConstraintSetMap> convertAdvancedToInternalForm(const st
 
 MediaConstraints createMediaConstraints(const MediaTrackConstraints& trackConstraints)
 {
-    MediaConstraints constraints;
-    constraints.mandatoryConstraints = convertToInternalForm(ConstraintSetType::Mandatory, trackConstraints);
-    constraints.advancedConstraints = convertAdvancedToInternalForm(trackConstraints.advanced);
-    constraints.isValid = true;
-    return constraints;
+    return { convertToInternalForm(ConstraintSetType::Mandatory, trackConstraints), convertAdvancedToInternalForm(trackConstraints.advanced), true };
 }
 
 }

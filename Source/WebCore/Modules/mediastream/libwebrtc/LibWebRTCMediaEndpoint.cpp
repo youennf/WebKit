@@ -27,8 +27,8 @@
 
 #if ENABLE(WEB_RTC) && USE(LIBWEBRTC)
 
-#include "DeprecatedGlobalSettings.h"
 #include "Document.h"
+#include "DeprecatedGlobalSettings.h"
 #include "EventNames.h"
 #include "JSDOMPromiseDeferred.h"
 #include "JSRTCStatsReport.h"
@@ -55,7 +55,6 @@
 #include "RealtimeIncomingVideoSource.h"
 #include "RealtimeOutgoingAudioSource.h"
 #include "RealtimeOutgoingVideoSource.h"
-#include "RegistrableDomain.h"
 #include <webrtc/rtc_base/physical_socket_server.h>
 #include <webrtc/p2p/base/basic_packet_socket_factory.h>
 #include <webrtc/p2p/client/basic_port_allocator.h>
@@ -385,7 +384,7 @@ std::pair<LibWebRTCRtpSenderBackend::Source, rtc::scoped_refptr<webrtc::MediaStr
 
 ExceptionOr<LibWebRTCMediaEndpoint::Backends> LibWebRTCMediaEndpoint::addTransceiver(MediaStreamTrack& track, const RTCRtpTransceiverInit& init)
 {
-    auto type = track.source().type() == RealtimeMediaSource::Type::Audio ? cricket::MediaType::MEDIA_TYPE_AUDIO : cricket::MediaType::MEDIA_TYPE_VIDEO;
+    auto type = track.privateTrack().type() == RealtimeMediaSource::Type::Audio ? cricket::MediaType::MEDIA_TYPE_AUDIO : cricket::MediaType::MEDIA_TYPE_VIDEO;
     auto sourceAndTrack = createSourceAndRTCTrack(track);
     return createTransceiverBackends(WTFMove(sourceAndTrack.second), fromRtpTransceiverInit(init, type), WTFMove(sourceAndTrack.first));
 }

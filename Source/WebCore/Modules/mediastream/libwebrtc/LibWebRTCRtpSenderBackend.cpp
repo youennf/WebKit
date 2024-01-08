@@ -96,12 +96,12 @@ bool LibWebRTCRtpSenderBackend::replaceTrack(RTCRtpSender& sender, MediaStreamTr
 
     if (sender.track()) {
         switchOn(m_source, [&](Ref<RealtimeOutgoingAudioSource>& source) {
-            ASSERT(track->source().type() == RealtimeMediaSource::Type::Audio);
+            ASSERT(track->privateTrack().type() == RealtimeMediaSource::Type::Audio);
             source->stop();
             source->setSource(track->privateTrack());
             source->start();
         }, [&](Ref<RealtimeOutgoingVideoSource>& source) {
-            ASSERT(track->source().type() == RealtimeMediaSource::Type::Video);
+            ASSERT(track->privateTrack().type() == RealtimeMediaSource::Type::Video);
             source->stop();
             source->setSource(track->privateTrack());
             source->start();

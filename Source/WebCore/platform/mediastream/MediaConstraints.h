@@ -642,29 +642,29 @@ public:
     void filter(const Function<bool(const MediaConstraint&)>&) const;
     bool isEmpty() const;
     WEBCORE_EXPORT size_t size() const;
-
+    
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<IntConstraint>&&);
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<DoubleConstraint>&&);
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<BooleanConstraint>&&);
     WEBCORE_EXPORT void set(MediaConstraintType, std::optional<StringConstraint>&&);
-
+    
     std::optional<IntConstraint> width() const { return m_width; }
     std::optional<IntConstraint> height() const { return m_height; }
     std::optional<IntConstraint> sampleRate() const { return m_sampleRate; }
     std::optional<IntConstraint> sampleSize() const { return m_sampleSize; }
-
+    
     std::optional<DoubleConstraint> aspectRatio() const { return m_aspectRatio; }
     std::optional<DoubleConstraint> frameRate() const { return m_frameRate; }
     std::optional<DoubleConstraint> volume() const { return m_volume; }
-
+    
     std::optional<BooleanConstraint> echoCancellation() const { return m_echoCancellation; }
     std::optional<BooleanConstraint> displaySurface() const { return m_displaySurface; }
     std::optional<BooleanConstraint> logicalSurface() const { return m_logicalSurface; }
-
+    
     std::optional<StringConstraint> facingMode() const { return m_facingMode; }
     std::optional<StringConstraint> deviceId() const { return m_deviceId; }
     std::optional<StringConstraint> groupId() const { return m_groupId; }
-
+    
     std::optional<StringConstraint> whiteBalanceMode() const { return m_whiteBalanceMode; }
     std::optional<DoubleConstraint> zoom() const { return m_zoom; }
     std::optional<BooleanConstraint> torch() const { return m_torch; }
@@ -677,19 +677,19 @@ private:
     std::optional<IntConstraint> m_height;
     std::optional<IntConstraint> m_sampleRate;
     std::optional<IntConstraint> m_sampleSize;
-
+    
     std::optional<DoubleConstraint> m_aspectRatio;
     std::optional<DoubleConstraint> m_frameRate;
     std::optional<DoubleConstraint> m_volume;
-
+    
     std::optional<BooleanConstraint> m_echoCancellation;
     std::optional<BooleanConstraint> m_displaySurface;
     std::optional<BooleanConstraint> m_logicalSurface;
-
+    
     std::optional<StringConstraint> m_facingMode;
     std::optional<StringConstraint> m_deviceId;
     std::optional<StringConstraint> m_groupId;
-
+    
     std::optional<StringConstraint> m_whiteBalanceMode;
     std::optional<DoubleConstraint> m_zoom;
     std::optional<BooleanConstraint> m_torch;
