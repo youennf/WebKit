@@ -71,11 +71,6 @@ public:
     static Ref<MediaStreamTrack> create(ScriptExecutionContext&, Ref<MediaStreamTrackPrivate>&&);
     virtual ~MediaStreamTrack();
 
-    static void endCapture(Document&, MediaProducerMediaCaptureKind);
-
-    static MediaProducerMediaStateFlags captureState(Document&);
-    static void updateCaptureAccordingToMutedState(Document&);
-
     virtual bool isCanvas() const { return false; }
 
     const AtomString& kind() const;
@@ -165,6 +160,17 @@ public:
 
     void setShouldFireMuteEventImmediately(bool value) { m_shouldFireMuteEventImmediately = value; }
 
+    struct Storage {
+        bool enabled { false };
+        bool ended { false };
+        bool muted { false };
+        RealtimeMediaSourceSettings settings;
+        RealtimeMediaSourceCapabilities capabilities;
+        RefPtr<RealtimeMediaSource> source;
+    };
+
+    bool isDetached() const { return m_isDetached; }
+
 protected:
     MediaStreamTrack(ScriptExecutionContext&, Ref<MediaStreamTrackPrivate>&&);
 
@@ -176,7 +182,6 @@ private:
     explicit MediaStreamTrack(MediaStreamTrack&);
 
     void configureTrackRendering();
-    void updateToPageMutedState();
 
     // ActiveDOMObject API.
     void stop() final { stopTrack(); }
@@ -201,8 +206,6 @@ private:
     bool isCapturingAudio() const final;
     bool wantsToCaptureAudio() const final;
 
-    void updateVideoCaptureAccordingMicrophoneInterruption(Document&, bool);
-
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const final { return "MediaStreamTrack"; }
     WTFLogChannel& logChannel() const final;
@@ -219,6 +222,7 @@ private:
     const bool m_isCaptureTrack { false };
     bool m_isInterrupted { false };
     bool m_shouldFireMuteEventImmediately { false };
+    bool m_isDetached { false };
 };
 
 typedef Vector<Ref<MediaStreamTrack>> MediaStreamTrackVector;
