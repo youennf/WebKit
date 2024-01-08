@@ -69,19 +69,24 @@ bool RemoteRealtimeVideoSource::setShouldApplyRotation(bool shouldApplyRotation)
 
 Ref<RealtimeMediaSource> RemoteRealtimeVideoSource::clone()
 {
-    if (isEnded() || proxy().isEnded())
-        return *this;
+    RefPtr<RemoteRealtimeVideoSource> clone;
+    callOnMainThreadAndWait([this, &clone] {
+        if (isEnded() || proxy().isEnded()) {
+            clone = this;
+            return;
+        }
 
-    auto source = adoptRef(*new RemoteRealtimeVideoSource(proxy().clone(), MediaDeviceHashSalts { deviceIDHashSalts() }, manager(), pageIdentifier()));
+        clone = adoptRef(*new RemoteRealtimeVideoSource(proxy().clone(), MediaDeviceHashSalts { deviceIDHashSalts() }, manager(), pageIdentifier()));
 
-    source->setSettings(RealtimeMediaSourceSettings { settings() });
-    source->setCapabilities(RealtimeMediaSourceCapabilities { capabilities() });
+        clone->m_registerOwnerCallback = m_registerOwnerCallback;
+        clone->setSettings(RealtimeMediaSourceSettings { settings() });
+        clone->setCapabilities(RealtimeMediaSourceCapabilities { capabilities() });
 
-    manager().addSource(source.copyRef());
-    manager().remoteCaptureSampleManager().addSource(source.copyRef());
-    proxy().createRemoteCloneSource(source->identifier(), pageIdentifier());
-
-    return source;
+        manager().addSource(*clone);
+        manager().remoteCaptureSampleManager().addSource(*clone);
+        proxy().createRemoteCloneSource(clone->identifier(), pageIdentifier());
+    });
+    return clone.releaseNonNull();
 }
 
 void RemoteRealtimeVideoSource::remoteVideoFrameAvailable(VideoFrame& frame, VideoFrameTimeMetadata metadata)
