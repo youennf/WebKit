@@ -1,0 +1,5 @@
+
+PASS Frames get closed when written in a VideoTrackGenerator writable
+PASS Track gets muted based on VideoTrackGenerator.muted
+PASS Test frames going from VideoTrackGenerator to MediaStreamTrackProcessor
+
