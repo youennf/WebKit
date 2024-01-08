@@ -35,6 +35,7 @@
 #include "IDLTypes.h"
 #include "JSDOMPromiseDeferred.h"
 #include "MediaProducer.h"
+#include "MediaStreamTrackDataHolder.h"
 #include "MediaStreamTrackPrivate.h"
 #include "MediaTrackCapabilities.h"
 #include "MediaTrackConstraints.h"
@@ -69,6 +70,7 @@ public:
     };
 
     static Ref<MediaStreamTrack> create(ScriptExecutionContext&, Ref<MediaStreamTrackPrivate>&&);
+    static Ref<MediaStreamTrack> create(ScriptExecutionContext&, UniqueRef<MediaStreamTrackDataHolder>&&);
     virtual ~MediaStreamTrack();
 
     virtual bool isCanvas() const { return false; }
@@ -170,6 +172,7 @@ public:
     };
 
     bool isDetached() const { return m_isDetached; }
+    UniqueRef<MediaStreamTrackDataHolder> toDataHolder();
 
 protected:
     MediaStreamTrack(ScriptExecutionContext&, Ref<MediaStreamTrackPrivate>&&);
