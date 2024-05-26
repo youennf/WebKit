@@ -389,7 +389,7 @@ RetainPtr<NSArray> WebAuthenticatorCoordinatorProxy::requestsForAssertion(const 
 
         request.get().userVerificationPreference = toASUserVerificationPreference(options.userVerification).get();
 
-        AUTHENTICATOR_COORDINATOR_ASSERTION_REQUEST_ADDITIONS
+       // AUTHENTICATOR_COORDINATOR_ASSERTION_REQUEST_ADDITIONS
 
         [requests addObject:request.leakRef()];
     }
