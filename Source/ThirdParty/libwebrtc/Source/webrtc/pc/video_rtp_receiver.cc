@@ -98,7 +98,7 @@ VideoRtpReceiver::GetFrameDecryptor() const {
   return frame_decryptor_;
 }
 
-void VideoRtpReceiver::SetDepacketizerToDecoderFrameTransformer(
+void VideoRtpReceiver::SetFrameTransformer(
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   frame_transformer_ = std::move(frame_transformer);
@@ -107,19 +107,6 @@ void VideoRtpReceiver::SetDepacketizerToDecoderFrameTransformer(
         signaled_ssrc_.value_or(0), frame_transformer_);
   }
 }
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-void VideoRtpReceiver::GenerateKeyFrame()
-{
-  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
-  worker_thread_->BlockingCall([&] {
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    if (media_channel_) {
-      media_channel_->RequestRecvKeyFrame(signaled_ssrc_.value_or(0));
-    }
-  });
-}
-#endif
 
 void VideoRtpReceiver::Stop() {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
