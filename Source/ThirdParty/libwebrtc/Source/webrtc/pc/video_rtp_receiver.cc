@@ -108,6 +108,19 @@ void VideoRtpReceiver::SetFrameTransformer(
   }
 }
 
+#if defined(WEBRTC_WEBKIT_BUILD)
+void VideoRtpReceiver::GenerateKeyFrame()
+{
+  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
+  worker_thread_->BlockingCall([&] {
+    RTC_DCHECK_RUN_ON(worker_thread_);
+    if (media_channel_) {
+      media_channel_->RequestRecvKeyFrame(signaled_ssrc_.value_or(0));
+    }
+  });
+}
+#endif
+
 void VideoRtpReceiver::Stop() {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   source_->SetState(MediaSourceInterface::kEnded);

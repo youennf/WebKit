@@ -338,16 +338,28 @@ class MediaStreamInterface : public webrtc::RefCountInterface,
   // implementations that mock this API.
   // TODO(bugs.webrtc.org/13980): Remove default implementations.
   virtual bool AddTrack(rtc::scoped_refptr<AudioTrackInterface> track) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool AddTrack(rtc::scoped_refptr<VideoTrackInterface> track) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool RemoveTrack(rtc::scoped_refptr<AudioTrackInterface> track) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool RemoveTrack(rtc::scoped_refptr<VideoTrackInterface> track) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   // Deprecated: Should use scoped_refptr versions rather than pointers.
   [[deprecated("Pass a scoped_refptr")]] virtual bool AddTrack(

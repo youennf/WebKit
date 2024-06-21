@@ -549,7 +549,11 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
   if (!enabled.Get()) {
     return config;
   }
+#if defined(WEBRTC_WEBKIT_BUILD)
+  config = Config { };
+#else
   config.emplace();
+#endif
   config->bandwidth_rampup_upper_bound_factor =
       bandwidth_rampup_upper_bound_factor.Get();
   config->bandwidth_rampup_upper_bound_factor_in_hold =

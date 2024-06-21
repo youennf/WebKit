@@ -47,6 +47,9 @@ PROXY_SECONDARY_CONSTMETHOD0(rtc::scoped_refptr<FrameDecryptorInterface>,
 PROXY_SECONDARY_METHOD1(void,
                         SetFrameTransformer,
                         rtc::scoped_refptr<FrameTransformerInterface>)
+#if defined(WEBRTC_WEBKIT_BUILD)
+PROXY_METHOD0(void, GenerateKeyFrame)
+#endif
 END_PROXY_MAP(RtpReceiver)
 
 }  // namespace webrtc

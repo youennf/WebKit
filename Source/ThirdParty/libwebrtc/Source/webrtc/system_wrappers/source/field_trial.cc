@@ -17,7 +17,9 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
+#if !defined(WEBRTC_WEBKIT_BUILD)
 #include "experiments/registered_field_trials.h"
+#endif
 #include "rtc_base/checks.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"

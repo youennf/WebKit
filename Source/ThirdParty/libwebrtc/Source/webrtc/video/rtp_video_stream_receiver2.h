@@ -436,6 +436,12 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
   rtc::scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate>
       frame_transformer_delegate_;
 
+#if defined(WEBRTC_WEBKIT_BUILD)
+  std::deque<int64_t> observedFrameTimeStamps_;
+  double observedFrameRate_ { 0 };
+  uint64_t frameCount_ { 0 };
+#endif
+
   SeqNumUnwrapper<uint16_t> rtp_seq_num_unwrapper_
       RTC_GUARDED_BY(packet_sequence_checker_);
   std::map<int64_t, RtpPacketInfo> packet_infos_

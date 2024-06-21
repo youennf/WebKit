@@ -285,7 +285,9 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
       encoder_selector_;
 
+#if !defined(WEBRTC_WEBKIT_BUILD)
   virtual RTCError GenerateKeyFrame(const std::vector<std::string>& rids) = 0;
+#endif
 };
 
 // LocalAudioSinkAdapter receives data callback as a sink to the local

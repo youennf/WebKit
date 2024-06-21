@@ -37,7 +37,11 @@ rtc::scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
     rtc::scoped_refptr<AudioMixer> audio_mixer,
     rtc::scoped_refptr<AudioProcessing> audio_processing,
     std::unique_ptr<AudioFrameProcessor> audio_frame_processor,
-    std::unique_ptr<FieldTrialsView> field_trials) {
+    std::unique_ptr<FieldTrialsView> field_trials
+#if defined(WEBRTC_WEBKIT_BUILD)
+    , std::unique_ptr<TaskQueueFactory> task_queue_factory
+#endif
+  ) {
   if (!field_trials) {
     field_trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
   }
@@ -46,8 +50,12 @@ rtc::scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
   dependencies.network_thread = network_thread;
   dependencies.worker_thread = worker_thread;
   dependencies.signaling_thread = signaling_thread;
+#if defined(WEBRTC_WEBKIT_BUILD)
+  dependencies.task_queue_factory = task_queue_factory ? std::move(task_queue_factory) : CreateDefaultTaskQueueFactory(field_trials.get());
+#else
   dependencies.task_queue_factory =
       CreateDefaultTaskQueueFactory(field_trials.get());
+#endif
   dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
   dependencies.trials = std::move(field_trials);
 

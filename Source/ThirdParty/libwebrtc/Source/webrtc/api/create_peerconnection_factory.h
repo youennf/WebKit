@@ -52,7 +52,11 @@ CreatePeerConnectionFactory(
     rtc::scoped_refptr<AudioMixer> audio_mixer,
     rtc::scoped_refptr<AudioProcessing> audio_processing,
     std::unique_ptr<AudioFrameProcessor> audio_frame_processor = nullptr,
-    std::unique_ptr<FieldTrialsView> field_trials = nullptr);
+    std::unique_ptr<FieldTrialsView> field_trials = nullptr
+#if defined(WEBRTC_WEBKIT_BUILD)
+    , std::unique_ptr<TaskQueueFactory> task_queue_factory = nullptr
+#endif
+    );
 
 }  // namespace webrtc
 
