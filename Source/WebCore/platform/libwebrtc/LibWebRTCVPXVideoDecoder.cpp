@@ -33,6 +33,7 @@
 #include "LibWebRTCDav1dDecoder.h"
 #include "Logging.h"
 #include "VideoFrameLibWebRTC.h"
+#include "WebKitDecoder.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/ThreadSafeRefCounted.h>
@@ -45,7 +46,6 @@ ALLOW_COMMA_BEGIN
 #include <webrtc/api/environment/environment_factory.h>
 #include <webrtc/modules/video_coding/codecs/vp8/include/vp8.h>
 #include <webrtc/modules/video_coding/codecs/vp9/include/vp9.h>
-#include <webrtc/sdk/WebKit/WebKitDecoder.h>
 #include <webrtc/system_wrappers/include/cpu_info.h>
 
 ALLOW_COMMA_END
@@ -73,7 +73,7 @@ private:
     LibWebRTCVPXInternalVideoDecoder(LibWebRTCVPXVideoDecoder::Type, const VideoDecoder::Config&, VideoDecoder::OutputCallback&&, VideoDecoder::PostTaskCallback&&);
     int32_t Decoded(webrtc::VideoFrame&) final;
     CVPixelBufferPoolRef pixelBufferPool(size_t width, size_t height, OSType) WTF_REQUIRES_LOCK(m_pixelBufferPoolLock);
-    CVPixelBufferRef createPixelBuffer(size_t width, size_t height, webrtc::BufferType);
+    CVPixelBufferRef createPixelBuffer(size_t width, size_t height, BufferType);
 
     VideoDecoder::OutputCallback m_outputCallback;
     VideoDecoder::PostTaskCallback m_postTaskCallback;
@@ -141,7 +141,7 @@ void LibWebRTCVPXInternalVideoDecoder::decode(std::span<const uint8_t> data, boo
     m_duration = duration;
 
     webrtc::EncodedImage image;
-    image.SetEncodedData(webrtc::WebKitEncodedImageBufferWrapper::create(const_cast<uint8_t*>(data.data()), data.size()));
+    image.SetEncodedData(WebKitEncodedImageBufferWrapper::create(const_cast<uint8_t*>(data.data()), data.size()));
     image._frameType = isKeyFrame ? webrtc::VideoFrameType::kVideoFrameKey : webrtc::VideoFrameType::kVideoFrameDelta;
 
     auto error = m_internalDecoder->Decode(image, false, 0);
@@ -203,14 +203,14 @@ CVPixelBufferPoolRef LibWebRTCVPXInternalVideoDecoder::pixelBufferPool(size_t wi
     return m_pixelBufferPool.get();
 }
 
-CVPixelBufferRef LibWebRTCVPXInternalVideoDecoder::createPixelBuffer(size_t width, size_t height, webrtc::BufferType bufferType)
+CVPixelBufferRef LibWebRTCVPXInternalVideoDecoder::createPixelBuffer(size_t width, size_t height, BufferType bufferType)
 {
     OSType pixelBufferType;
     switch (bufferType) {
-    case webrtc::BufferType::I420:
+    case BufferType::I420:
         pixelBufferType = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
         break;
-    case webrtc::BufferType::I010:
+    case BufferType::I010:
         pixelBufferType = kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange;
         break;
     default:
@@ -246,7 +246,7 @@ int32_t LibWebRTCVPXInternalVideoDecoder::Decoded(webrtc::VideoFrame& frame)
             return;
 
         auto videoFrame = VideoFrameLibWebRTC::create({ }, false, VideoFrame::Rotation::None, WTFMove(colorSpace), WTFMove(buffer), [protectedThis] (auto& buffer) {
-            return adoptCF(webrtc::createPixelBufferFromFrameBuffer(buffer, [protectedThis] (size_t width, size_t height, webrtc::BufferType bufferType) -> CVPixelBufferRef {
+            return adoptCF(createPixelBufferFromFrameBuffer(buffer, [protectedThis] (size_t width, size_t height, BufferType bufferType) -> CVPixelBufferRef {
                 return protectedThis->createPixelBuffer(width, height, bufferType);
             }));
         });

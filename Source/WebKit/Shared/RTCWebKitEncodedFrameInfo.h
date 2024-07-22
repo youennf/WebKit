@@ -27,10 +27,6 @@
 
 #if USE(LIBWEBRTC)
 
-ALLOW_COMMA_BEGIN
-
-#include <webrtc/sdk/WebKit/WebKitEncoder.h>
-
-ALLOW_COMMA_END
+#include <WebCore/WebKitEncoder.h>
 
 #endif // USE(LIBWEBRTC)

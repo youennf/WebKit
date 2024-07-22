@@ -36,17 +36,8 @@
 #include <WebCore/SharedVideoFrameInfo.h>
 #include <WebCore/VideoFrameCV.h>
 #include <WebCore/VideoFrameLibWebRTC.h>
+#include <WebCore/WebKitUtilities.h>
 #include <wtf/Scope.h>
-
-#if USE(LIBWEBRTC)
-
-ALLOW_COMMA_BEGIN
-
-#include <webrtc/sdk/WebKit/WebKitUtilities.h>
-
-ALLOW_COMMA_END
-
-#endif
 
 #include <pal/cf/CoreMediaSoftLink.h>
 #include <WebCore/CoreVideoSoftLink.h>

@@ -65,7 +65,7 @@ header: "RTCWebKitEncodedFrameInfo.h"
     int64_t ntpTimeMS
     int64_t captureTimeMS
     webrtc::VideoFrameType frameType
-    webrtc::WebKitEncodedVideoRotation rotation
+    WebKitEncodedVideoRotation rotation
     webrtc::VideoContentType contentType
     bool completeFrame
     int qp
@@ -73,7 +73,7 @@ header: "RTCWebKitEncodedFrameInfo.h"
     webrtc::WebKitEncodedFrameTiming timing;
 };
 
-enum class webrtc::WebKitEncodedVideoRotation : uint8_t {
+enum class WebKitEncodedVideoRotation : uint8_t {
     kVideoRotation_0,
     kVideoRotation_90,
     kVideoRotation_180,

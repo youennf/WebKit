@@ -29,39 +29,32 @@
 #if USE(LIBWEBRTC)
 
 #import "RTCVideoDecoderVTBAV1.h"
-
-ALLOW_UNUSED_PARAMETERS_BEGIN
-ALLOW_COMMA_BEGIN
-
-#include <webrtc/sdk/WebKit/WebKitDecoder.h>
-
-ALLOW_UNUSED_PARAMETERS_END
-ALLOW_COMMA_END
+#import "WebKitDecoder.h"
 
 namespace WebCore {
 
 class WebRTCLocalVideoDecoder final : public WebRTCVideoDecoder {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    explicit WebRTCLocalVideoDecoder(webrtc::LocalDecoder decoder)
+    explicit WebRTCLocalVideoDecoder(WebCore::LocalDecoder decoder)
         : m_decoder(decoder)
     {
     }
     ~WebRTCLocalVideoDecoder()
     {
-        webrtc::releaseLocalDecoder(m_decoder);
+        WebCore::releaseLocalDecoder(m_decoder);
     }
 
 private:
-    void flush() final { webrtc::flushLocalDecoder(m_decoder); }
-    void setFormat(std::span<const uint8_t> data, uint16_t width, uint16_t height) final { webrtc::setDecodingFormat(m_decoder, data.data(), data.size(), width, height); }
-    int32_t decodeFrame(int64_t timeStamp, std::span<const uint8_t> data) final { return webrtc::decodeFrame(m_decoder, timeStamp, data.data(), data.size()); }
-    void setFrameSize(uint16_t width, uint16_t height) final { webrtc::setDecoderFrameSize(m_decoder, width, height); }
+    void flush() final { WebCore::flushLocalDecoder(m_decoder); }
+    void setFormat(std::span<const uint8_t> data, uint16_t width, uint16_t height) final { WebCore::setDecodingFormat(m_decoder, data.data(), data.size(), width, height); }
+    int32_t decodeFrame(int64_t timeStamp, std::span<const uint8_t> data) final { return WebCore::decodeFrame(m_decoder, timeStamp, data.data(), data.size()); }
+    void setFrameSize(uint16_t width, uint16_t height) final { WebCore::setDecoderFrameSize(m_decoder, width, height); }
 
-    webrtc::LocalDecoder m_decoder;
+    WebCore::LocalDecoder m_decoder;
 };
 
-UniqueRef<WebRTCVideoDecoder> WebRTCVideoDecoder::createFromLocalDecoder(webrtc::LocalDecoder decoder)
+UniqueRef<WebRTCVideoDecoder> WebRTCVideoDecoder::createFromLocalDecoder(WebCore::LocalDecoder decoder)
 {
     return makeUniqueRef<WebRTCLocalVideoDecoder>(decoder);
 }
@@ -84,7 +77,7 @@ private:
     void flush() final { [m_decoder flush]; }
     void setFormat(std::span<const uint8_t>, uint16_t width, uint16_t height) final { setFrameSize(width, height); }
     int32_t decodeFrame(int64_t timeStamp, std::span<const uint8_t> data) final { return [m_decoder decodeData:data.data() size:data.size() timeStamp:timeStamp]; }
-    void setFrameSize(uint16_t width, uint16_t height) final { [m_decoder setWidth:width height:height];; }
+    void setFrameSize(uint16_t width, uint16_t height) final { [m_decoder setWidth:width height:height]; }
 
     RetainPtr<RTCVideoDecoderVTBAV1> m_decoder;
 };

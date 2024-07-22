@@ -44,15 +44,10 @@
 #include <WebCore/Page.h>
 #include <WebCore/PlatformMediaSessionManager.h>
 #include <WebCore/VP9UtilitiesCocoa.h>
+#include <WebCore/WebKitDecoder.h>
+#include <WebCore/WebKitEncoder.h>
 #include <WebCore/VideoFrameCV.h>
 #include <wtf/MainThread.h>
-
-ALLOW_COMMA_BEGIN
-
-#include <webrtc/sdk/WebKit/WebKitDecoder.h>
-#include <webrtc/sdk/WebKit/WebKitEncoder.h>
-
-ALLOW_COMMA_END
 
 #include <pal/cf/CoreMediaSoftLink.h>
 

@@ -44,15 +44,10 @@
 #import <WebCore/LibWebRTCProvider.h>
 #import <WebCore/PixelBufferConformerCV.h>
 #import <WebCore/VideoFrameCV.h>
+#import <WebCore/WebKitDecoder.h>
+#import <WebCore/WebKitEncoder.h>
 #import <wtf/BlockPtr.h>
 #import <wtf/MediaTime.h>
-
-ALLOW_COMMA_BEGIN
-
-#include <webrtc/sdk/WebKit/WebKitDecoder.h>
-#include <webrtc/sdk/WebKit/WebKitEncoder.h>
-
-ALLOW_COMMA_END
 
 #import <pal/cf/CoreMediaSoftLink.h>
 #import <WebCore/CoreVideoSoftLink.h>

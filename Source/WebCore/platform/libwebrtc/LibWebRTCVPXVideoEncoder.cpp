@@ -29,6 +29,7 @@
 #if ENABLE(WEB_CODECS) && USE(LIBWEBRTC) && PLATFORM(COCOA)
 
 #include "VideoFrameLibWebRTC.h"
+#include "WebKitEncoder.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/ThreadSafeRefCounted.h>
@@ -41,7 +42,6 @@ ALLOW_COMMA_BEGIN
 #include <webrtc/modules/video_coding/codecs/av1/libaom_av1_encoder.h>
 #include <webrtc/modules/video_coding/codecs/vp8/include/vp8.h>
 #include <webrtc/modules/video_coding/codecs/vp9/include/vp9.h>
-#include <webrtc/sdk/WebKit/WebKitEncoder.h>
 #include <webrtc/system_wrappers/include/cpu_info.h>
 
 ALLOW_COMMA_END
@@ -274,7 +274,7 @@ void LibWebRTCVPXInternalVideoEncoder::encode(VideoEncoder::RawFrame&& rawFrame,
     auto frameType = (shouldGenerateKeyFrame || !m_hasEncoded) ? webrtc::VideoFrameType::kVideoFrameKey : webrtc::VideoFrameType::kVideoFrameDelta;
     std::vector<webrtc::VideoFrameType> frameTypes { frameType };
 
-    auto frameBuffer = webrtc::pixelBufferToFrame(rawFrame.frame->pixelBuffer());
+    auto frameBuffer = pixelBufferToFrame(rawFrame.frame->pixelBuffer());
 
     if (m_config.width != static_cast<size_t>(frameBuffer->width()) || m_config.height != static_cast<size_t>(frameBuffer->height()))
         frameBuffer = frameBuffer->Scale(m_config.width, m_config.height);

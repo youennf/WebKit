@@ -32,18 +32,16 @@
 typedef struct __CVBuffer* CVPixelBufferRef;
 using RTCVideoDecoderVTBAV1Callback = void (^)(CVPixelBufferRef, int64_t timeStamp, int64_t timeStampNs);
 
-namespace webrtc {
-using LocalDecoder = void*;
-}
-
 namespace WebCore {
+
+using LocalDecoder = void*;
 
 class WebRTCVideoDecoder {
 public:
     virtual ~WebRTCVideoDecoder() = default;
 
 #if USE(LIBWEBRTC)
-    WEBCORE_EXPORT static UniqueRef<WebRTCVideoDecoder> createFromLocalDecoder(webrtc::LocalDecoder);
+    WEBCORE_EXPORT static UniqueRef<WebRTCVideoDecoder> createFromLocalDecoder(LocalDecoder);
 #endif
 
     virtual void flush() = 0;
