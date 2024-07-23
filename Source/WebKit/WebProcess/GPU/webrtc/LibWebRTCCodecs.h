@@ -195,7 +195,7 @@ private:
     void completedDecoding(VideoDecoderIdentifier, int64_t timeStamp, int64_t timeStampNs, RemoteVideoFrameProxy::Properties&&);
     // FIXME: Will be removed once RemoteVideoFrameProxy providers are the only ones sending data.
     void completedDecodingCV(VideoDecoderIdentifier, int64_t timeStamp, int64_t timeStampNs, RetainPtr<CVPixelBufferRef>&&);
-    void completedEncoding(VideoEncoderIdentifier, std::span<const uint8_t>, const webrtc::WebKitEncodedFrameInfo&);
+    void completedEncoding(VideoEncoderIdentifier, std::span<const uint8_t>, const WebCore::WebKitEncodedFrameInfo&);
     void flushEncoderCompleted(VideoEncoderIdentifier);
     void setEncodingConfiguration(WebKit::VideoEncoderIdentifier, std::span<const uint8_t>, std::optional<WebCore::PlatformVideoColorSpace>);
     RetainPtr<CVPixelBufferRef> convertToBGRA(CVPixelBufferRef);

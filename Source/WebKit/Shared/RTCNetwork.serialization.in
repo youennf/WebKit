@@ -57,7 +57,7 @@ struct WebKit::RTCNetwork {
 
 #if USE(LIBWEBRTC) && PLATFORM(COCOA)
 header: "RTCWebKitEncodedFrameInfo.h"
-[CustomHeader] struct webrtc::WebKitEncodedFrameInfo {
+[CustomHeader] struct WebCore::WebKitEncodedFrameInfo {
     uint32_t width
     uint32_t height
     int64_t timeStamp
@@ -65,22 +65,22 @@ header: "RTCWebKitEncodedFrameInfo.h"
     int64_t ntpTimeMS
     int64_t captureTimeMS
     webrtc::VideoFrameType frameType
-    WebKitEncodedVideoRotation rotation
+    WebCore::WebKitEncodedVideoRotation rotation
     webrtc::VideoContentType contentType
     bool completeFrame
     int qp
     int temporalIndex
-    webrtc::WebKitEncodedFrameTiming timing;
+    WebCore::WebKitEncodedFrameTiming timing;
 };
 
-enum class WebKitEncodedVideoRotation : uint8_t {
+enum class WebCore::WebKitEncodedVideoRotation : uint8_t {
     kVideoRotation_0,
     kVideoRotation_90,
     kVideoRotation_180,
     kVideoRotation_270
 };
 
-using webrtc::WebKitEncodedFrameTiming = webrtc::EncodedImage::Timing
+using WebCore::WebKitEncodedFrameTiming = webrtc::EncodedImage::Timing
 
 [Nested] struct webrtc::EncodedImage::Timing {
     uint8_t flags

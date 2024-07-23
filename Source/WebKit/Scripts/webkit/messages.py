@@ -1189,7 +1189,7 @@ def headers_for_type(type):
         'WebKit::WebUserScriptData': ['"WebUserContentControllerDataTypes.h"'],
         'WebKit::WebUserStyleSheetData': ['"WebUserContentControllerDataTypes.h"'],
         'WTF::UnixFileDescriptor': ['<wtf/unix/UnixFileDescriptor.h>'],
-        'webrtc::WebKitEncodedFrameInfo': ['"RTCWebKitEncodedFrameInfo.h"'],
+        'WebCore::WebKitEncodedFrameInfo': ['"RTCWebKitEncodedFrameInfo.h"'],
         'WebKit::BufferSetBackendHandle': ['"BufferAndBackendInfo.h"'],
     }
 

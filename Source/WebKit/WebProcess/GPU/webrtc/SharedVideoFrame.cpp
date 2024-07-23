@@ -144,10 +144,10 @@ std::optional<SharedVideoFrame::Buffer> SharedVideoFrameWriter::writeBuffer(CVPi
 #if USE(LIBWEBRTC)
 std::optional<SharedVideoFrame::Buffer> SharedVideoFrameWriter::writeBuffer(const webrtc::VideoFrame& frame, const Function<void(IPC::Semaphore&)>& newSemaphoreCallback, const Function<void(SharedMemory::Handle&&)>& newMemoryCallback)
 {
-    if (auto* provider = webrtc::videoFrameBufferProvider(frame))
+    if (auto* provider = WebCore::videoFrameBufferProvider(frame))
         return writeBuffer(*static_cast<VideoFrame*>(provider), newSemaphoreCallback, newMemoryCallback);
 
-    if (auto pixelBuffer = adoptCF(webrtc::copyPixelBufferForFrame(frame)))
+    if (auto pixelBuffer = adoptCF(WebCore::copyPixelBufferForFrame(frame)))
         return writeBuffer(pixelBuffer.get(), newSemaphoreCallback, newMemoryCallback);
 
     return writeBuffer(*frame.video_frame_buffer(), newSemaphoreCallback, newMemoryCallback);

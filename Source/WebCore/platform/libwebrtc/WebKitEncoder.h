@@ -57,7 +57,7 @@ using VideoEncoderEncodeCallback = int32_t(*)(WebKitVideoEncoder, const webrtc::
 using VideoEncoderRegisterEncodeCompleteCallback = int32_t(*)(WebKitVideoEncoder, void* encodedImageCallback);
 using VideoEncoderSetRatesCallback = void(*)(WebKitVideoEncoder, const webrtc::VideoEncoder::RateControlParameters&);
 
-void setVideoEncoderCallbacks(VideoEncoderCreateCallback, VideoEncoderReleaseCallback, VideoEncoderInitializeCallback, VideoEncoderEncodeCallback, VideoEncoderRegisterEncodeCompleteCallback, VideoEncoderSetRatesCallback);
+WEBCORE_EXPORT void setVideoEncoderCallbacks(VideoEncoderCreateCallback, VideoEncoderReleaseCallback, VideoEncoderInitializeCallback, VideoEncoderEncodeCallback, VideoEncoderRegisterEncodeCompleteCallback, VideoEncoderSetRatesCallback);
 
 using WebKitEncodedFrameTiming = webrtc::EncodedImage::Timing;
 
@@ -90,13 +90,13 @@ using LocalEncoder = void*;
 using LocalEncoderCallback = void (^)(const uint8_t* buffer, size_t size, const WebKitEncodedFrameInfo&);
 using LocalEncoderDescriptionCallback = void (^)(const uint8_t* buffer, size_t size);
 using LocalEncoderErrorCallback = void (^)(bool isFrameDropped);
-void* createLocalEncoder(const webrtc::SdpVideoFormat&, bool useAnnexB, LocalEncoderScalabilityMode, LocalEncoderCallback, LocalEncoderDescriptionCallback, LocalEncoderErrorCallback);
-void releaseLocalEncoder(LocalEncoder);
-void initializeLocalEncoder(LocalEncoder, uint16_t width, uint16_t height, unsigned int startBitrate, unsigned int maxBitrate, unsigned int minBitrate, uint32_t maxFramerate);
-void encodeLocalEncoderFrame(LocalEncoder, CVPixelBufferRef, int64_t timeStampNs, int64_t timeStamp, std::optional<uint64_t> duration, webrtc::VideoRotation, bool isKeyframeRequired);
-void setLocalEncoderRates(LocalEncoder, uint32_t bitRate, uint32_t frameRate);
-void setLocalEncoderLowLatency(LocalEncoder, bool isLowLatencyEnabled);
-void encoderVideoTaskComplete(void*, webrtc::VideoCodecType, const uint8_t* buffer, size_t length, const WebKitEncodedFrameInfo&);
-void flushLocalEncoder(LocalEncoder);
+WEBCORE_EXPORT void* createLocalEncoder(const webrtc::SdpVideoFormat&, bool useAnnexB, LocalEncoderScalabilityMode, LocalEncoderCallback, LocalEncoderDescriptionCallback, LocalEncoderErrorCallback);
+WEBCORE_EXPORT void releaseLocalEncoder(LocalEncoder);
+WEBCORE_EXPORT void initializeLocalEncoder(LocalEncoder, uint16_t width, uint16_t height, unsigned int startBitrate, unsigned int maxBitrate, unsigned int minBitrate, uint32_t maxFramerate);
+WEBCORE_EXPORT void encodeLocalEncoderFrame(LocalEncoder, CVPixelBufferRef, int64_t timeStampNs, int64_t timeStamp, std::optional<uint64_t> duration, webrtc::VideoRotation, bool isKeyframeRequired);
+WEBCORE_EXPORT void setLocalEncoderRates(LocalEncoder, uint32_t bitRate, uint32_t frameRate);
+WEBCORE_EXPORT void setLocalEncoderLowLatency(LocalEncoder, bool isLowLatencyEnabled);
+WEBCORE_EXPORT void encoderVideoTaskComplete(void*, webrtc::VideoCodecType, const uint8_t* buffer, size_t length, const WebKitEncodedFrameInfo&);
+WEBCORE_EXPORT void flushLocalEncoder(LocalEncoder);
 
 }

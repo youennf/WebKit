@@ -55,7 +55,7 @@ void setH264HardwareEncoderAllowed(bool);
 bool isH264HardwareEncoderAllowed();
 
 enum class BufferType { I420, I010 };
-CVPixelBufferRef copyPixelBufferForFrame(const webrtc::VideoFrame&) CF_RETURNS_RETAINED;
+WEBCORE_EXPORT CVPixelBufferRef copyPixelBufferForFrame(const webrtc::VideoFrame&) CF_RETURNS_RETAINED;
 CVPixelBufferRef createPixelBufferFromFrame(const webrtc::VideoFrame&, const std::function<CVPixelBufferRef(size_t, size_t, BufferType)>& createPixelBuffer) CF_RETURNS_RETAINED;
 CVPixelBufferRef createPixelBufferFromFrameBuffer(webrtc::VideoFrameBuffer&, const std::function<CVPixelBufferRef(size_t, size_t, BufferType)>& createPixelBuffer) CF_RETURNS_RETAINED;
 rtc::scoped_refptr<webrtc::VideoFrameBuffer> pixelBufferToFrame(CVPixelBufferRef);
@@ -64,7 +64,7 @@ bool copyVideoFrameBuffer(webrtc::VideoFrameBuffer&, uint8_t*);
 typedef CVPixelBufferRef (*GetBufferCallback)(void*);
 typedef void (*ReleaseBufferCallback)(void*);
 rtc::scoped_refptr<webrtc::VideoFrameBuffer> toWebRTCVideoFrameBuffer(void*, GetBufferCallback, ReleaseBufferCallback, int width, int height);
-void* videoFrameBufferProvider(const webrtc::VideoFrame&);
+WEBCORE_EXPORT void* videoFrameBufferProvider(const webrtc::VideoFrame&);
 
 bool convertBGRAToYUV(CVPixelBufferRef sourceBuffer, CVPixelBufferRef destinationBuffer);
 
