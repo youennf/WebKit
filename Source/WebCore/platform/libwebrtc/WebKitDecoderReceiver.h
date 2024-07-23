@@ -27,7 +27,7 @@
 
 #include "LibWebRTCMacros.h"
 #include "VTVideoDecoderSPI.h"
-#include "WebKitUtilities.h"
+#include "LibWebRTCVideoFrameUtilities.h"
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/api/video_codecs/video_decoder.h>

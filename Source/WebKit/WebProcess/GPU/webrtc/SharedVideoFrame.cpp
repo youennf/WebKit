@@ -36,7 +36,7 @@
 #include <WebCore/SharedVideoFrameInfo.h>
 #include <WebCore/VideoFrameCV.h>
 #include <WebCore/VideoFrameLibWebRTC.h>
-#include <WebCore/WebKitUtilities.h>
+#include <WebCore/LibWebRTCVideoFrameUtilities.h>
 #include <wtf/Scope.h>
 
 #include <pal/cf/CoreMediaSoftLink.h>

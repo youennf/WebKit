@@ -35,7 +35,7 @@
 #include "PixelBuffer.h"
 #include "PixelBufferConformerCV.h"
 #include "ProcessIdentity.h"
-#include "WebKitUtilities.h"
+#include "LibWebRTCVideoFrameUtilities.h"
 #include <pal/avfoundation/MediaTimeAVFoundation.h>
 #include <wtf/CheckedArithmetic.h>
 #include <wtf/Scope.h>

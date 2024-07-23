@@ -34,7 +34,7 @@
 #include "RealtimeIncomingVideoSourceCocoa.h"
 #include "RealtimeVideoUtilities.h"
 #include "VideoFrameLibWebRTC.h"
-#import "WebKitUtilities.h"
+#import "LibWebRTCVideoFrameUtilities.h"
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
 

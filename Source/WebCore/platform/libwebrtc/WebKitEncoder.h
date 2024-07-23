@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "LibWebRTCVideoFrameUtilities.h"
 #include "WebKitUtilities.h"
 
 ALLOW_UNUSED_PARAMETERS_BEGIN

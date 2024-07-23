@@ -28,7 +28,7 @@
 #if PLATFORM(COCOA) && USE(LIBWEBRTC)
 
 #include "VideoFrame.h"
-#include "WebKitUtilities.h"
+#include "LibWebRTCVideoFrameUtilities.h"
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
 ALLOW_COMMA_BEGIN

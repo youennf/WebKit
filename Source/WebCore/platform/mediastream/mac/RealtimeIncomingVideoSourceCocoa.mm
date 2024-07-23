@@ -34,7 +34,7 @@
 #import "Logging.h"
 #import "VideoFrameCV.h"
 #import "VideoFrameLibWebRTC.h"
-#import "WebKitUtilities.h"
+#import "LibWebRTCVideoFrameUtilities.h"
 #import <wtf/cf/TypeCastsCF.h>
 
 #import "CoreVideoSoftLink.h"

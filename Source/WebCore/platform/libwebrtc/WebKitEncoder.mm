@@ -168,17 +168,6 @@ private:
     const std::unique_ptr<VideoEncoderFactory> m_internalEncoderFactory;
 };
 
-static bool h264HardwareEncoderAllowed = true;
-void setH264HardwareEncoderAllowed(bool allowed)
-{
-    h264HardwareEncoderAllowed = allowed;
-}
-
-bool isH264HardwareEncoderAllowed()
-{
-    return h264HardwareEncoderAllowed;
-}
-
 std::unique_ptr<webrtc::VideoEncoder> VideoEncoderFactoryWithSimulcast::Create(const webrtc::Environment& environment, const webrtc::SdpVideoFormat& format)
 {
     return std::make_unique<webrtc::SimulcastEncoderAdapter>(environment, m_internalEncoderFactory.get(), nullptr, format);

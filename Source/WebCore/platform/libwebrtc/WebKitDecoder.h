@@ -28,6 +28,7 @@
 #include <Availability.h>
 #include <TargetConditionals.h>
 
+#include "LibWebRTCVideoFrameUtilities.h"
 #include "WebKitUtilities.h"
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
