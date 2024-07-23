@@ -63,13 +63,11 @@ bool H265CMSampleBufferToAnnexBBuffer(CMSampleBufferRef avcc_sample_buffer,
 // If |is_keyframe| is true then |video_format| is ignored since the format will
 // be read from the buffer. Otherwise |video_format| must be provided.
 // Caller is responsible for releasing the created sample buffer.
-bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
+RetainPtr<CMSampleBufferRef> H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
                                       size_t annexb_buffer_size,
-                                      CMVideoFormatDescriptionRef video_format,
-                                      CMSampleBufferRef* out_sample_buffer)
-    __OSX_AVAILABLE_STARTING(__MAC_10_12, __IPHONE_11_0);
+                                      CMVideoFormatDescriptionRef video_format);
 
-CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
+RetainPtr<CMVideoFormatDescriptionRef> CreateH265VideoFormatDescription(
     const uint8_t* annexb_buffer,
     size_t annexb_buffer_size);
 

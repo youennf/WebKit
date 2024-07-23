@@ -7,8 +7,8 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
- /* This file is borrowed from sdk/objc/components/video_codec/RTCCodecSpecificInfoH264.mm */
 
+#import "config.h"
 #import "RTCCodecSpecificInfoH265+Private.h"
 
 // H265 specific settings.
@@ -17,12 +17,11 @@
 @synthesize packetizationMode = _packetizationMode;
 
 - (webrtc::CodecSpecificInfo)nativeCodecSpecificInfo {
-  webrtc::CodecSpecificInfo codecSpecificInfo;
-  codecSpecificInfo.codecType = webrtc::kVideoCodecH265;
-  codecSpecificInfo.codecSpecific.H264.packetization_mode =
-      (webrtc::H264PacketizationMode)_packetizationMode;
+    webrtc::CodecSpecificInfo codecSpecificInfo;
+    codecSpecificInfo.codecType = webrtc::kVideoCodecH265;
+    codecSpecificInfo.codecSpecific.H264.packetization_mode = (webrtc::H264PacketizationMode)_packetizationMode;
 
-  return codecSpecificInfo;
+    return codecSpecificInfo;
 }
 
 @end

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PLATFORM(MAC)
+
 #include <VideoToolbox/VideoToolbox.h>
 #include "CMBaseObjectSPI.h"
 
@@ -90,3 +92,5 @@ VT_EXPORT OSStatus VTRegisterVideoDecoder(FigVideoCodecType, VTVideoDecoderFunct
 #endif
 
 #endif // __has_include && __has_include(<CoreFoundation/CFPriv.h>)
+
+#endif

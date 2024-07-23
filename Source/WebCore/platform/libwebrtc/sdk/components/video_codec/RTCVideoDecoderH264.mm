@@ -12,8 +12,7 @@
 #import "config.h"
 #import "RTCVideoDecoderH264.h"
 
-//#import <VideoToolbox/VideoToolbox.h>
-
+#import "LibWebRTCMacros.h"
 #import "RTCVideoFrameReorderQueue.h"
 #import "RTCVideoFrame.h"
 #import "RTCVideoFrameBuffer.h"
@@ -22,10 +21,6 @@
 #import "nalu_rewriter.h"
 #import <queue>
 #import <wtf/RetainPtr.h>
-
-#if defined(WEBRTC_IOS)
-//#import "helpers/UIDevice+RTCDevice.h"
-#endif
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/modules/video_coding/include/video_error_codes.h>

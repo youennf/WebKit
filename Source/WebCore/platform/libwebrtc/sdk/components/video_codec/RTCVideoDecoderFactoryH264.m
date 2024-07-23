@@ -17,7 +17,7 @@
 
 - (NSArray<RTCVideoCodecInfo *> *)supportedCodecs {
   NSMutableArray<RTCVideoCodecInfo *> *codecs = [NSMutableArray array];
-  NSString *codecName = kRTCVideoCodecH264Name;
+  NSString *codecName = @"H264";
 
   NSDictionary<NSString *, NSString *> *constrainedHighParams = @{
     @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedHigh,

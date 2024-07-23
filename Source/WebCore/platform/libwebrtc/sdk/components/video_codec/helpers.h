@@ -13,16 +13,17 @@
 #define SDK_OBJC_FRAMEWORK_CLASSES_VIDEOTOOLBOX_HELPERS_H_
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <VideoToolbox/VideoToolbox.h>
+#include <VideoToolbox/VTCompressionSession.h>
 #include <string>
 
+namespace WebCore {
 // Convenience function for creating a dictionary.
 inline CFDictionaryRef CreateCFTypeDictionary(CFTypeRef* keys,
                                               CFTypeRef* values,
                                               size_t size) {
-  return CFDictionaryCreate(kCFAllocatorDefault, keys, values, size,
-                            &kCFTypeDictionaryKeyCallBacks,
-                            &kCFTypeDictionaryValueCallBacks);
+    return CFDictionaryCreate(kCFAllocatorDefault, keys, values, size,
+                              &kCFTypeDictionaryKeyCallBacks,
+                              &kCFTypeDictionaryValueCallBacks);
 }
 
 // Copies characters from a CFStringRef into a std::string.
@@ -43,5 +44,7 @@ void SetVTSessionProperty(VTCompressionSessionRef session, CFStringRef key, CFSt
 
 // Convenience function for setting a VT property.
 void SetVTSessionProperty(VTCompressionSessionRef session, CFStringRef key, CFArrayRef value);
+
+}
 
 #endif  // SDK_OBJC_FRAMEWORK_CLASSES_VIDEOTOOLBOX_HELPERS_H_

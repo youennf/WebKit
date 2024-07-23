@@ -11,7 +11,9 @@
 
 #import "RTCCodecSpecificInfoH265.h"
 
+ALLOW_UNUSED_PARAMETERS_BEGIN
 #include "modules/video_coding/include/video_codec_interface.h"
+ALLOW_UNUSED_PARAMETERS_END
 
 NS_ASSUME_NONNULL_BEGIN
 

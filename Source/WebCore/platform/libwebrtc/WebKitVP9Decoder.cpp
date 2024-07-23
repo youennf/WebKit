@@ -36,6 +36,7 @@ ALLOW_UNUSED_PARAMETERS_BEGIN
 ALLOW_UNUSED_PARAMETERS_END
 
 #import <pal/cf/CoreMediaSoftLink.h>
+#import "VideoToolboxSoftLink.h"
 
 namespace WebCore {
 

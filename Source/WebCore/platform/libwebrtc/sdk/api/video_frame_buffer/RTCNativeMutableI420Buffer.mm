@@ -8,11 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#import "config.h"
 #import "RTCNativeMutableI420Buffer.h"
 
 #import "RTCNativeI420Buffer+Private.h"
-
-#include "api/video/i420_buffer.h"
 
 @implementation RTCMutableI420Buffer
 

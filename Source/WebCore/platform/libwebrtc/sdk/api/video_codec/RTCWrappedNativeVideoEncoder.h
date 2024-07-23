@@ -18,7 +18,7 @@ ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/media/base/codec.h>
 ALLOW_UNUSED_PARAMETERS_END
 
-__attribute__((objc_runtime_name("WK_RTCWrappedNativeVideoEncoder")))
+__attribute__((objc_runtime_name("WebWrappedNativeVideoEncoder")))
 @interface RTCWrappedNativeVideoEncoder : NSObject <RTCVideoEncoder>
 
 - (instancetype)initWithNativeEncoder:(std::unique_ptr<webrtc::VideoEncoder>)encoder;

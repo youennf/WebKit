@@ -256,6 +256,14 @@ SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionCreate, OS
 #define CMVideoFormatDescriptionCreate softLink_CoreMedia_CMVideoFormatDescriptionCreate
 SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionCreateForImageBuffer, OSStatus, (CFAllocatorRef allocator, CVImageBufferRef imageBuffer, CMVideoFormatDescriptionRef* outDesc), (allocator, imageBuffer, outDesc))
 #define CMVideoFormatDescriptionCreateForImageBuffer softLink_CoreMedia_CMVideoFormatDescriptionCreateForImageBuffer
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionCreateFromH264ParameterSets, OSStatus, (CFAllocatorRef allocator, size_t parameterSetCount, const uint8_t* const* parameterSetPointers, const size_t* parameterSetSizes, int NALUnitHeaderLength, CMFormatDescriptionRef* formatDescriptionOut), (allocator, parameterSetCount, parameterSetPointers, parameterSetSizes, NALUnitHeaderLength, formatDescriptionOut))
+#define CMVideoFormatDescriptionCreateFromH264ParameterSets softLink_CoreMedia_CMVideoFormatDescriptionCreateFromH264ParameterSets
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionCreateFromHEVCParameterSets, OSStatus, (CFAllocatorRef allocator, size_t parameterSetCount, const uint8_t* const * parameterSetPointers, const size_t* parameterSetSizes, int NALUnitHeaderLength, CFDictionaryRef extensions, CMFormatDescriptionRef* formatDescriptionOut), (allocator, parameterSetCount, parameterSetPointers, parameterSetSizes, NALUnitHeaderLength, extensions, formatDescriptionOut))
+#define CMVideoFormatDescriptionCreateFromHEVCParameterSets softLink_CoreMedia_CMVideoFormatDescriptionCreateFromHEVCParameterSets
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionGetH264ParameterSetAtIndex, OSStatus, (CMFormatDescriptionRef videoDesc, size_t parameterSetIndex, const uint8_t** parameterSetPointerOut, size_t* parameterSetSizeOut, size_t* parameterSetCountOut, int* NALUnitHeaderLengthOut), (videoDesc, parameterSetIndex, parameterSetPointerOut, parameterSetSizeOut, parameterSetCountOut, NALUnitHeaderLengthOut))
+#define CMVideoFormatDescriptionGetH264ParameterSetAtIndex softLink_CoreMedia_CMVideoFormatDescriptionGetH264ParameterSetAtIndex
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionGetHEVCParameterSetAtIndex, OSStatus, (CMFormatDescriptionRef videoDesc, size_t parameterSetIndex, const uint8_t** parameterSetPointerOut, size_t* parameterSetSizeOut, size_t* parameterSetCountOut, int* NALUnitHeaderLengthOut), (videoDesc, parameterSetIndex, parameterSetPointerOut, parameterSetSizeOut, parameterSetCountOut, NALUnitHeaderLengthOut))
+#define CMVideoFormatDescriptionGetHEVCParameterSetAtIndex softLink_CoreMedia_CMVideoFormatDescriptionGetHEVCParameterSetAtIndex
 SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionGetDimensions, CMVideoDimensions, (CMVideoFormatDescriptionRef videoDesc), (videoDesc))
 #define CMVideoFormatDescriptionGetDimensions softLink_CoreMedia_CMVideoFormatDescriptionGetDimensions
 SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMVideoFormatDescriptionGetPresentationDimensions, CGSize, (CMVideoFormatDescriptionRef videoDesc, Boolean usePixelAspectRatio, Boolean useCleanAperture), (videoDesc, usePixelAspectRatio, useCleanAperture))
@@ -399,6 +407,12 @@ SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMBaseObjectGetVTable, const CMBas
 SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMDerivedObjectCreate, OSStatus, (CFAllocatorRef allocator, const CMBaseVTable* vTable, CMBaseClassID classID, CMBaseObjectRef* baseObject), (allocator, vTable, classID, baseObject))
 #define CMDerivedObjectCreate softLink_CoreMedia_CMDerivedObjectCreate
 
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMMemoryPoolCreate, CMMemoryPoolRef, (CFDictionaryRef options), (options))
+#define CMMemoryPoolCreate softLink_CoreMedia_CMMemoryPoolCreate
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMMemoryPoolGetAllocator, CFAllocatorRef, (CMMemoryPoolRef pool), (pool))
+#define CMMemoryPoolGetAllocator softLink_CoreMedia_CMMemoryPoolGetAllocator
+SOFT_LINK_FUNCTION_FOR_HEADER(PAL, CoreMedia, CMMemoryPoolInvalidate, void, (CMMemoryPoolRef pool), (pool))
+#define CMMemoryPoolInvalidate softLink_CoreMedia_CMMemoryPoolInvalidate
 #endif // PLATFORM(MAC)
 
 #endif // USE(AVFOUNDATION)

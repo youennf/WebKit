@@ -332,14 +332,11 @@ bool H265CMSampleBufferToAnnexBBuffer(
   return true;
 }
 
-bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
+RetainPtr<CMSampleBufferRef> H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
                                       size_t annexb_buffer_size,
-                                      CMVideoFormatDescriptionRef video_format,
-                                      CMSampleBufferRef* out_sample_buffer) {
+                                      CMVideoFormatDescriptionRef video_format) {
   RTC_DCHECK(annexb_buffer);
-  RTC_DCHECK(out_sample_buffer);
   RTC_DCHECK(video_format);
-  *out_sample_buffer = nullptr;
 
   AnnexBBufferReader reader(annexb_buffer, annexb_buffer_size, false);
   if (reader.SeekToNextNaluOfType(webrtc::H265::kVps)) {
@@ -348,15 +345,15 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
     size_t data_len;
     if (!reader.ReadNalu(&data, &data_len)) {
       RTC_LOG(LS_ERROR) << "Failed to read VPS";
-      return false;
+        return nullptr;
     }
     if (!reader.ReadNalu(&data, &data_len)) {
       RTC_LOG(LS_ERROR) << "Failed to read SPS";
-      return false;
+        return nullptr;
     }
     if (!reader.ReadNalu(&data, &data_len)) {
       RTC_LOG(LS_ERROR) << "Failed to read PPS";
-      return false;
+        return nullptr;
     }
   } else {
     // No SPS NALU - start reading from the first NALU in the buffer
@@ -372,7 +369,7 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
       &block_buffer);
   if (status != kCMBlockBufferNoErr) {
     RTC_LOG(LS_ERROR) << "Failed to create block buffer.";
-    return false;
+      return nullptr;
   }
 
   // Make sure block buffer is contiguous.
@@ -384,7 +381,7 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
       RTC_LOG(LS_ERROR) << "Failed to flatten non-contiguous block buffer: "
                         << status;
       CFRelease(block_buffer);
-      return false;
+        return nullptr;
     }
   } else {
     contiguous_buffer = block_buffer;
@@ -399,7 +396,7 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
   if (status != kCMBlockBufferNoErr) {
     RTC_LOG(LS_ERROR) << "Failed to get block buffer data pointer.";
     CFRelease(contiguous_buffer);
-    return false;
+      return nullptr;
   }
   RTC_DCHECK(block_buffer_size == reader.BytesRemainingForAVC());
 
@@ -414,17 +411,18 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
     }
   }
 
-  // Create sample buffer.
-  status = CMSampleBufferCreate(nullptr, contiguous_buffer, true, nullptr,
+    // Create sample buffer.
+    CMSampleBufferRef out_sample_buffer = nullptr;
+    status = CMSampleBufferCreate(nullptr, contiguous_buffer, true, nullptr,
                                 nullptr, video_format, 1, 0, nullptr, 0,
-                                nullptr, out_sample_buffer);
-  if (status != noErr) {
-    RTC_LOG(LS_ERROR) << "Failed to create sample buffer.";
+                                nullptr, &out_sample_buffer);
+    if (status != noErr) {
+        RTC_LOG(LS_ERROR) << "Failed to create sample buffer.";
+        CFRelease(contiguous_buffer);
+        return nullptr;
+    }
     CFRelease(contiguous_buffer);
-    return false;
-  }
-  CFRelease(contiguous_buffer);
-  return true;
+    return adoptCF(out_sample_buffer);
 }
 
 CMVideoFormatDescriptionRef CreateVideoFormatDescription(
@@ -747,8 +745,7 @@ uint8_t ComputeH264ReorderSizeFromAVC(const uint8_t* avcData, size_t avcDataSize
   return 0;
 }
 
-#ifndef DISABLE_H265
-CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
+RetainPtr<CMVideoFormatDescriptionRef> CreateH265VideoFormatDescription(
     const uint8_t* annexb_buffer,
     size_t annexb_buffer_size) {
   const uint8_t* param_set_ptrs[3] = {};
@@ -780,9 +777,8 @@ CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
     RTC_LOG(LS_ERROR) << "Failed to create video format description.";
     return nullptr;
   }
-  return description;
+  return adoptCF(description);
 }
-#endif
 
 AnnexBBufferReader::AnnexBBufferReader(const uint8_t* annexb_buffer, size_t length, bool /* isH264 */)
     : start_(annexb_buffer), length_(length) {

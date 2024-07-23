@@ -42,7 +42,7 @@ ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/modules/video_coding/utility/simulcast_utility.h>
 ALLOW_UNUSED_PARAMETERS_END
 
-@interface WK_RTCLocalVideoH264H265Encoder : NSObject
+@interface WebLocalVideoH264H265Encoder : NSObject
 - (instancetype)initWithCodecInfo:(RTCVideoCodecInfo*)codecInfo scalabilityMode:(WebCore::LocalEncoderScalabilityMode)scalabilityMode;
 - (webrtc::VideoCodecType)codecType;
 - (void)setCallback:(RTCVideoEncoderCallback)callback;
@@ -57,7 +57,7 @@ ALLOW_UNUSED_PARAMETERS_END
 - (void)flush;
 @end
 
-@implementation WK_RTCLocalVideoH264H265Encoder {
+@implementation WebLocalVideoH264H265Encoder {
     RTCVideoEncoderH264 *m_h264Encoder;
     RTCVideoEncoderH265 *m_h265Encoder;
 }
@@ -378,7 +378,7 @@ void encoderVideoTaskComplete(void* callback, webrtc::VideoCodecType codecType, 
 void* createLocalEncoder(const webrtc::SdpVideoFormat& format, bool useAnnexB, WebCore::LocalEncoderScalabilityMode scalabilityMode, LocalEncoderCallback frameCallback, LocalEncoderDescriptionCallback descriptionCallback, LocalEncoderErrorCallback errorCallback)
 {
     auto *codecInfo = [[RTCVideoCodecInfo alloc] initWithNativeSdpVideoFormat: format];
-    auto *encoder = [[WK_RTCLocalVideoH264H265Encoder alloc] initWithCodecInfo:codecInfo scalabilityMode:scalabilityMode];
+    auto *encoder = [[WebLocalVideoH264H265Encoder alloc] initWithCodecInfo:codecInfo scalabilityMode:scalabilityMode];
 
     if (!encoder)
         return nullptr;
@@ -420,13 +420,13 @@ void releaseLocalEncoder(LocalEncoder)
 {
     // FIXME
 
-//    auto *encoder = (__bridge_transfer WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+//    auto *encoder = (__bridge_transfer WebLocalVideoH264H265Encoder *)(localEncoder);
   //  [encoder releaseEncoder];
 }
 
 void initializeLocalEncoder(LocalEncoder localEncoder, uint16_t width, uint16_t height, unsigned int startBitrate, unsigned int maxBitrate, unsigned int minBitrate, uint32_t maxFramerate)
 {
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    auto *encoder = (__bridge WebLocalVideoH264H265Encoder *)(localEncoder);
 
     webrtc::VideoCodec codecSettings;
     codecSettings.width = width;
@@ -450,25 +450,25 @@ void encodeLocalEncoderFrame(LocalEncoder localEncoder, CVPixelBufferRef pixelBu
     auto *videoFrame = [[RTCVideoFrame alloc] initWithBuffer:ToObjCVideoFrameBuffer(videoFrameBuffer) rotation:RTCVideoRotation(rotation) timeStampNs:timeStampNs];
     videoFrame.timeStamp = timeStamp;
     videoFrame.duration = duration.value_or(std::numeric_limits<uint64_t>::max());
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    auto *encoder = (__bridge WebLocalVideoH264H265Encoder *)(localEncoder);
     [encoder encode:videoFrame codecSpecificInfo:nil frameTypes:rtcFrameTypes];
 }
 
 void setLocalEncoderRates(LocalEncoder localEncoder, uint32_t bitRate, uint32_t frameRate)
 {
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    auto *encoder = (__bridge WebLocalVideoH264H265Encoder *)(localEncoder);
     [encoder setBitrate:bitRate framerate:frameRate];
 }
 
 void setLocalEncoderLowLatency(LocalEncoder localEncoder, bool isLowLatencyEnabled)
 {
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    auto *encoder = (__bridge WebLocalVideoH264H265Encoder *)(localEncoder);
     [encoder setLowLatency:isLowLatencyEnabled];
 }
 
 void flushLocalEncoder(LocalEncoder localEncoder)
 {
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    auto *encoder = (__bridge WebLocalVideoH264H265Encoder *)(localEncoder);
     [encoder flush];
 }
 

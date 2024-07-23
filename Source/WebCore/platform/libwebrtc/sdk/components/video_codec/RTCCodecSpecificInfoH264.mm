@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#import "config.h"
 #import "RTCCodecSpecificInfoH264+Private.h"
 
 #import "RTCH264ProfileLevelId.h"
@@ -18,12 +19,11 @@
 @synthesize packetizationMode = _packetizationMode;
 
 - (webrtc::CodecSpecificInfo)nativeCodecSpecificInfo {
-  webrtc::CodecSpecificInfo codecSpecificInfo;
-  codecSpecificInfo.codecType = webrtc::kVideoCodecH264;
-  codecSpecificInfo.codecSpecific.H264.packetization_mode =
-      (webrtc::H264PacketizationMode)_packetizationMode;
+    webrtc::CodecSpecificInfo codecSpecificInfo;
+    codecSpecificInfo.codecType = webrtc::kVideoCodecH264;
+    codecSpecificInfo.codecSpecific.H264.packetization_mode = (webrtc::H264PacketizationMode)_packetizationMode;
 
-  return codecSpecificInfo;
+    return codecSpecificInfo;
 }
 
 @end

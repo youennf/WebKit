@@ -49,7 +49,7 @@ ALLOW_COMMA_BEGIN
 ALLOW_COMMA_END
 ALLOW_UNUSED_PARAMETERS_END
 
-@interface WK_RTCLocalVideoH264H265VP9Decoder : NSObject
+@interface WebLocalVideoH264H265VP9Decoder : NSObject
 - (instancetype)initH264DecoderWithCallback:(WebCore::LocalDecoderCallback)callback;
 - (instancetype)initH265DecoderWithCallback:(WebCore::LocalDecoderCallback)callback;
 - (NSInteger)setFormat:(const uint8_t *)data size:(size_t)size width:(uint16_t)width height:(uint16_t)height;
@@ -58,7 +58,7 @@ ALLOW_UNUSED_PARAMETERS_END
 - (void)flush;
 @end
 
-@implementation WK_RTCLocalVideoH264H265VP9Decoder {
+@implementation WebLocalVideoH264H265VP9Decoder {
     RTCVideoDecoderH264 *m_h264Decoder;
     RTCVideoDecoderH265 *m_h265Decoder;
     RTCVideoDecoderVTBVP9 *m_vp9Decoder;
@@ -320,7 +320,7 @@ std::unique_ptr<webrtc::VideoDecoderFactory> createWebKitDecoderFactory(WebKitH2
 
 void* createLocalH264Decoder(LocalDecoderCallback )
 {
-//    auto decoder = [[WK_RTCLocalVideoH264H265VP9Decoder alloc] initH264DecoderWithCallback: callback];
+//    auto decoder = [[WebLocalVideoH264H265VP9Decoder alloc] initH264DecoderWithCallback: callback];
     // FIXME
 //    return (__bridge_retained void*)decoder;
     return nullptr;
@@ -328,45 +328,45 @@ void* createLocalH264Decoder(LocalDecoderCallback )
 
 void* createLocalH265Decoder(LocalDecoderCallback )
 {
-//    auto decoder = [[WK_RTCLocalVideoH264H265VP9Decoder alloc] initH265DecoderWithCallback: callback];
+//    auto decoder = [[WebLocalVideoH264H265VP9Decoder alloc] initH265DecoderWithCallback: callback];
 //    return (__bridge_retained void*)decoder;
     return nullptr;
 }
 
 void* createLocalVP9Decoder(LocalDecoderCallback )
 {
-//    auto decoder = [[WK_RTCLocalVideoH264H265VP9Decoder alloc] initVP9DecoderWithCallback: callback];
+//    auto decoder = [[WebLocalVideoH264H265VP9Decoder alloc] initVP9DecoderWithCallback: callback];
 //    return (__bridge_retained void*)decoder;
     return nullptr;
 }
 
 void releaseLocalDecoder(LocalDecoder /* localDecoder */)
 {
-//    auto* decoder = (__bridge_transfer WK_RTCLocalVideoH264H265VP9Decoder *)(localDecoder);
+//    auto* decoder = (__bridge_transfer WebLocalVideoH264H265VP9Decoder *)(localDecoder);
   //  [decoder releaseDecoder];
 }
 
 void flushLocalDecoder(LocalDecoder localDecoder)
 {
-    auto* decoder = (__bridge WK_RTCLocalVideoH264H265VP9Decoder *)(localDecoder);
+    auto* decoder = (__bridge WebLocalVideoH264H265VP9Decoder *)(localDecoder);
     [decoder flush];
 }
 
 int32_t setDecodingFormat(LocalDecoder localDecoder, const uint8_t* data, size_t size, uint16_t width, uint16_t height)
 {
-    auto* decoder = (__bridge WK_RTCLocalVideoH264H265VP9Decoder *)(localDecoder);
+    auto* decoder = (__bridge WebLocalVideoH264H265VP9Decoder *)(localDecoder);
     return [decoder setFormat:data size:size width:width height:height];
 }
 
 int32_t decodeFrame(LocalDecoder localDecoder, int64_t timeStamp, const uint8_t* data, size_t size)
 {
-    auto* decoder = (__bridge WK_RTCLocalVideoH264H265VP9Decoder *)(localDecoder);
+    auto* decoder = (__bridge WebLocalVideoH264H265VP9Decoder *)(localDecoder);
     return [decoder decodeData:data size:size timeStamp:timeStamp];
 }
 
 void setDecoderFrameSize(LocalDecoder localDecoder, uint16_t width, uint16_t height)
 {
-    auto* decoder = (__bridge WK_RTCLocalVideoH264H265VP9Decoder *)(localDecoder);
+    auto* decoder = (__bridge WebLocalVideoH264H265VP9Decoder *)(localDecoder);
     [decoder setWidth:width height:height];
 }
 

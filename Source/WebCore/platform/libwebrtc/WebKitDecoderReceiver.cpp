@@ -28,11 +28,17 @@
 
 #include "WebKitVP9Decoder.h"
 #include <webrtc/modules/video_coding/include/video_error_codes.h>
+
 ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/rtc_base/logging.h>
 ALLOW_UNUSED_PARAMETERS_END
 
+#include <pal/cf/CoreMediaSoftLink.h>
+#include "VideoToolboxSoftLink.h"
+
 namespace WebCore {
+
+using namespace PAL;
 
 WebKitDecoderReceiver::WebKitDecoderReceiver(VTVideoDecoderSession session)
     : m_session(session)

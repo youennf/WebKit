@@ -9,10 +9,9 @@
  *
  */
 
+#import "config.h"
 #import "RTCH265ProfileLevelId.h"
 
-#include "media/base/media_constants.h"
-
 NSString *const kRTCVideoCodecH265Name = @"H265";
-// TODO(jianjunz): This is value is not correct.
+// TODO(jianjunz): This value is not correct.
 NSString *const kRTCLevel31Main = @"4d001f";
