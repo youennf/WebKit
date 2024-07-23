@@ -10,7 +10,9 @@
 
 #import "RTCNativeI420Buffer.h"
 
-#include "api/video/i420_buffer.h"
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#include <webrtc/api/video/i420_buffer.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 NS_ASSUME_NONNULL_BEGIN
 

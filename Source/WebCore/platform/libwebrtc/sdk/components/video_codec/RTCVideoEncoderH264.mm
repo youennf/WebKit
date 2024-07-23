@@ -9,6 +9,7 @@
  *
  */
 
+#import "config.h"
 #import "RTCVideoEncoderH264.h"
 
 #import <VideoToolbox/VideoToolbox.h>
@@ -989,7 +990,7 @@ uint32_t computeFramerate(uint32_t proposedFramerate, uint32_t maxAllowedFramera
 
   __block std::unique_ptr<rtc::Buffer> buffer = std::make_unique<rtc::Buffer>();
   if (_useAnnexB) {
-    if (!webrtc::H264CMSampleBufferToAnnexBBuffer(sampleBuffer, isKeyframe, buffer.get())) {
+    if (!H264CMSampleBufferToAnnexBBuffer(sampleBuffer, isKeyframe, buffer.get())) {
       RTC_LOG(LS_WARNING) << "Unable to parse H264 encoded buffer";
       if (_errorCallback)
         _errorCallback(ErrorCallbackDefaultValue);

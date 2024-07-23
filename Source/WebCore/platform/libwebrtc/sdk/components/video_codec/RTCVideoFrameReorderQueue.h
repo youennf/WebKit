@@ -23,11 +23,12 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "base/RTCVideoFrame.h"
+#import "RTCVideoFrame.h"
 #include <deque>
-#include "rtc_base/synchronization/mutex.h"
+#include <wtf/Lock.h>
+#include <wtf/RetainPtr.h>
 
-namespace webrtc {
+namespace WebCore {
 
 class RTCVideoFrameReorderQueue {
 public:
@@ -35,7 +36,7 @@ public:
 
     struct RTCVideoFrameWithOrder {
         RTCVideoFrameWithOrder(RTCVideoFrame* frame, uint64_t reorderSize)
-            : frame((__bridge_retained void*)frame)
+            : frame(frame)
             , timeStamp(frame.timeStamp)
             , reorderSize(reorderSize)
         {
@@ -47,14 +48,12 @@ public:
                 take();
         }
 
-        RTCVideoFrame* take()
+        RetainPtr<RTCVideoFrame> take()
         {
-            auto* rtcFrame = (__bridge_transfer RTCVideoFrame *)frame;
-            frame = nullptr;
-            return rtcFrame;
+            return std::exchange(frame, nullptr);
         }
 
-        void* frame;
+        RetainPtr<RTCVideoFrame> frame;
         uint64_t timeStamp;
         uint64_t reorderSize;
     };
@@ -63,13 +62,13 @@ public:
     uint8_t reorderSize() const;
     void setReorderSize(uint8_t);
     void append(RTCVideoFrame*, uint8_t);
-    RTCVideoFrame *takeIfAvailable();
-    RTCVideoFrame *takeIfAny();
+    RetainPtr<RTCVideoFrame> takeIfAvailable();
+    RetainPtr<RTCVideoFrame> takeIfAny();
 
 private:
-    std::deque<std::unique_ptr<RTCVideoFrameWithOrder>> _reorderQueue;
-    uint8_t _reorderSize { 0 };
-    mutable webrtc::Mutex _reorderQueueLock;
+    std::deque<std::unique_ptr<RTCVideoFrameWithOrder>> m_reorderQueue;
+    uint8_t m_reorderSize { 0 };
+    mutable Lock m_reorderQueueLock;
 };
 
 }

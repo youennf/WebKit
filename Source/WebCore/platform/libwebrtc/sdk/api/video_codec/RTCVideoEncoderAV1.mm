@@ -9,14 +9,16 @@
  *
  */
 
-#import <Foundation/Foundation.h>
+#import "config.h"
+#import "RTCVideoEncoderAV1.h"
 
 #import "RTCMacros.h"
-#import "RTCVideoEncoderAV1.h"
 #import "RTCWrappedNativeVideoEncoder.h"
-
-#include "api/environment/environment_factory.h"
-#include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
+#import <Foundation/Foundation.h>
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#import <webrtc/api/environment/environment_factory.h>
+#import <webrtc/modules/video_coding/codecs/av1/libaom_av1_encoder.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 @implementation RTCVideoEncoderAV1
 

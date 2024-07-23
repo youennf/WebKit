@@ -9,23 +9,30 @@
  *
  */
 
-#include "sdk/objc/components/video_codec/nalu_rewriter.h"
+#include "config.h"
+#include "nalu_rewriter.h"
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <memory>
 #include <vector>
 
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-#include "common_video/h264/sps_parser.h"
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#include <webrtc/rtc_base/checks.h>
+#include <webrtc/rtc_base/logging.h>
+#include <webrtc/common_video/h264/sps_parser.h>
+ALLOW_UNUSED_PARAMETERS_END
 
-namespace webrtc {
+#include <pal/cf/CoreMediaSoftLink.h>
 
-using H264::kAud;
-using H264::kSps;
-using H264::NaluIndex;
-using H264::NaluType;
-using H264::ParseNaluType;
+namespace WebCore {
+
+using namespace PAL;
+
+using webrtc::H264::kAud;
+using webrtc::H264::kSps;
+using webrtc::H264::NaluIndex;
+using webrtc::H264::NaluType;
+using webrtc::H264::ParseNaluType;
 
 const char kAnnexBHeaderBytes[4] = {0, 0, 0, 1};
 const size_t kAvccHeaderByteSize = sizeof(uint32_t);
@@ -132,100 +139,83 @@ bool H264CMSampleBufferToAnnexBBuffer(CMSampleBufferRef avcc_sample_buffer,
   return true;
 }
 
-bool H264AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
-                                      size_t annexb_buffer_size,
-                                      CMVideoFormatDescriptionRef video_format,
-                                      CMSampleBufferRef* out_sample_buffer,
-                                      CMMemoryPoolRef memory_pool) {
-  RTC_DCHECK(annexb_buffer);
-  RTC_DCHECK(out_sample_buffer);
-  RTC_DCHECK(video_format);
-  *out_sample_buffer = nullptr;
+RetainPtr<CMSampleBufferRef> H264AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer, size_t annexb_buffer_size, CMVideoFormatDescriptionRef video_format, CMMemoryPoolRef memory_pool)
+{
+    RTC_DCHECK(annexb_buffer);
+    RTC_DCHECK(video_format);
 
-  AnnexBBufferReader reader(annexb_buffer, annexb_buffer_size);
-  if (reader.SeekToNextNaluOfType(kSps)) {
-    // Buffer contains an SPS NALU - skip it and the following PPS
-    const uint8_t* data;
-    size_t data_len;
-    if (!reader.ReadNalu(&data, &data_len)) {
-      RTC_LOG(LS_ERROR) << "Failed to read SPS";
-      return false;
+    AnnexBBufferReader reader(annexb_buffer, annexb_buffer_size);
+    if (reader.SeekToNextNaluOfType(kSps)) {
+        // Buffer contains an SPS NALU - skip it and the following PPS
+        const uint8_t* data;
+        size_t data_len;
+        if (!reader.ReadNalu(&data, &data_len)) {
+            RTC_LOG(LS_ERROR) << "Failed to read SPS";
+            return nullptr;
+        }
+        if (!reader.ReadNalu(&data, &data_len)) {
+            RTC_LOG(LS_ERROR) << "Failed to read PPS";
+            return nullptr;
+        }
+    } else {
+        // No SPS NALU - start reading from the first NALU in the buffer
+        reader.SeekToStart();
     }
-    if (!reader.ReadNalu(&data, &data_len)) {
-      RTC_LOG(LS_ERROR) << "Failed to read PPS";
-      return false;
+
+    // Allocate memory as a block buffer.
+    CMBlockBufferRef block_buffer_out = nullptr;
+    CFAllocatorRef block_allocator = CMMemoryPoolGetAllocator(memory_pool);
+    OSStatus status = CMBlockBufferCreateWithMemoryBlock(kCFAllocatorDefault, nullptr, reader.BytesRemainingForAVC(), block_allocator, nullptr, 0, reader.BytesRemainingForAVC(), kCMBlockBufferAssureMemoryNowFlag, &block_buffer_out);
+    if (status != kCMBlockBufferNoErr) {
+        RTC_LOG(LS_ERROR) << "Failed to create block buffer.";
+        return nullptr;
     }
-  } else {
-    // No SPS NALU - start reading from the first NALU in the buffer
-    reader.SeekToStart();
-  }
+    auto block_buffer = adoptCF(block_buffer_out);
 
-  // Allocate memory as a block buffer.
-  CMBlockBufferRef block_buffer = nullptr;
-  CFAllocatorRef block_allocator = CMMemoryPoolGetAllocator(memory_pool);
-  OSStatus status = CMBlockBufferCreateWithMemoryBlock(
-      kCFAllocatorDefault, nullptr, reader.BytesRemainingForAVC(), block_allocator,
-      nullptr, 0, reader.BytesRemainingForAVC(), kCMBlockBufferAssureMemoryNowFlag,
-      &block_buffer);
-  if (status != kCMBlockBufferNoErr) {
-    RTC_LOG(LS_ERROR) << "Failed to create block buffer.";
-    return false;
-  }
+    // Make sure block buffer is contiguous.
+    RetainPtr<CMBlockBufferRef> contiguous_buffer;
+    if (!CMBlockBufferIsRangeContiguous(block_buffer.get(), 0, 0)) {
+        CMBlockBufferRef contiguous_buffer_out = nullptr;
+        status = CMBlockBufferCreateContiguous(kCFAllocatorDefault, block_buffer.get(), block_allocator, nullptr, 0, 0, 0, &contiguous_buffer_out);
+        if (status != noErr) {
+            RTC_LOG(LS_ERROR) << "Failed to flatten non-contiguous block buffer: "
+                            << status;
+            return nullptr;
+        }
+        contiguous_buffer = adoptCF(contiguous_buffer_out);
+        block_buffer = nullptr;
+    } else
+        contiguous_buffer = WTFMove(block_buffer);
 
-  // Make sure block buffer is contiguous.
-  CMBlockBufferRef contiguous_buffer = nullptr;
-  if (!CMBlockBufferIsRangeContiguous(block_buffer, 0, 0)) {
-    status = CMBlockBufferCreateContiguous(kCFAllocatorDefault, block_buffer,
-                                           block_allocator, nullptr, 0, 0, 0,
-                                           &contiguous_buffer);
+    // Get a raw pointer into allocated memory.
+    size_t block_buffer_size = 0;
+    char* data_ptr = nullptr;
+    status = CMBlockBufferGetDataPointer(contiguous_buffer.get(), 0, nullptr, &block_buffer_size, &data_ptr);
+    if (status != kCMBlockBufferNoErr) {
+        RTC_LOG(LS_ERROR) << "Failed to get block buffer data pointer.";
+        return nullptr;
+    }
+    RTC_DCHECK(block_buffer_size == reader.BytesRemainingForAVC());
+
+    // Write Avcc NALUs into block buffer memory.
+    AvccBufferWriter writer(reinterpret_cast<uint8_t*>(data_ptr), block_buffer_size);
+    while (reader.BytesRemaining() > 0) {
+        const uint8_t* nalu_data_ptr = nullptr;
+        size_t nalu_data_size = 0;
+        if (reader.ReadNalu(&nalu_data_ptr, &nalu_data_size))
+            writer.WriteNalu(nalu_data_ptr, nalu_data_size);
+    }
+
+    // Create sample buffer.
+    CMSampleBufferRef out_sample_buffer = nullptr;
+    status = CMSampleBufferCreate(kCFAllocatorDefault, contiguous_buffer.get(), true, nullptr, nullptr, video_format, 1, 0, nullptr, 0, nullptr, &out_sample_buffer);
     if (status != noErr) {
-      RTC_LOG(LS_ERROR) << "Failed to flatten non-contiguous block buffer: "
-                        << status;
-      CFRelease(block_buffer);
-      return false;
+        RTC_LOG(LS_ERROR) << "Failed to create sample buffer.";
+        return nullptr;
     }
-  } else {
-    contiguous_buffer = block_buffer;
-    block_buffer = nullptr;
-  }
-
-  // Get a raw pointer into allocated memory.
-  size_t block_buffer_size = 0;
-  char* data_ptr = nullptr;
-  status = CMBlockBufferGetDataPointer(contiguous_buffer, 0, nullptr,
-                                       &block_buffer_size, &data_ptr);
-  if (status != kCMBlockBufferNoErr) {
-    RTC_LOG(LS_ERROR) << "Failed to get block buffer data pointer.";
-    CFRelease(contiguous_buffer);
-    return false;
-  }
-  RTC_DCHECK(block_buffer_size == reader.BytesRemainingForAVC());
-
-  // Write Avcc NALUs into block buffer memory.
-  AvccBufferWriter writer(reinterpret_cast<uint8_t*>(data_ptr),
-                          block_buffer_size);
-  while (reader.BytesRemaining() > 0) {
-    const uint8_t* nalu_data_ptr = nullptr;
-    size_t nalu_data_size = 0;
-    if (reader.ReadNalu(&nalu_data_ptr, &nalu_data_size)) {
-      writer.WriteNalu(nalu_data_ptr, nalu_data_size);
-    }
-  }
-
-  // Create sample buffer.
-  status = CMSampleBufferCreate(kCFAllocatorDefault, contiguous_buffer, true,
-                                nullptr, nullptr, video_format, 1, 0, nullptr,
-                                0, nullptr, out_sample_buffer);
-  if (status != noErr) {
-    RTC_LOG(LS_ERROR) << "Failed to create sample buffer.";
-    CFRelease(contiguous_buffer);
-    return false;
-  }
-  CFRelease(contiguous_buffer);
-  return true;
+    return adoptCF(out_sample_buffer);
 }
 
-#ifndef DISABLE_H265
 bool H265CMSampleBufferToAnnexBBuffer(
     CMSampleBufferRef hvcc_sample_buffer,
     bool is_keyframe,
@@ -352,7 +342,7 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
   *out_sample_buffer = nullptr;
 
   AnnexBBufferReader reader(annexb_buffer, annexb_buffer_size, false);
-  if (reader.SeekToNextNaluOfType(H265::kVps)) {
+  if (reader.SeekToNextNaluOfType(webrtc::H265::kVps)) {
     // Buffer contains an SPS NALU - skip it and the following PPS
     const uint8_t* data;
     size_t data_len;
@@ -436,7 +426,6 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
   CFRelease(contiguous_buffer);
   return true;
 }
-#endif
 
 CMVideoFormatDescriptionRef CreateVideoFormatDescription(
     const uint8_t* annexb_buffer,
@@ -468,143 +457,143 @@ CMVideoFormatDescriptionRef CreateVideoFormatDescription(
   return description;
 }
 
-class SpsAndVuiParser : private SpsParser {
+class SpsAndVuiParser : private webrtc::SpsParser {
 public:
     struct State : SpsState {
-      explicit State(const SpsState& spsState)
-        : SpsState(spsState)
-      {
-      }
+        explicit State(const SpsState& spsState)
+            : SpsState(spsState)
+        {
+        }
 
-      uint8_t profile_idc { 0 };
-      uint8_t level_idc { 0 };
-      bool constraint_set3_flag { false };
-      bool bitstream_restriction_flag { false };
-      uint64_t max_num_reorder_frames { 0 };
+        uint8_t profile_idc { 0 };
+        uint8_t level_idc { 0 };
+        bool constraint_set3_flag { false };
+        bool bitstream_restriction_flag { false };
+        uint64_t max_num_reorder_frames { 0 };
     };
+
     static absl::optional<State> Parse(const std::vector<uint8_t>& unpacked_buffer)
     {
-      BitstreamReader reader(unpacked_buffer);
-      auto spsState = ParseSpsUpToVui(reader);
-      if (!spsState) {
+        webrtc::BitstreamReader reader(unpacked_buffer);
+        auto spsState = ParseSpsUpToVui(reader);
+        if (!spsState)
           return { };
-      }
-      State result { *spsState };
-
-      {
-        // We are restarting parsing for some values we need and that ParseSpsUpToVui is not giving us.
-        BitstreamReader reader2(unpacked_buffer);
-        result.profile_idc = reader2.Read<uint8_t>();
-        // constraint_set0_flag, constraint_set1_flag, constraint_set2_flag
-        reader2.ConsumeBits(3);
-        result.constraint_set3_flag = reader2.Read<bool>();
-        // constraint_set4_flag, constraint_set5_flag and reserved bits (2)
-        reader2.ConsumeBits(4);
-        result.level_idc = reader2.Read<uint8_t>();
-        if (!reader2.Ok()) {
-          return { };
+ 
+        State result { *spsState };
+        {
+            // We are restarting parsing for some values we need and that ParseSpsUpToVui is not giving us.
+            webrtc::BitstreamReader reader2(unpacked_buffer);
+            result.profile_idc = reader2.Read<uint8_t>();
+            // constraint_set0_flag, constraint_set1_flag, constraint_set2_flag
+            reader2.ConsumeBits(3);
+            result.constraint_set3_flag = reader2.Read<bool>();
+            // constraint_set4_flag, constraint_set5_flag and reserved bits (2)
+            reader2.ConsumeBits(4);
+            result.level_idc = reader2.Read<uint8_t>();
+            if (!reader2.Ok())
+              return { };
         }
-      }
 
-      if (!spsState->vui_params_present) {
-        return result;
-      }
-      // Based on ANNEX VUI parameters syntax.
+        if (!spsState->vui_params_present)
+            return result;
 
-      // aspect_ratio_info_present_flag
-      if (reader.Read<bool>()) {
-        // aspect_ratio_idc
-        auto aspect_ratio_idc = reader.Read<uint8_t>();
-        // FIXME Extended_SAR
-        constexpr uint64_t extendedSar = 255;
-        if (aspect_ratio_idc == extendedSar) {
-          // sar_width
-          reader.ConsumeBits(16);
-          // sar_height
-          reader.ConsumeBits(16);
-        }
-      }
-      // overscan_info_present_flag
-      if (reader.Read<bool>()) {
-        // overscan_appropriate_flag
-        reader.ConsumeBits(1);
-      }
-      // video_signal_type_present_flag
-      if (reader.Read<bool>()) {
-        // video_format
-        reader.ConsumeBits(3);
-        // video_full_range_flag
-        reader.ConsumeBits(1);
-        // colour_description_present_flag
+        // Based on ANNEX VUI parameters syntax.
+
+        // aspect_ratio_info_present_flag
         if (reader.Read<bool>()) {
-          // colour_primaries
-          reader.ConsumeBits(8);
-          // transfer_characteristics
-          reader.ConsumeBits(8);
-          // matrix_coefficients
-          reader.ConsumeBits(8);
+            // aspect_ratio_idc
+            auto aspect_ratio_idc = reader.Read<uint8_t>();
+            // FIXME Extended_SAR
+            constexpr uint64_t extendedSar = 255;
+            if (aspect_ratio_idc == extendedSar) {
+                // sar_width
+                reader.ConsumeBits(16);
+                // sar_height
+                reader.ConsumeBits(16);
+            }
         }
-      }
-      // chroma_loc_info_present_flag
-      if (reader.Read<bool>()) {
-          // chroma_sample_loc_type_top_field
-          reader.ReadExponentialGolomb();
-          // chroma_sample_loc_type_bottom_field
-          reader.ReadExponentialGolomb();
-      }
-      // timing_info_present_flag
-      if (reader.Read<bool>()) {
-        // num_units_in_tick
-        reader.ConsumeBits(32);
-        // time_scale
-        reader.ConsumeBits(32);
-        // fixed_frame_rate_flag
-        reader.ConsumeBits(1);
-      }
-      // nal_hrd_parameters_present_flag
-      bool nal_hrd_parameters_present_flag = reader.Read<bool>();
-      if (nal_hrd_parameters_present_flag) {
-        // hrd_parameters
-        skipHRDParameters(reader);
-      }
-      // vcl_hrd_parameters_present_flag
-      bool vcl_hrd_parameters_present_flag = reader.Read<bool>();
-      if (vcl_hrd_parameters_present_flag) {
-        // hrd_parameters
-        skipHRDParameters(reader);
-      }
-      if (nal_hrd_parameters_present_flag || vcl_hrd_parameters_present_flag) {
-        // low_delay_hrd_flag
-        reader.ConsumeBits(1);
-      }
-      // pic_struct_present_flag
-      reader.ConsumeBits(1);
-      // bitstream_restriction_flag
-      result.bitstream_restriction_flag = reader.Read<bool>();
-      if (result.bitstream_restriction_flag) {
-        // motion_vectors_over_pic_boundaries_flag
-        reader.ConsumeBits(1);
-        // max_bytes_per_pic_denom
-        reader.ReadExponentialGolomb();
-        // max_bits_per_mb_denom
-        reader.ReadExponentialGolomb();
-        // log2_max_mv_length_horizontal
-        reader.ReadExponentialGolomb();
-        // log2_max_mv_length_vertical
-        reader.ReadExponentialGolomb();
-        // max_num_reorder_frames
-        result.max_num_reorder_frames = reader.ReadExponentialGolomb();
-        // max_dec_frame_buffering
-        reader.ReadExponentialGolomb();
-      }
 
-      if (!reader.Ok()) {
-          return { };
-      }
-      return result;
+        // overscan_info_present_flag
+        if (reader.Read<bool>()) {
+            // overscan_appropriate_flag
+            reader.ConsumeBits(1);
+        }
+        // video_signal_type_present_flag
+        if (reader.Read<bool>()) {
+            // video_format
+            reader.ConsumeBits(3);
+            // video_full_range_flag
+            reader.ConsumeBits(1);
+            // colour_description_present_flag
+            if (reader.Read<bool>()) {
+                // colour_primaries
+                reader.ConsumeBits(8);
+                // transfer_characteristics
+                reader.ConsumeBits(8);
+                // matrix_coefficients
+                reader.ConsumeBits(8);
+            }
+        }
+        // chroma_loc_info_present_flag
+        if (reader.Read<bool>()) {
+            // chroma_sample_loc_type_top_field
+            reader.ReadExponentialGolomb();
+            // chroma_sample_loc_type_bottom_field
+            reader.ReadExponentialGolomb();
+        }
+        // timing_info_present_flag
+        if (reader.Read<bool>()) {
+            // num_units_in_tick
+            reader.ConsumeBits(32);
+            // time_scale
+            reader.ConsumeBits(32);
+            // fixed_frame_rate_flag
+            reader.ConsumeBits(1);
+        }
+        // nal_hrd_parameters_present_flag
+        bool nal_hrd_parameters_present_flag = reader.Read<bool>();
+        if (nal_hrd_parameters_present_flag) {
+            // hrd_parameters
+            skipHRDParameters(reader);
+        }
+        // vcl_hrd_parameters_present_flag
+        bool vcl_hrd_parameters_present_flag = reader.Read<bool>();
+        if (vcl_hrd_parameters_present_flag) {
+            // hrd_parameters
+            skipHRDParameters(reader);
+        }
+        if (nal_hrd_parameters_present_flag || vcl_hrd_parameters_present_flag) {
+            // low_delay_hrd_flag
+            reader.ConsumeBits(1);
+        }
+        // pic_struct_present_flag
+        reader.ConsumeBits(1);
+        // bitstream_restriction_flag
+        result.bitstream_restriction_flag = reader.Read<bool>();
+        if (result.bitstream_restriction_flag) {
+            // motion_vectors_over_pic_boundaries_flag
+            reader.ConsumeBits(1);
+            // max_bytes_per_pic_denom
+            reader.ReadExponentialGolomb();
+            // max_bits_per_mb_denom
+            reader.ReadExponentialGolomb();
+            // log2_max_mv_length_horizontal
+            reader.ReadExponentialGolomb();
+            // log2_max_mv_length_vertical
+            reader.ReadExponentialGolomb();
+            // max_num_reorder_frames
+            result.max_num_reorder_frames = reader.ReadExponentialGolomb();
+            // max_dec_frame_buffering
+            reader.ReadExponentialGolomb();
+        }
+
+        if (!reader.Ok())
+            return { };
+
+        return result;
     }
 
-    static void skipHRDParameters(BitstreamReader& reader)
+    static void skipHRDParameters(webrtc::BitstreamReader& reader)
     {
         // cpb_cnt_minus1
         auto cpb_cnt_minus1 = reader.ReadExponentialGolomb();
@@ -630,54 +619,52 @@ public:
 // Table A-1 of H.264 spec
 static size_t maxDpbMbsFromLevelNumber(uint8_t profile_idc, uint8_t level_idc, bool constraint_set3_flag)
 {
-  if ((profile_idc == 66 || profile_idc == 77) && level_idc == 11 && constraint_set3_flag) {
-    // level1b
-    return 396;
-  }
-  H264Level level_casted = static_cast<H264Level>(level_idc);
+    if ((profile_idc == 66 || profile_idc == 77) && level_idc == 11 && constraint_set3_flag) {
+        // level1b
+        return 396;
+    }
 
-  switch (level_casted) {
-  case H264Level::kLevel1:
-    return 396;
-  case H264Level::kLevel1_1:
-    return 900;
-  case H264Level::kLevel1_2:
-  case H264Level::kLevel1_3:
-  case H264Level::kLevel2:
-    return 2376;
-  case H264Level::kLevel2_1:
-    return 4752;
-  case H264Level::kLevel2_2:
-  case H264Level::kLevel3:
-    return 8100;
-  case H264Level::kLevel3_1:
-    return 18000;
-  case H264Level::kLevel3_2:
-    return 20480;
-  case H264Level::kLevel4:
-    return 32768;
-  case H264Level::kLevel4_1:
-    return 32768;
-  case H264Level::kLevel4_2:
-    return 34816;
-  case H264Level::kLevel5:
-    return 110400;
-  case H264Level::kLevel5_1:
-    return 184320;
-  case H264Level::kLevel5_2:
-    return 184320;
-  default:
-    RTC_LOG(LS_ERROR) << "Wrong maxDpbMbsFromLevelNumber";
-    return 0;
-  }
+    switch (static_cast<webrtc::H264Level>(level_idc)) {
+    case webrtc::H264Level::kLevel1:
+        return 396;
+    case webrtc::H264Level::kLevel1_1:
+        return 900;
+    case webrtc::H264Level::kLevel1_2:
+    case webrtc::H264Level::kLevel1_3:
+    case webrtc::H264Level::kLevel2:
+        return 2376;
+    case webrtc::H264Level::kLevel2_1:
+        return 4752;
+    case webrtc::H264Level::kLevel2_2:
+    case webrtc::H264Level::kLevel3:
+        return 8100;
+    case webrtc::H264Level::kLevel3_1:
+        return 18000;
+    case webrtc::H264Level::kLevel3_2:
+       return 20480;
+    case webrtc::H264Level::kLevel4:
+        return 32768;
+    case webrtc::H264Level::kLevel4_1:
+        return 32768;
+    case webrtc::H264Level::kLevel4_2:
+        return 34816;
+    case webrtc::H264Level::kLevel5:
+        return 110400;
+    case webrtc::H264Level::kLevel5_1:
+        return 184320;
+    case webrtc::H264Level::kLevel5_2:
+        return 184320;
+    default:
+        RTC_LOG(LS_ERROR) << "Wrong maxDpbMbsFromLevelNumber";
+        return 0;
+    }
 }
 
 static uint8_t ComputeH264ReorderSizeFromSPS(const SpsAndVuiParser::State& state) {
-  if (state.pic_order_cnt_type == 2) {
-    return 0;
-  }
+    if (state.pic_order_cnt_type == 2)
+        return 0;
 
-  uint64_t max_dpb_mbs = maxDpbMbsFromLevelNumber(state.profile_idc, state.level_idc, state.constraint_set3_flag);
+    uint64_t max_dpb_mbs = maxDpbMbsFromLevelNumber(state.profile_idc, state.level_idc, state.constraint_set3_flag);
   uint64_t pic_width_in_mbs = state.pic_width_in_mbs_minus1 + 1;
   uint64_t frame_height_in_mbs = (2 - state.frame_mbs_only_flag) * (state.pic_height_in_map_units_minus1 + 1);
   uint64_t max_dpb_frames_from_sps = max_dpb_mbs / (pic_width_in_mbs * frame_height_in_mbs);
@@ -705,11 +692,11 @@ uint8_t ComputeH264ReorderSizeFromAnnexB(const uint8_t* annexb_buffer, size_t an
   const uint8_t* spsData;
   size_t spsDataSize;
 
-  if (!reader.ReadNalu(&spsData, &spsDataSize) || spsDataSize <= H264::kNaluTypeSize) {
+  if (!reader.ReadNalu(&spsData, &spsDataSize) || spsDataSize <= webrtc::H264::kNaluTypeSize) {
     return 0;
   }
 
-  std::vector<uint8_t> unpacked_buffer = H264::ParseRbsp(spsData + H264::kNaluTypeSize, spsDataSize - H264::kNaluTypeSize);
+  std::vector<uint8_t> unpacked_buffer = webrtc::H264::ParseRbsp(spsData + webrtc::H264::kNaluTypeSize, spsDataSize - webrtc::H264::kNaluTypeSize);
   auto spsAndVui = SpsAndVuiParser::Parse(unpacked_buffer);
   if (!spsAndVui) {
     RTC_LOG(LS_ERROR) << "Failed to parse sps.";
@@ -721,7 +708,7 @@ uint8_t ComputeH264ReorderSizeFromAnnexB(const uint8_t* annexb_buffer, size_t an
 
 uint8_t ComputeH264ReorderSizeFromAVC(const uint8_t* avcData, size_t avcDataSize) {
   std::vector<uint8_t> unpacked_buffer { avcData, avcData + avcDataSize };
-  BitstreamReader reader(unpacked_buffer);
+  webrtc::BitstreamReader reader(unpacked_buffer);
 
   // configurationVersion
   reader.ConsumeBits(8);
@@ -747,12 +734,12 @@ uint8_t ComputeH264ReorderSizeFromAVC(const uint8_t* avcData, size_t avcDataSize
     auto size = reader.Read<uint16_t>();
     offset += 2;
 
-    reader.ConsumeBits(8 * (size + H264::kNaluTypeSize));
+    reader.ConsumeBits(8 * (size + webrtc::H264::kNaluTypeSize));
     if (!reader.Ok()) {
       return 0;
     }
 
-    auto spsAndVui = SpsAndVuiParser::Parse({ avcData + offset + H264::kNaluTypeSize, avcData + offset + size });
+    auto spsAndVui = SpsAndVuiParser::Parse({ avcData + offset + webrtc::H264::kNaluTypeSize, avcData + offset + size });
     if (spsAndVui) {
       return ComputeH264ReorderSizeFromSPS(*spsAndVui);
     }
@@ -768,7 +755,7 @@ CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
   size_t param_set_sizes[3] = {};
   AnnexBBufferReader reader(annexb_buffer, annexb_buffer_size, false);
   // Skip everyting before the VPS, then read the VPS, SPS and PPS
-  if (!reader.SeekToNextNaluOfType(H265::kVps)) {
+  if (!reader.SeekToNextNaluOfType(webrtc::H265::kVps)) {
     return nullptr;
   }
   if (!reader.ReadNalu(&param_set_ptrs[0], &param_set_sizes[0])) {
@@ -797,13 +784,12 @@ CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
 }
 #endif
 
-AnnexBBufferReader::AnnexBBufferReader(const uint8_t* annexb_buffer,
-                                       size_t length, bool isH264)
+AnnexBBufferReader::AnnexBBufferReader(const uint8_t* annexb_buffer, size_t length, bool /* isH264 */)
     : start_(annexb_buffer), length_(length) {
-  RTC_DCHECK(annexb_buffer);
+    RTC_DCHECK(annexb_buffer);
 
-  offsets_ = H264::FindNaluIndices(annexb_buffer, length);
-  offset_ = offsets_.begin();
+    offsets_ = webrtc::H264::FindNaluIndices(annexb_buffer, length);
+    offset_ = offsets_.begin();
 }
 
 AnnexBBufferReader::~AnnexBBufferReader() = default;
@@ -859,11 +845,11 @@ bool AnnexBBufferReader::SeekToNextNaluOfType(NaluType type) {
 }
 
 #ifndef DISABLE_H265
-bool AnnexBBufferReader::SeekToNextNaluOfType(H265::NaluType type) {
+bool AnnexBBufferReader::SeekToNextNaluOfType(webrtc::H265::NaluType type) {
   for (; offset_ != offsets_.end(); ++offset_) {
     if (offset_->payload_size < 1)
       continue;
-    if (H265::ParseNaluType(*(start_ + offset_->payload_start_offset)) == type)
+    if (webrtc::H265::ParseNaluType(*(start_ + offset_->payload_start_offset)) == type)
       return true;
   }
   return false;

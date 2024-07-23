@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#import "config.h"
 #import "RTCVideoFrame.h"
 
 #import "RTCI420Buffer.h"

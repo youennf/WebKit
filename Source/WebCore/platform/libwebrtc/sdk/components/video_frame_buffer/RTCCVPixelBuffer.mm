@@ -277,16 +277,6 @@ ALLOW_UNUSED_PARAMETERS_END
 
 #pragma mark - Debugging
 
-#if !defined(NDEBUG) && defined(WEBRTC_IOS)
-- (id)debugQuickLookObject {
-  CGImageRef cgImage;
-  VTCreateCGImageFromCVPixelBuffer(_pixelBuffer, NULL, &cgImage);
-  UIImage *image = [UIImage imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationUp];
-  CGImageRelease(cgImage);
-  return image;
-}
-#endif
-
 #pragma mark - Private
 
 - (void)cropAndScaleNV12To:(CVPixelBufferRef)outputPixelBuffer withTempBuffer:(uint8_t*)tmpBuffer {

@@ -13,7 +13,9 @@
 #import "RTCVideoDecoderAV1.h"
 
 #import "RTCWrappedNativeVideoDecoder.h"
+ALLOW_UNUSED_PARAMETERS_BEGIN
 #import <webrtc/modules/video_coding/codecs/av1/libaom_av1_decoder.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 @implementation RTCVideoDecoderAV1
 

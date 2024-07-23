@@ -9,53 +9,54 @@
  *
  */
 
+#import "config.h"
 #import "RTCVideoFrameReorderQueue.h"
 
-namespace webrtc {
+namespace WebCore {
 
 bool RTCVideoFrameReorderQueue::isEmpty()
 {
-    return _reorderQueue.empty();
+    return m_reorderQueue.empty();
 }
 
 uint8_t RTCVideoFrameReorderQueue::reorderSize() const
 {
-    webrtc::MutexLock lock(&_reorderQueueLock);
-    return _reorderSize;
+    Locker locker(m_reorderQueueLock);
+    return m_reorderSize;
 }
 
 void RTCVideoFrameReorderQueue::setReorderSize(uint8_t size)
 {
-    webrtc::MutexLock lock(&_reorderQueueLock);
-    _reorderSize = size;
+    Locker locker(m_reorderQueueLock);
+    m_reorderSize = size;
 }
 
 void RTCVideoFrameReorderQueue::append(RTCVideoFrame* frame, uint8_t reorderSize)
 {
-    webrtc::MutexLock lock(&_reorderQueueLock);
-    _reorderQueue.push_back(std::make_unique<RTCVideoFrameWithOrder>(frame, reorderSize));
-    std::sort(_reorderQueue.begin(), _reorderQueue.end(), [](auto& a, auto& b) {
+    Locker locker(m_reorderQueueLock);
+    m_reorderQueue.push_back(std::make_unique<RTCVideoFrameWithOrder>(frame, reorderSize));
+    std::sort(m_reorderQueue.begin(), m_reorderQueue.end(), [](auto& a, auto& b) {
         return a->timeStamp < b->timeStamp;
     });
 }
 
-RTCVideoFrame* RTCVideoFrameReorderQueue::takeIfAvailable()
+RetainPtr<RTCVideoFrame> RTCVideoFrameReorderQueue::takeIfAvailable()
 {
-    webrtc::MutexLock lock(&_reorderQueueLock);
-    if (_reorderQueue.size() && _reorderQueue.size() > _reorderQueue.front()->reorderSize) {
-        auto *frame = _reorderQueue.front()->take();
-        _reorderQueue.pop_front();
+    Locker locker(m_reorderQueueLock);
+    if (m_reorderQueue.size() && m_reorderQueue.size() > m_reorderQueue.front()->reorderSize) {
+        auto frame = m_reorderQueue.front()->take();
+        m_reorderQueue.pop_front();
         return frame;
     }
     return nil;
 }
 
-RTCVideoFrame* RTCVideoFrameReorderQueue::takeIfAny()
+RetainPtr<RTCVideoFrame> RTCVideoFrameReorderQueue::takeIfAny()
 {
-    webrtc::MutexLock lock(&_reorderQueueLock);
-    if (_reorderQueue.size()) {
-        auto *frame = _reorderQueue.front()->take();
-        _reorderQueue.pop_front();
+    Locker locker(m_reorderQueueLock);
+    if (m_reorderQueue.size()) {
+        auto frame = m_reorderQueue.front()->take();
+        m_reorderQueue.pop_front();
         return frame;
     }
     return nil;

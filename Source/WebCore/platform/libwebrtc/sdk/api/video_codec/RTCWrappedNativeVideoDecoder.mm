@@ -8,9 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#import <Foundation/Foundation.h>
-
+#import "config.h"
 #import "RTCWrappedNativeVideoDecoder.h"
+
+#import <Foundation/Foundation.h>
 #import "NSString+StdString.h"
 
 @implementation RTCWrappedNativeVideoDecoder {
@@ -54,9 +55,6 @@
 }
 
 - (NSString *)implementationName {
-#if !defined(WEBRTC_WEBKIT_BUILD)
-  RTC_DCHECK_NOTREACHED();
-#endif
   return nil;
 }
 

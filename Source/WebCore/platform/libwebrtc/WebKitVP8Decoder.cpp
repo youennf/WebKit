@@ -36,7 +36,11 @@ ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/system_wrappers/include/cpu_info.h>
 ALLOW_UNUSED_PARAMETERS_END
 
+#import <pal/cf/CoreMediaSoftLink.h>
+
 namespace WebCore {
+
+using namespace PAL;
 
 static OSStatus createWebKitVP8Decoder(FigVideoCodecType, CFAllocatorRef allocator, VTVideoDecoderRef*);
 void registerWebKitVP8Decoder()

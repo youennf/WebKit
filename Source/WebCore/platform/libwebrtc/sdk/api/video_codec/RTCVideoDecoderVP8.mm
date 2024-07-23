@@ -9,13 +9,15 @@
  *
  */
 
-#import <Foundation/Foundation.h>
-
+#import "config.h"
 #import "RTCVideoDecoderVP8.h"
-#import "RTCWrappedNativeVideoDecoder.h"
 
-#include "api/environment/environment_factory.h"
-#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#import "RTCWrappedNativeVideoDecoder.h"
+#import <Foundation/Foundation.h>
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#include <webrtc/api/environment/environment_factory.h>
+#include <webrtc/modules/video_coding/codecs/vp8/include/vp8.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 @implementation RTCVideoDecoderVP8
 

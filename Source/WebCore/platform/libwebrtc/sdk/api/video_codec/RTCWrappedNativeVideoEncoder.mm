@@ -8,10 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#import <Foundation/Foundation.h>
-
+#import "config.h"
 #import "RTCWrappedNativeVideoEncoder.h"
-#import "helpers/NSString+StdString.h"
+
+#import "NSString+StdString.h"
+#import <Foundation/Foundation.h>
 
 @implementation RTCWrappedNativeVideoEncoder {
   std::unique_ptr<webrtc::VideoEncoder> _wrappedEncoder;

@@ -8,22 +8,21 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#import "config.h"
 #import "RTCDefaultVideoEncoderFactory.h"
 
 #import "RTCH264ProfileLevelId.h"
 #import "RTCVideoEncoderH264.h"
-#import "api/video_codec/RTCVideoCodecConstants.h"
-#import "api/video_codec/RTCVideoEncoderVP8.h"
-#import "base/RTCVideoCodecInfo.h"
-#if defined(RTC_ENABLE_VP9)
-#import "api/video_codec/RTCVideoEncoderVP9.h"
+#import "RTCVideoCodecConstants.h"
+#import "RTCVideoEncoderVP8.h"
+#import "RTCVideoCodecInfo.h"
+#if ENABLE(VP9)
+#import "RTCVideoEncoderVP9.h"
 #endif
-#if !defined(DISABLE_H265)
 #import "RTCH265ProfileLevelId.h"
 #import "RTCVideoEncoderH265.h"
-#endif
-#if !defined(DISABLE_RTC_AV1)
-#import "sdk/objc/api/video_codec/RTCVideoEncoderAV1.h"
+#if ENABLE(AV1)
+#import "RTCVideoEncoderAV1.h"
 #endif
 
 @implementation RTCDefaultVideoEncoderFactory {
@@ -74,17 +73,15 @@
     @"packetization-mode" : @"0",
   }]];
 
-#if !defined(RTC_DISABLE_H265)
   if (supportsH265) {
     RTCVideoCodecInfo *h265Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecH265Name];
     [codecs addObject:h265Info];
   }
-#endif
 
   RTCVideoCodecInfo *vp8Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecVp8Name];
   [codecs addObject:vp8Info];
 
-#if defined(RTC_ENABLE_VP9)
+#if ENABLE(VP9)
   if (supportsVP9Profile0) {
     [codecs addObject:[[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecVp9Name parameters: @{
       @"profile-id" : @"0",
@@ -96,7 +93,7 @@
     }]];
   }
 #endif
-#if !defined(DISABLE_RTC_AV1)
+#if ENABLE(AV1)
   if (supportsAv1) {
     [codecs addObject:[[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecAv1Name]];
   }
@@ -112,18 +109,16 @@
     return encoder;
   } else if ([info.name isEqualToString:kRTCVideoCodecVp8Name]) {
     return [RTCVideoEncoderVP8 vp8Encoder];
-#if defined(RTC_ENABLE_VP9)
+#if ENABLE(VP9)
   } else if ([info.name isEqualToString:kRTCVideoCodecVp9Name]) {
     return [RTCVideoEncoderVP9 vp9Encoder:info];
 #endif
-#if !defined(DISABLE_H265)
   } else if (@available(iOS 11, *)) {
     if ([info.name isEqualToString:kRTCVideoCodecH265Name]) {
       return [[RTCVideoEncoderH265 alloc] initWithCodecInfo:info];
     }
-#endif
   }
-#if !defined(DISABLE_RTC_AV1)
+#if ENABLE(AV1)
   if ([info.name isEqualToString:kRTCVideoCodecAv1Name]) {
     return [RTCVideoEncoderAV1 av1Encoder];
   }

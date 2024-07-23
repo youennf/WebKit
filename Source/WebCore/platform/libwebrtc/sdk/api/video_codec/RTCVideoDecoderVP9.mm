@@ -9,12 +9,14 @@
  *
  */
 
-#import <Foundation/Foundation.h>
-
+#import "config.h"
 #import "RTCVideoDecoderVP9.h"
-#import "RTCWrappedNativeVideoDecoder.h"
 
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
+#import <Foundation/Foundation.h>
+#import "RTCWrappedNativeVideoDecoder.h"
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#include <webrtc/modules/video_coding/codecs/vp9/include/vp9.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 @implementation RTCVideoDecoderVP9
 

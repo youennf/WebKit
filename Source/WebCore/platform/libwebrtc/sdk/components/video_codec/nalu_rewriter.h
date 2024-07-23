@@ -12,20 +12,22 @@
 #ifndef SDK_OBJC_FRAMEWORK_CLASSES_VIDEOTOOLBOX_NALU_REWRITER_H_
 #define SDK_OBJC_FRAMEWORK_CLASSES_VIDEOTOOLBOX_NALU_REWRITER_H_
 
-#include "modules/video_coding/codecs/h264/include/h264.h"
-
 #include <CoreMedia/CoreMedia.h>
-#include <vector>
 
-#include "common_video/h264/h264_common.h"
-#ifdef RTC_ENABLE_H265
-#include "common_video/h265/h265_common.h"
-#endif
-#include "rtc_base/buffer.h"
+#include "LibWebRTCMacros.h"
+
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#include <webrtc/modules/video_coding/codecs/h264/include/h264.h>
+#include <webrtc/common_video/h264/h264_common.h>
+#include <webrtc/common_video/h265/h265_common.h>
+#include <webrtc/rtc_base/buffer.h>
+ALLOW_UNUSED_PARAMETERS_END
+#include <vector>
+#include <wtf/RetainPtr.h>
 
 using webrtc::H264::NaluIndex;
 
-namespace webrtc {
+namespace WebCore {
 
 // Converts a sample buffer emitted from the VideoToolbox encoder into a buffer
 // suitable for RTP. The sample buffer is in avcc format whereas the rtp buffer
@@ -40,16 +42,14 @@ bool H264CMSampleBufferToAnnexBBuffer(CMSampleBufferRef avcc_sample_buffer,
 // If |is_keyframe| is true then |video_format| is ignored since the format will
 // be read from the buffer. Otherwise |video_format| must be provided.
 // Caller is responsible for releasing the created sample buffer.
-bool H264AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
+RetainPtr<CMSampleBufferRef> H264AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
                                       size_t annexb_buffer_size,
                                       CMVideoFormatDescriptionRef video_format,
-                                      CMSampleBufferRef* out_sample_buffer,
                                       CMMemoryPoolRef memory_pool);
 
 uint8_t ComputeH264ReorderSizeFromAnnexB(const uint8_t* annexb_buffer, size_t annexb_buffer_size);
 uint8_t ComputeH264ReorderSizeFromAVC(const uint8_t* avcdata, size_t avcdata_size);
 
-#ifdef RTC_ENABLE_H265
 // Converts a sample buffer emitted from the VideoToolbox encoder into a buffer
 // suitable for RTP. The sample buffer is in avcc format whereas the rtp buffer
 // needs to be in Annex B format. Data is written directly to |annexb_buffer|.
@@ -72,7 +72,6 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
 CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
     const uint8_t* annexb_buffer,
     size_t annexb_buffer_size);
-#endif
 
 // Returns a video format description created from the sps/pps information in
 // the Annex B buffer. If there is no such information, nullptr is returned.
@@ -105,8 +104,8 @@ class AnnexBBufferReader final {
   // or the end if no such NALU is found.
   // Return true if a NALU of the desired type is found, false if we
   // reached the end instead
-  bool SeekToNextNaluOfType(H264::NaluType type);
-  bool SeekToNextNaluOfType(H265::NaluType type);
+  bool SeekToNextNaluOfType(webrtc::H264::NaluType type);
+  bool SeekToNextNaluOfType(webrtc::H265::NaluType type);
 
  private:
   // Returns the the next offset that contains NALU data.

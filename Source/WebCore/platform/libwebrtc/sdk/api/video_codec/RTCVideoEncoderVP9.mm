@@ -9,14 +9,16 @@
  *
  */
 
-#import <Foundation/Foundation.h>
-
+#import "config.h"
 #import "RTCVideoEncoderVP9.h"
-#import "RTCWrappedNativeVideoEncoder.h"
 
-#include "api/environment/environment_factory.h"
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
-#include "sdk/objc/api/peerconnection/RTCVideoCodecInfo+Private.h"
+#import "RTCVideoCodecInfo+Private.h"
+#import "RTCWrappedNativeVideoEncoder.h"
+#import <Foundation/Foundation.h>
+ALLOW_UNUSED_PARAMETERS_BEGIN
+#import <webrtc/api/environment/environment_factory.h>
+#import <webrtc/modules/video_coding/codecs/vp9/include/vp9.h>
+ALLOW_UNUSED_PARAMETERS_END
 
 @implementation RTCVideoEncoderVP9
 
