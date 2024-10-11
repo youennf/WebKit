@@ -117,6 +117,9 @@ void RemoteAudioSessionProxyManager::updateCategory()
     else if (policyCounts.contains(RouteSharingPolicy::Independent))
         ASSERT_NOT_REACHED();
 
+    if (AudioSession::sharedSession().category() == AudioSession::CategoryType::PlayAndRecord && category != AudioSession::CategoryType::PlayAndRecord && CoreAudioCaptureSourceFactory::singleton().isAudioCaptureUnitRunning())
+        CoreAudioCaptureSourceFactory::singleton().movingOutOfPlayAndRecord();
+
     AudioSession::sharedSession().setCategory(category, mode, policy);
 }
 

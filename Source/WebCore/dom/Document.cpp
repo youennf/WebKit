@@ -5343,7 +5343,20 @@ void Document::updateIsPlayingMedia()
             controller->checkDocumentForVoiceActivity(this);
     }
 #endif
+
+#if ENABLE(DOM_AUDIO_SESSION)
+    if (RefPtr domAudioSession = m_audioSession.get())
+        domAudioSession->update();
+#endif
 }
+
+#if ENABLE(DOM_AUDIO_SESSION)
+void Document::setDOMAudioSession(DOMAudioSession& session)
+{
+    ASSERT(!m_audioSession);
+    m_audioSession = session;
+}
+#endif
 
 void Document::visibilityAdjustmentStateDidChange()
 {

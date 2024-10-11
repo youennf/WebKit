@@ -31,6 +31,7 @@
 #include "AudioSession.h"
 #include "Document.h"
 #include "EventNames.h"
+#include "Page.h"
 #include "PermissionsPolicy.h"
 #include "PlatformMediaSessionManager.h"
 
@@ -64,11 +65,16 @@ Ref<DOMAudioSession> DOMAudioSession::create(ScriptExecutionContext* context)
 {
     auto audioSession = adoptRef(*new DOMAudioSession(context));
     audioSession->suspendIfNeeded();
+
+    if (RefPtr document = downcast<Document>(context))
+        document->setDOMAudioSession(audioSession.get());
+
     return audioSession;
 }
 
 DOMAudioSession::DOMAudioSession(ScriptExecutionContext* context)
     : ActiveDOMObject(context)
+    , m_applyTypeTimer(*this, &DOMAudioSession::applyType)
 {
     AudioSession::sharedSession().addInterruptionObserver(*this);
 }
@@ -76,6 +82,27 @@ DOMAudioSession::DOMAudioSession(ScriptExecutionContext* context)
 DOMAudioSession::~DOMAudioSession()
 {
     AudioSession::sharedSession().removeInterruptionObserver(*this);
+}
+
+static inline bool shouldUseDocumentType(DOMAudioSession::Type overrideType, DOMAudioSession::Type documentType)
+{
+    switch (documentType) {
+    case DOMAudioSession::Type::Auto:
+        return false;
+    case DOMAudioSession::Type::Playback:
+        return true;
+    case DOMAudioSession::Type::Transient:
+        return overrideType == DOMAudioSession::Type::Auto;
+    case DOMAudioSession::Type::TransientSolo:
+        return overrideType == DOMAudioSession::Type::Auto;
+    case DOMAudioSession::Type::Ambient:
+        return overrideType == DOMAudioSession::Type::Auto;
+    case DOMAudioSession::Type::PlayAndRecord:
+        return true;
+        break;
+    }
+    ASSERT_NOT_REACHED();
+    return false;
 }
 
 ExceptionOr<void> DOMAudioSession::setType(Type type)
@@ -87,24 +114,72 @@ ExceptionOr<void> DOMAudioSession::setType(Type type)
     if (!PermissionsPolicy::isFeatureEnabled(PermissionsPolicy::Feature::Microphone, *document, PermissionsPolicy::ShouldReportViolation::No))
         return { };
 
-    document->topDocument().setAudioSessionType(type);
+    m_typeToApply = type;
 
-    auto categoryOverride = fromDOMAudioSessionType(type);
+    if (!isTypeBeingApplied())
+        m_applyTypeTimer.startOneShot(0_s);
+
+    return { };
+}
+
+void DOMAudioSession::applyType()
+{
+    RefPtr document = downcast<Document>(scriptExecutionContext());
+    if (!document)
+        return;
+
+    if (document->audioSessionType() == m_typeToApply) {
+        m_typeToApply = DOMAudioSession::Type::Auto;
+        return;
+    }
+
+    document->setAudioSessionType(m_typeToApply);
+    m_typeToApply = DOMAudioSession::Type::Auto;
+
+    update();
+}
+
+void DOMAudioSession::update()
+{
+    RefPtr document = downcast<Document>(scriptExecutionContext());
+    if (!document)
+        return;
+    RefPtr page = document->page();
+    if (!page)
+        return;
+
+    if ((document->mediaState() & MediaProducer::MicrophoneCaptureMask)
+        && document->audioSessionType() != DOMAudioSession::Type::Auto
+        && document->audioSessionType() != DOMAudioSession::Type::PlayAndRecord)
+        document->stopMediaCapture(MediaProducerMediaCaptureKind::Microphone);
+
+    // FIXME: Handle out-of-process iframes.
+    DOMAudioSession::Type overrideType = DOMAudioSession::Type::Auto;
+    page->forEachDocument([&] (auto& document) {
+        if (!(document.mediaState() & MediaProducerMediaState::IsPlayingAudio)
+            && !(document.mediaState() & MediaProducer::MicrophoneCaptureMask))
+            return;
+
+        auto documentType = document.audioSessionType();
+        if (shouldUseDocumentType(overrideType, documentType))
+            overrideType = documentType;
+    });
+
+
+    auto categoryOverride = fromDOMAudioSessionType(overrideType);
     AudioSession::sharedSession().setCategoryOverride(categoryOverride);
 
     if (categoryOverride == AudioSessionCategory::None)
         PlatformMediaSessionManager::updateAudioSessionCategoryIfNecessary();
-
-    return { };
 }
 
 DOMAudioSession::Type DOMAudioSession::type() const
 {
     RefPtr document = downcast<Document>(scriptExecutionContext());
-    if (document && !PermissionsPolicy::isFeatureEnabled(PermissionsPolicy::Feature::Microphone, *document, PermissionsPolicy::ShouldReportViolation::No))
+    if (!document || !PermissionsPolicy::isFeatureEnabled(PermissionsPolicy::Feature::Microphone, *document, PermissionsPolicy::ShouldReportViolation::No))
         return DOMAudioSession::Type::Auto;
 
-    return document ? document->topDocument().audioSessionType() : DOMAudioSession::Type::Auto;
+    return isTypeBeingApplied() ? m_typeToApply : document->audioSessionType();
 }
 
 static DOMAudioSession::State computeAudioSessionState()

@@ -145,6 +145,8 @@ public:
     void setOverrideUnit(BaseAudioSharedUnit* unit) { m_overrideUnit = unit; }
     BaseAudioSharedUnit& unit();
 
+    void movingOutOfPlayAndRecord() { beginInterruption(); }
+
 private:
     // AudioSessionInterruptionObserver
     void beginAudioSessionInterruption() final { beginInterruption(); }
@@ -157,7 +159,7 @@ private:
     void enableMutedSpeechActivityEventListener(Function<void()>&&) final;
     void disableMutedSpeechActivityEventListener() final;
 
-    void beginInterruption();
+    WEBCORE_EXPORT void beginInterruption();
     void endInterruption();
 
     BaseAudioSharedUnit* m_overrideUnit { nullptr };
