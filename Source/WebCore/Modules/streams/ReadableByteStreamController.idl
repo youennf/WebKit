@@ -29,15 +29,11 @@
 
 [
     Exposed=*,
-    JSBuiltin,
-    PrivateIdentifier
 ] interface ReadableByteStreamController {
-    constructor(ReadableStream stream, any underlyingByteSource, unsigned long highWaterMark);
+    [ImplementedAs=byobRequestForBindings] readonly attribute ReadableStreamBYOBRequest? byobRequest;
+    readonly attribute unrestricted double? desiredSize;
 
-    [NotEnumerable] undefined enqueue(optional any chunk);
-    [NotEnumerable] undefined close();
-    [NotEnumerable] undefined error(optional any error);
-
-    [NotEnumerable] readonly attribute ReadableStreamBYOBRequest byobRequest;
-    [NotEnumerable] readonly attribute double desiredSize;
+    [ImplementedAs=closeForBindings] undefined close();
+    [ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
+    [ImplementedAs=errorForBindings] undefined error(optional any error);
 };

@@ -26,22 +26,40 @@
 #pragma once
 
 #include "InternalReadableStream.h"
+#include "JSValueInWrappedObject.h"
 #include <JavaScriptCore/Strong.h>
 #include <wtf/RefCounted.h>
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
 class InternalReadableStream;
 class JSDOMGlobalObject;
+class ReadableByteStreamController;
+class ReadableStreamBYOBReader;
+class ReadableStreamDefaultReader;
 class ReadableStreamSource;
 
-class ReadableStream : public RefCounted<ReadableStream> {
+struct UnderlyingSource;
+
+class ReadableStream : public RefCounted<ReadableStream>, public CanMakeWeakPtr<ReadableStream> {
 public:
+    enum class ReaderMode { Byob };
+    struct GetReaderOptions {
+        std::optional<ReaderMode> mode;
+    };
+
     static ExceptionOr<Ref<ReadableStream>> create(JSC::JSGlobalObject&, std::optional<JSC::Strong<JSC::JSObject>>&&, std::optional<JSC::Strong<JSC::JSObject>>&&);
     static ExceptionOr<Ref<ReadableStream>> create(JSDOMGlobalObject&, Ref<ReadableStreamSource>&&);
+    static ExceptionOr<Ref<ReadableStream>> createFromByteUnderlyingSource(JSC::JSValue underlyingSource, UnderlyingSource&&, double highWaterMark);
     static Ref<ReadableStream> create(Ref<InternalReadableStream>&&);
 
-    ~ReadableStream() = default;
+    ~ReadableStream();
+
+    enum class State : uint8_t { Readable, Closed, Errored };
+    State state() const { return m_state; }
+
+    ExceptionOr<JSC::Strong<JSC::JSObject>> getReader(const GetReaderOptions&);
 
     void lock() { m_internalReadableStream->lock(); }
     bool isLocked() const { return m_internalReadableStream->isLocked(); }
@@ -50,15 +68,34 @@ public:
     void pipeTo(ReadableStreamSink& sink) { m_internalReadableStream->pipeTo(sink); }
     ExceptionOr<Vector<Ref<ReadableStream>>> tee(bool shouldClone = false);
 
-    InternalReadableStream& internalReadableStream() { return m_internalReadableStream.get(); }
+    InternalReadableStream* internalReadableStream() { return m_internalReadableStream.get(); }
+
+    bool hasByteStreamController() { return !!m_controller; }
+    ReadableByteStreamController* controller() { return m_controller.get(); }
+
+    void setReader(ReadableStreamBYOBReader*);
+    ReadableStreamBYOBReader* reader();
+
+    JSValueInWrappedObject& storedError() { return m_storedError; }
+
+    void setAsDisturbed() { m_disturbed = true; }
 
 protected:
     static ExceptionOr<Ref<ReadableStream>> createFromJSValues(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
     static ExceptionOr<Ref<InternalReadableStream>> createInternalReadableStream(JSDOMGlobalObject&, Ref<ReadableStreamSource>&&);
-    explicit ReadableStream(Ref<InternalReadableStream>&&);
-
+    explicit ReadableStream(RefPtr<InternalReadableStream>&& = { });
+    
 private:
-    Ref<InternalReadableStream> m_internalReadableStream;
+    ExceptionOr<void> setUpReadableByteStreamControllerFromUnderlyingSource(JSC::JSValue, UnderlyingSource&&, double);
+
+    RefPtr<InternalReadableStream> m_internalReadableStream;
+
+    State m_state { State::Readable };
+    bool m_disturbed { false };
+
+    JSValueInWrappedObject m_storedError;
+    RefPtr<ReadableByteStreamController> m_controller;
+    WeakPtr<ReadableStreamBYOBReader> m_reader;
 };
 
 } // namespace WebCore

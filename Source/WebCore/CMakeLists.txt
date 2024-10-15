@@ -661,16 +661,24 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/streams/ByteLengthQueuingStrategy.idl
     Modules/streams/CountQueuingStrategy.idl
     Modules/streams/GenericTransformStream.idl
+    Modules/streams/QueuingStrategy.idl
+    Modules/streams/QueuingStrategySize.idl
     Modules/streams/ReadableByteStreamController.idl
     Modules/streams/ReadableStream.idl
     Modules/streams/ReadableStreamBYOBReader.idl
     Modules/streams/ReadableStreamBYOBRequest.idl
     Modules/streams/ReadableStreamDefaultController.idl
     Modules/streams/ReadableStreamDefaultReader.idl
+    Modules/streams/ReadableStreamReadResult.idl
     Modules/streams/ReadableStreamSink.idl
     Modules/streams/ReadableStreamSource.idl
+    Modules/streams/ReadableStreamType.idl
     Modules/streams/TransformStream.idl
     Modules/streams/TransformStreamDefaultController.idl
+    Modules/streams/UnderlyingSource.idl
+    Modules/streams/UnderlyingSourceCancelCallback.idl
+    Modules/streams/UnderlyingSourcePullCallback.idl
+    Modules/streams/UnderlyingSourceStartCallback.idl
     Modules/streams/WritableStream.idl
     Modules/streams/WritableStreamDefaultController.idl
     Modules/streams/WritableStreamDefaultWriter.idl
@@ -2797,15 +2805,9 @@ add_dependencies(WebCoreTestSupportBindings WebCoreBindings)
 set(WebCore_BUILTINS_SOURCES
     ${WEBCORE_DIR}/Modules/compression/CompressionStream.js
     ${WEBCORE_DIR}/Modules/compression/DecompressionStream.js
-    ${WEBCORE_DIR}/Modules/streams/ByteLengthQueuingStrategy.js
     ${WEBCORE_DIR}/Modules/streams/CountQueuingStrategy.js
-    ${WEBCORE_DIR}/Modules/streams/ReadableByteStreamController.js
-    ${WEBCORE_DIR}/Modules/streams/ReadableByteStreamInternals.js
-    ${WEBCORE_DIR}/Modules/streams/ReadableStreamBYOBReader.js
-    ${WEBCORE_DIR}/Modules/streams/ReadableStreamBYOBRequest.js
     ${WEBCORE_DIR}/Modules/streams/ReadableStreamDefaultController.js
     ${WEBCORE_DIR}/Modules/streams/ReadableStreamInternals.js
-    ${WEBCORE_DIR}/Modules/streams/ReadableStreamDefaultReader.js
     ${WEBCORE_DIR}/Modules/streams/StreamInternals.js
     ${WEBCORE_DIR}/Modules/streams/TransformStreamDefaultController.js
     ${WEBCORE_DIR}/Modules/streams/TransformStreamInternals.js
