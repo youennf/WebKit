@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2017 Canon Inc.
  * Copyright (C) 2015 Igalia S.L.
+ * Copyright (C) 2024 Apple Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted, provided that the following conditions
@@ -24,16 +25,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+dictionary ReadableStreamBYOBReaderReadOptions {
+    [EnforceRange] unsigned long long min = 1;
+};
+
 [
-    Exposed=*,
-    JSBuiltin,
-    PrivateIdentifier
+    Exposed=*
 ] interface ReadableStreamBYOBReader {
     constructor(ReadableStream stream);
 
-    [NotEnumerable] Promise<any> read(optional any view);
-    [NotEnumerable] Promise<any> cancel(optional any reason);
-    [NotEnumerable] undefined releaseLock();
+    Promise<ReadableStreamReadResult> read(ArrayBufferView view, optional ReadableStreamBYOBReaderReadOptions options = {});
+    undefined releaseLock();
 
-    [NotEnumerable] readonly attribute Promise<boolean> closed;
+    // ReadableStreamGenericReader
+    readonly attribute Promise<undefined> closed;
+    Promise<undefined> cancel(optional any reason);
 };

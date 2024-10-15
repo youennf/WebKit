@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Canon Inc.
+ * Copyright (C) 2015 Canon Inc.
  * Copyright (C) 2015 Igalia S.L.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,13 +27,5 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-[
-    Exposed=*,
-] interface ReadableByteStreamController {
-    [ImplementedAs=byobRequestForBindings] readonly attribute ReadableStreamBYOBRequest? byobRequest;
-    readonly attribute unrestricted double? desiredSize;
-
-    [ImplementedAs=closeForBindings] undefined close();
-    [ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
-    [ImplementedAs=errorForBindings] undefined error(optional any error);
-};
+[ CallbackThisObject=any ]
+callback UnderlyingSourceStartCallback = any (ReadableByteStreamController controller);

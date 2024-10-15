@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Canon Inc.
+ * Copyright (C) 2015 Canon Inc.
  * Copyright (C) 2015 Igalia S.L.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,11 @@
  */
 
 [
-    Exposed=*,
-] interface ReadableByteStreamController {
-    [ImplementedAs=byobRequestForBindings] readonly attribute ReadableStreamBYOBRequest? byobRequest;
-    readonly attribute unrestricted double? desiredSize;
-
-    [ImplementedAs=closeForBindings] undefined close();
-    [ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
-    [ImplementedAs=errorForBindings] undefined error(optional any error);
+    JSGenerateToNativeObject
+] dictionary UnderlyingSource {
+    UnderlyingSourceStartCallback start;
+    UnderlyingSourcePullCallback pull;
+    UnderlyingSourceCancelCallback cancel;
+    ReadableStreamType type;
+    [EnforceRange] unsigned long long autoAllocateChunkSize;
 };
