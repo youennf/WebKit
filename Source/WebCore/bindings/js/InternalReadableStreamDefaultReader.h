@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Apple Inc. All rights reserved.
+ * Copyright (C) 2024 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,44 +25,35 @@
 
 #pragma once
 
+#include "ExceptionOr.h"
 #include "JSDOMGuardedObject.h"
 #include <JavaScriptCore/JSObject.h>
 
+namespace JSC {
+class JSGlobalObject;
+class JSValue;
+}
+
 namespace WebCore {
+class InternalReadableStream;
 
-class Exception;
-class ReadableStreamSink;
-template<typename> class ExceptionOr;
-
-class InternalReadableStream final : public DOMGuarded<JSC::JSObject> {
+class InternalReadableStreamDefaultReader final : public DOMGuarded<JSC::JSObject> {
 public:
-    static ExceptionOr<Ref<InternalReadableStream>> createFromUnderlyingSource(JSDOMGlobalObject&, JSC::JSValue underlyingSink, JSC::JSValue strategy);
-    static Ref<InternalReadableStream> fromObject(JSDOMGlobalObject&, JSC::JSObject&);
+    static ExceptionOr<Ref<InternalReadableStreamDefaultReader>> create(JSDOMGlobalObject&, InternalReadableStream&);
 
     operator JSC::JSValue() const { return guarded(); }
 
-    void lock();
-    bool isLocked() const;
-    WEBCORE_EXPORT bool isDisturbed() const;
-    void cancel(Exception&&);
-    void pipeTo(ReadableStreamSink&);
-    ExceptionOr<std::pair<Ref<InternalReadableStream>, Ref<InternalReadableStream>>> tee(bool shouldClone);
+    ExceptionOr<void> releaseLock();
 
-    ExceptionOr<JSC::Strong<JSC::JSObject>> getByobReader();
-
-    JSC::JSValue cancelForBindings(JSC::JSGlobalObject& globalObject, JSC::JSValue value) { return cancel(globalObject, value, Use::Bindings); }
-    JSC::JSValue pipeTo(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
-    JSC::JSValue pipeThrough(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
+    JSC::JSValue readForBindings(JSC::JSGlobalObject&);
+    JSC::JSValue closedForBindings(JSC::JSGlobalObject&);
+    JSC::JSValue cancelForBindings(JSC::JSGlobalObject&, JSC::JSValue);
 
 private:
-    InternalReadableStream(JSDOMGlobalObject& globalObject, JSC::JSObject& jsObject)
+    InternalReadableStreamDefaultReader(JSDOMGlobalObject& globalObject, JSC::JSObject& jsObject)
         : DOMGuarded<JSC::JSObject>(globalObject, jsObject)
     {
     }
-
-    enum class Use { Bindings, Private };
-    JSC::JSValue cancel(JSC::JSGlobalObject&, JSC::JSValue, Use);
-    JSC::JSValue tee(JSC::JSGlobalObject&, bool shouldClone);
 };
 
 }

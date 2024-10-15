@@ -212,7 +212,10 @@ JSC_DEFINE_HOST_FUNCTION(getInternalReadableStream, (JSGlobalObject*, CallFrame*
     auto* readableStream = jsDynamicCast<JSReadableStream*>(callFrame->uncheckedArgument(0));
     if (!readableStream) [[unlikely]]
         return JSValue::encode(jsUndefined());
-    return JSValue::encode(readableStream->wrapped().internalReadableStream());
+    RefPtr internalReadableStream = readableStream->wrapped().internalReadableStream();
+    if (UNLIKELY(!internalReadableStream))
+        return JSValue::encode(jsUndefined());
+    return JSValue::encode(*internalReadableStream);
 }
 
 JSC_DEFINE_HOST_FUNCTION(createWritableStreamFromInternal, (JSGlobalObject* globalObject, CallFrame* callFrame))

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2015 Canon Inc.
- * Copyright (C) 2015 Igalia S.L.
+ * Copyright (C) 2024 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,28 +23,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-@getter
-function highWaterMark()
-{
-    "use strict";
+#pragma once
 
-    const highWaterMark = @getByIdDirectPrivate(this, "highWaterMark");
-    if (highWaterMark === @undefined)
-        @throwTypeError("ByteLengthQueuingStrategy.highWaterMark getter called on incompatible |this| value.");
+#include <wtf/RefCounted.h>
 
-    return highWaterMark;
+namespace JSC {
+class ArrayBufferView;
 }
 
-function size(chunk)
-{
-    "use strict";
+namespace WebCore {
 
-    return chunk.byteLength;
-}
+class ReadableStreamBYOBRequest : public RefCounted<ReadableStreamBYOBRequest> {
+public:
+    static Ref<ReadableStreamBYOBRequest> create();
+    ~ReadableStreamBYOBRequest() = default;
+    
+    JSC::ArrayBufferView* view() const;
+    void respond(size_t);
+    void respondWithNewView(JSC::ArrayBufferView&);
 
-function initializeByteLengthQueuingStrategy(parameters)
-{
-    "use strict";
+private:
+    ReadableStreamBYOBRequest();
+};
 
-    @putByIdDirectPrivate(this, "highWaterMark", @extractHighWaterMarkFromQueuingStrategyInit(parameters));
-}
+} // namespace WebCore
