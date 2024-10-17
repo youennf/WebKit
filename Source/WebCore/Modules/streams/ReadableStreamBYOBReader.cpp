@@ -34,23 +34,29 @@
 
 namespace WebCore {
 
-ExceptionOr<Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::create(ReadableStream& stream)
+ExceptionOr<Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::create(JSDOMGlobalObject& globalObject, ReadableStream& stream)
 {
-    Ref reader = adoptRef(*new ReadableStreamBYOBReader);
+    Ref reader = adoptRef(*new ReadableStreamBYOBReader(globalObject));
     auto result = reader->setupBYOBReader(stream);
     if (result.hasException())
         return result.releaseException();
     return reader;
 }
 
-ReadableStreamBYOBReader::ReadableStreamBYOBReader()
-    : m_closedPromise(makeUniqueRef<ClosedPromise>())
+// FIXME: We use a DeferredPromise as we want to reject with a JSValue. We should instead improve DOMPromiseProxy to allow rejecting with a JSValue.
+ReadableStreamBYOBReader::ReadableStreamBYOBReader(JSDOMGlobalObject& globalObject)
+    : m_closedPromise(DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull())
 {
 }
 
 ReadableStreamBYOBReader::~ReadableStreamBYOBReader() = default;
 
-void ReadableStreamBYOBReader::read(JSC::ArrayBufferView& view, ReadOptions options, Ref<DeferredPromise>&& promise)
+JSC::JSValue ReadableStreamBYOBReader::closed()
+{
+    return m_closedPromise->promise();
+}
+
+void ReadableStreamBYOBReader::read(JSDOMGlobalObject& globalObject, JSC::ArrayBufferView& view, ReadOptions options, Ref<DeferredPromise>&& promise)
 {
     if (view.byteLength() == 0)
         return promise->reject(Exception { ExceptionCode::TypeError, "view byteLength is 0"_s });
@@ -71,21 +77,26 @@ void ReadableStreamBYOBReader::read(JSC::ArrayBufferView& view, ReadOptions opti
     if (!m_stream)
         return promise->reject(Exception { ExceptionCode::TypeError, "reader has no stream"_s });
     
-    read(view, options.min, WTFMove(promise));
+    read(globalObject, view, options.min, WTFMove(promise));
 }
 
-void ReadableStreamBYOBReader::releaseLock()
+void ReadableStreamBYOBReader::releaseLock(JSDOMGlobalObject& globalObject)
 {
     if (!m_stream)
         return;
 
-    genericRelease();
+    genericRelease(globalObject);
 
     errorReadIntoRequests(Exception { ExceptionCode::TypeError, "releasing stream"_s });
 }
 
-void ReadableStreamBYOBReader::cancel(JSC::JSValue, Ref<DeferredPromise>&&)
+void ReadableStreamBYOBReader::cancel(JSDOMGlobalObject& globalObject, JSC::JSValue value, Ref<DeferredPromise>&& promise)
 {
+    if (!m_stream) {
+        promise->reject(Exception { ExceptionCode::TypeError, "no stream"_s });
+        return;
+    }
+    genericCancel(globalObject, value, WTFMove(promise));
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-byob-reader
@@ -106,7 +117,7 @@ void ReadableStreamBYOBReader::initialize(ReadableStream& stream)
 {
     m_stream = &stream;
 
-    stream.setReader(this);
+    stream.setByobReader(this);
 
     switch (stream.state()) {
     case ReadableStream::State::Readable:
@@ -115,42 +126,40 @@ void ReadableStreamBYOBReader::initialize(ReadableStream& stream)
         m_closedPromise->resolve();
         break;
     case ReadableStream::State::Errored:
-//        m_closedPromise->reject<IDLAny>(stream.storedError().getValue(), RejectAsHandled::Yes);
-        // FIXME: reject with stored error.
-        m_closedPromise->reject(Exception { ExceptionCode::TypeError }, RejectAsHandled::Yes);
+        m_closedPromise->reject<IDLAny>(stream.storedError());
         break;
     }
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-byob-reader-read
-void ReadableStreamBYOBReader::read(JSC::ArrayBufferView& view, size_t optionMin, Ref<DeferredPromise>&& promise)
+void ReadableStreamBYOBReader::read(JSDOMGlobalObject& globalObject, JSC::ArrayBufferView& view, size_t optionMin, Ref<DeferredPromise>&& promise)
 {
     ASSERT(m_stream);
     
     m_stream->setAsDisturbed();
     if (m_stream->state() == ReadableStream::State::Errored) {
-        promise->reject<IDLAny>(m_stream->storedError().getValue());
+        promise->reject<IDLAny>(m_stream->storedError());
         return;
     }
 
     RefPtr controller = m_stream->controller();
-    controller->pullInto(view, optionMin, WTFMove(promise));
+    controller->pullInto(globalObject, view, optionMin, WTFMove(promise));
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-reader-generic-release
-void ReadableStreamBYOBReader::genericRelease()
+void ReadableStreamBYOBReader::genericRelease(JSDOMGlobalObject& globalObject)
 {
     ASSERT(m_stream);
-    ASSERT(m_stream->reader() == this);
+    ASSERT(m_stream->byobReader() == this);
 
     if (m_stream->state() == ReadableStream::State::Readable)
         m_closedPromise->reject(Exception { ExceptionCode::TypeError, "releasing stream"_s }, RejectAsHandled::Yes);
     else {
-        m_closedPromise = makeUniqueRef<ClosedPromise>();
+        m_closedPromise = DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull();
         m_closedPromise->reject(Exception { ExceptionCode::TypeError, "releasing stream"_s }, RejectAsHandled::Yes);
     }
 
-    m_stream->setReader(nullptr);
+    m_stream->setByobReader(nullptr);
     m_stream = nullptr;
 }
 
@@ -160,6 +169,31 @@ void ReadableStreamBYOBReader::errorReadIntoRequests(Exception&& exception)
     auto requests = std::exchange(m_readIntoRequests, { });
     for (auto& request : requests)
         request->reject(exception);
+}
+
+void ReadableStreamBYOBReader::errorReadIntoRequests(JSC::JSValue reason)
+{
+    auto requests = std::exchange(m_readIntoRequests, { });
+    for (auto& request : requests)
+        request->rejectWithCallback([&] (auto&) { return reason; });
+}
+
+void ReadableStreamBYOBReader::resolveClosedPromise()
+{
+    m_closedPromise->resolve();
+}
+
+void ReadableStreamBYOBReader::rejectClosedPromise(JSC::JSValue reason)
+{
+    m_closedPromise->reject<IDLAny>(reason);
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-reader-generic-cancel
+void ReadableStreamBYOBReader::genericCancel(JSDOMGlobalObject& globalObject, JSC::JSValue value, Ref<DeferredPromise>&& promise)
+{
+    RefPtr stream = m_stream;
+    ASSERT(stream);
+    stream->cancel(globalObject, value, WTFMove(promise));
 }
 
 } // namespace WebCore

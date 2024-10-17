@@ -28,6 +28,7 @@
 #include "ExceptionOr.h"
 #include "IDLTypes.h"
 #include "JSValueInWrappedObject.h"
+#include <wtf/Deque.h>
 #include <wtf/RefCounted.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/WeakPtr.h>
@@ -41,31 +42,41 @@ template<typename IDLType> class DOMPromiseProxy;
 
 class ReadableStreamBYOBReader : public RefCounted<ReadableStreamBYOBReader>, public CanMakeWeakPtr<ReadableStreamBYOBReader> {
 public:
-    static ExceptionOr<Ref<ReadableStreamBYOBReader>> create(ReadableStream&);
+    static ExceptionOr<Ref<ReadableStreamBYOBReader>> create(JSDOMGlobalObject&, ReadableStream&);
     ~ReadableStreamBYOBReader();
     
     struct ReadOptions {
         size_t min { 1 };
     };
 
-    void read(JSC::ArrayBufferView&, ReadOptions, Ref<DeferredPromise>&&);
-    void releaseLock();
-    
-    using ClosedPromise = DOMPromiseProxy<IDLUndefined>;
-    ClosedPromise& closed() { return m_closedPromise.get(); }
+    void read(JSDOMGlobalObject&, JSC::ArrayBufferView&, ReadOptions, Ref<DeferredPromise>&&);
+    void releaseLock(JSDOMGlobalObject&);
 
-    void cancel(JSC::JSValue, Ref<DeferredPromise>&&);
-    
+    JSC::JSValue closed();
+
+    void cancel(JSDOMGlobalObject& globalObject, JSC::JSValue, Ref<DeferredPromise>&&);
+
+    void resolveClosedPromise();
+
+    Ref<DeferredPromise> takeFirstReadIntoRequest() { return m_readIntoRequests.takeFirst(); }
+    size_t readIntoRequestsSize() const { return m_readIntoRequests.size(); }
+    void addReadIntoRequest(Ref<DeferredPromise>&& promise) { m_readIntoRequests.append(WTFMove(promise)); }
+
+    void rejectClosedPromise(JSC::JSValue);
+    void errorReadIntoRequests(JSC::JSValue);
+
 private:
-    ReadableStreamBYOBReader();
+    explicit ReadableStreamBYOBReader(JSDOMGlobalObject&);
 
     ExceptionOr<void> setupBYOBReader(ReadableStream&);
     void initialize(ReadableStream&);
-    void read(JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
-    void genericRelease();
+    void read(JSDOMGlobalObject&, JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
+    void genericRelease(JSDOMGlobalObject&);
     void errorReadIntoRequests(Exception&&);
 
-    UniqueRef<ClosedPromise> m_closedPromise;
+    void genericCancel(JSDOMGlobalObject&, JSC::JSValue, Ref<DeferredPromise>&&);
+
+    Ref<DeferredPromise> m_closedPromise;
     RefPtr<ReadableStream> m_stream;
     Deque<Ref<DeferredPromise>> m_readIntoRequests;
 };

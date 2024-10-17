@@ -32,10 +32,12 @@
 namespace JSC {
 class ArrayBufferView;
 class JSValue;
+class VM;
 }
 
 namespace WebCore {
 
+class JSDOMGlobalObject;
 class ReadableStream;
 class ReadableStreamBYOBRequest;
 class UnderlyingSourceCancelCallback;
@@ -47,53 +49,104 @@ public:
     static Ref<ReadableByteStreamController> create(ReadableStream& stream, JSC::JSValue underlyingSource, RefPtr<UnderlyingSourcePullCallback>&& pullAlgorithm, RefPtr<UnderlyingSourceCancelCallback>&& cancelAlgorithm, double highWaterMark, size_t autoAllocateChunkSize) { return adoptRef(*new ReadableByteStreamController(stream, underlyingSource, WTFMove(pullAlgorithm), WTFMove(cancelAlgorithm), highWaterMark, autoAllocateChunkSize)); }
     ~ReadableByteStreamController();
 
-    RefPtr<ReadableStreamBYOBRequest> byobRequestForBindings() const;
+    ReadableStreamBYOBRequest* byobRequestForBindings() const;
     std::optional<double> desiredSize() const;
 
     ExceptionOr<void> closeForBindings();
-    ExceptionOr<void> enqueueForBindings(JSC::ArrayBufferView&);
-    ExceptionOr<void> errorForBindings(JSC::JSValue);
+    ExceptionOr<void> enqueueForBindings(JSDOMGlobalObject&, JSC::ArrayBufferView&);
+    ExceptionOr<void> errorForBindings(JSDOMGlobalObject&, JSC::JSValue);
 
-    void start(UnderlyingSourceStartCallback*);
+    void start(JSDOMGlobalObject&, UnderlyingSourceStartCallback*);
 
-    JSValueInWrappedObject& underlyingSourceWrapper() { return m_underlyingSourceWrapper; }
+    JSValueInWrappedObject& underlyingSource() { return m_underlyingSource; }
     ReadableStream* stream();
 
     UnderlyingSourcePullCallback* pullAlgorithmConcurrently() { return m_pullAlgorithm.get(); }
     UnderlyingSourceCancelCallback* cancelAlgorithmConcurrently() { return m_cancelAlgorithm.get(); }
 
-    void pullInto(JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
+    void pullInto(JSDOMGlobalObject&, JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
+
+    void runCancelSteps(JSDOMGlobalObject&, JSC::JSValue, Function<void(std::optional<JSC::JSValue>&&)>&&);
+
+    void storeError(JSDOMGlobalObject&, JSC::JSValue);
+    JSC::JSValue storedError() const;
+
+    ExceptionOr<void> respond(JSDOMGlobalObject&, size_t);
+    ExceptionOr<void> respondWithNewView(JSDOMGlobalObject&, JSC::ArrayBufferView&);
 
 private:
     ReadableByteStreamController(ReadableStream&, JSC::JSValue, RefPtr<UnderlyingSourcePullCallback>&&, RefPtr<UnderlyingSourceCancelCallback>&&, double highWaterMark, size_t m_autoAllocateChunkSize);
 
+    enum ReaderType : uint8_t { None, Default, Byob };
+
+    struct PullIntoDescriptor {
+        Ref<JSC::ArrayBuffer> buffer;
+        size_t bufferByteLength { 0 };
+        size_t byteOffset { 0 };
+        size_t byteLength { 0 };
+        size_t bytesFilled { 0 };
+        size_t minimumFill { 0 };
+        size_t elementSize { 0 };
+        JSC::TypedArrayType viewConstructor;
+        ReaderType readerType;
+    };
+
+    struct Entry {
+        Ref<JSC::ArrayBuffer> buffer;
+        size_t byteOffset { 0 };
+        size_t byteLength { 0 };
+    };
+
+    ReadableStreamBYOBRequest* getByobRequest() const;
     std::optional<double> getDesiredSize() const;
-    void didStart();
-    void error(JSC::JSValue);
+    ExceptionOr<void> enqueue(JSDOMGlobalObject&, JSC::ArrayBufferView&);
+    void didStart(JSDOMGlobalObject&);
+
     void close();
-    void pullIfNeeded();
+
+    void invalidateByobRequest();
+    void processPullIntoDescriptorsUsingQueue(JSDOMGlobalObject&);
+    void enqueueDetachedPullIntoToQueue(JSDOMGlobalObject&, PullIntoDescriptor&);
+    PullIntoDescriptor shiftPendingPullInto();
+    void enqueueChunkToQueue(Ref<JSC::ArrayBuffer>&&, size_t byteOffset, size_t byteLength);
+    void enqueueClonedChunkToQueue(JSDOMGlobalObject&, JSC::ArrayBuffer&, size_t byteOffset, size_t byteLength);
+    void callPullIfNeeded(JSDOMGlobalObject&);
+    bool shouldCallPull();
+    bool fillPullIntoDescriptorFromQueue(PullIntoDescriptor&);
+    void commitPullIntoDescriptor(JSDOMGlobalObject&, PullIntoDescriptor&);
+    RefPtr<JSC::ArrayBufferView> convertPullIntoDescriptor(JSC::VM&, PullIntoDescriptor&);
+    void fillHeadPullIntoDescriptor(size_t, PullIntoDescriptor&);
+    void fulfillReadIntoRequest(JSDOMGlobalObject&, RefPtr<JSC::ArrayBufferView>&&, bool done);
+
+    void error(JSDOMGlobalObject&, JSC::JSValue);
     void clearAlgorithms();
     void clearPendingPullIntos();
-    bool shouldCallPull();
 
-    JSValueInWrappedObject m_underlyingSourceWrapper;
-    
+    void respondInternal(JSDOMGlobalObject&, size_t);
+    void respondInClosedState(JSDOMGlobalObject&, PullIntoDescriptor&);
+    void respondInReadableState(JSDOMGlobalObject&, size_t, PullIntoDescriptor&);
+
+    void handleQueueDrain(JSDOMGlobalObject&);
+
     WeakPtr<ReadableStream> m_stream;
     bool m_pullAgain { false };
     bool m_pulling { false };
-    RefPtr<ReadableStreamBYOBRequest> m_byobRequest;
+    mutable RefPtr<ReadableStreamBYOBRequest> m_byobRequest;
     bool m_closeRequested { false };
     bool m_started { false };
     double m_strategyHWM { 0 };
     RefPtr<UnderlyingSourcePullCallback> m_pullAlgorithm;
     RefPtr<UnderlyingSourceCancelCallback> m_cancelAlgorithm;
     size_t m_autoAllocateChunkSize { 0 };
-    Deque<int> m_pendingPullIntos;
-    Deque<int> m_queue;
+    Deque<PullIntoDescriptor> m_pendingPullIntos;
+    Deque<Entry> m_queue;
     size_t m_queueTotalSize { 0 };
 
+    // FIXME: Visit these two.
     JSValueInWrappedObject m_underlyingSource;
+    JSValueInWrappedObject m_storedError;
     RefPtr<DOMPromise> m_callbackPromise;
+    Function<void(std::optional<JSC::JSValue>&&)> m_cancelCallback;
 };
 
 } // namespace WebCore

@@ -33,17 +33,25 @@ class ArrayBufferView;
 
 namespace WebCore {
 
+class JSDOMGlobalObject;
+
 class ReadableStreamBYOBRequest : public RefCounted<ReadableStreamBYOBRequest> {
 public:
     static Ref<ReadableStreamBYOBRequest> create();
     ~ReadableStreamBYOBRequest() = default;
-    
+
     JSC::ArrayBufferView* view() const;
-    void respond(size_t);
-    void respondWithNewView(JSC::ArrayBufferView&);
+    ExceptionOr<void> respond(JSDOMGlobalObject&, size_t);
+    ExceptionOr<void> respondWithNewView(JSDOMGlobalObject&, JSC::ArrayBufferView&);
+
+    void setController(ReadableByteStreamController*);
+    void setView(JSC::ArrayBufferView*);
 
 private:
     ReadableStreamBYOBRequest();
+
+    WeakPtr<ReadableByteStreamController> m_controller;
+    RefPtr<JSC::ArrayBufferView> m_view;
 };
 
 } // namespace WebCore

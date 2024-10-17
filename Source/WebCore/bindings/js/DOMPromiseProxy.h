@@ -52,7 +52,8 @@ public:
     void resolve(typename IDLType::StorageType);
     void resolveWithNewlyCreated(typename IDLType::StorageType);
     void reject(Exception, RejectAsHandled = RejectAsHandled::No);
-    
+    void reject(JSC::JSValue, RejectAsHandled = RejectAsHandled::No);
+
 private:
     JSC::JSValue resolvePromise(JSC::JSGlobalObject&, JSDOMGlobalObject&, const Function<void(DeferredPromise&)>&);
 
@@ -75,6 +76,7 @@ public:
 
     void resolve();
     void reject(Exception, RejectAsHandled = RejectAsHandled::No);
+    void reject(JSC::JSValue, RejectAsHandled = RejectAsHandled::No);
 
 private:
     std::optional<ExceptionOr<void>> m_valueOrException;
@@ -218,6 +220,15 @@ inline void DOMPromiseProxy<IDLType>::reject(Exception exception, RejectAsHandle
         deferredPromise->reject(exceptionCopy, rejectAsHandled);
 }
 
+template<typename IDLType>
+inline void DOMPromiseProxy<IDLType>::reject(JSC::JSValue error, RejectAsHandled rejectAsHandled)
+{
+    ASSERT(!m_valueOrException);
+
+    auto deferredPromisesCopy = m_deferredPromises;
+    for (auto& deferredPromise : deferredPromisesCopy)
+        deferredPromise->template reject<IDLAny>(error, rejectAsHandled);
+}
 
 // MARK: - DOMPromiseProxy<IDLUndefined> specialization
 
@@ -275,6 +286,15 @@ inline void DOMPromiseProxy<IDLUndefined>::reject(Exception exception, RejectAsH
     auto exceptionCopy = m_valueOrException->exception();
     for (auto& deferredPromise : deferredPromisesCopy)
         deferredPromise->reject(exceptionCopy, rejectAsHandled);
+}
+
+inline void DOMPromiseProxy<IDLUndefined>::reject(JSC::JSValue error, RejectAsHandled rejectAsHandled)
+{
+    ASSERT(!m_valueOrException);
+
+    auto deferredPromisesCopy = m_deferredPromises;
+    for (auto& deferredPromise : deferredPromisesCopy)
+        deferredPromise->template reject<IDLAny>(error, rejectAsHandled);
 }
 
 // MARK: - DOMPromiseProxyWithResolveCallback<IDLType> implementation

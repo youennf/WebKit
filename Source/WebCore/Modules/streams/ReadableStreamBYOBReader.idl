@@ -32,12 +32,12 @@ dictionary ReadableStreamBYOBReaderReadOptions {
 [
     Exposed=*
 ] interface ReadableStreamBYOBReader {
-    constructor(ReadableStream stream);
+    [CallWith=CurrentGlobalObject] constructor(ReadableStream stream);
 
-    Promise<ReadableStreamReadResult> read(ArrayBufferView view, optional ReadableStreamBYOBReaderReadOptions options = {});
-    undefined releaseLock();
+    [CallWith=CurrentGlobalObject] Promise<ReadableStreamReadResult> read(ArrayBufferView view, optional ReadableStreamBYOBReaderReadOptions options = {});
+    [CallWith=CurrentGlobalObject] undefined releaseLock();
 
     // ReadableStreamGenericReader
-    readonly attribute Promise<undefined> closed;
-    Promise<undefined> cancel(optional any reason);
+    readonly attribute any closed;
+    [CallWith=CurrentGlobalObject] Promise<undefined> cancel(optional any reason);
 };

@@ -34,6 +34,6 @@
     readonly attribute unrestricted double? desiredSize;
 
     [ImplementedAs=closeForBindings] undefined close();
-    [ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
-    [ImplementedAs=errorForBindings] undefined error(optional any error);
+    [CallWith=CurrentGlobalObject, ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
+    [CallWith=CurrentGlobalObject, ImplementedAs=errorForBindings] undefined error(optional any error);
 };

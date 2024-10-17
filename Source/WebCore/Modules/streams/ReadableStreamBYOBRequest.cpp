@@ -33,21 +33,48 @@ Ref<ReadableStreamBYOBRequest> ReadableStreamBYOBRequest::create()
     return adoptRef(*new ReadableStreamBYOBRequest);
 }
 
-ReadableStreamBYOBRequest::ReadableStreamBYOBRequest()
-{
-}
+ReadableStreamBYOBRequest::ReadableStreamBYOBRequest() = default;
 
 JSC::ArrayBufferView* ReadableStreamBYOBRequest::view() const
 {
-    return nullptr;
+    return m_view.get();
 }
 
-void ReadableStreamBYOBRequest::respond(size_t)
+// https://streams.spec.whatwg.org/#rs-byob-request-respond
+ExceptionOr<void> ReadableStreamBYOBRequest::respond(JSDOMGlobalObject& globalObject, size_t bytesWritten)
 {
+    RefPtr controller = m_controller.get();
+    if (!controller)
+        return Exception {ExceptionCode::TypeError, "controller is undefined"_s };
+    if (!m_view || m_view->isDetached())
+        return Exception {ExceptionCode::TypeError, "buffer is detached"_s };
+
+    ASSERT(m_view->byteLength() > 0);
+    ASSERT(m_view->possiblySharedBuffer()->byteLength() > 0);
+    controller->respond(globalObject, bytesWritten);
+    return { };
 }
 
-void ReadableStreamBYOBRequest::respondWithNewView(JSC::ArrayBufferView&)
+// https://streams.spec.whatwg.org/#rs-byob-request-respond-with-new-view
+ExceptionOr<void> ReadableStreamBYOBRequest::respondWithNewView(JSDOMGlobalObject& globalObject, JSC::ArrayBufferView& view)
 {
+    RefPtr controller = m_controller.get();
+    if (!controller)
+        return Exception {ExceptionCode::TypeError, "controller is undefined"_s };
+    if (view.isDetached())
+        return Exception {ExceptionCode::TypeError, "buffer is detached"_s };
+    controller->respondWithNewView(globalObject, view);
+    return { };
+}
+
+void ReadableStreamBYOBRequest::setController(ReadableByteStreamController* controller)
+{
+    m_controller = controller;
+}
+
+void ReadableStreamBYOBRequest::setView(JSC::ArrayBufferView* view)
+{
+    m_view = view;
 }
 
 } // namespace WebCore
