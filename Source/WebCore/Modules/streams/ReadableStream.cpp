@@ -26,6 +26,7 @@
 #include "config.h"
 #include "ReadableStream.h"
 
+#include "JSDOMPromiseDeferred.h"
 #include "JSReadableStream.h"
 #include "JSReadableStreamBYOBReader.h"
 #include "JSReadableStreamDefaultReader.h"
@@ -182,10 +183,18 @@ ExceptionOr<JSC::Strong<JSC::JSObject>> ReadableStream::getReader(JSDOMGlobalObj
 {
     if (!m_internalReadableStream) {
         ASSERT(m_controller);
-        auto readerOrException = ReadableStreamBYOBReader::create(jsDOMGlobalObject, *this);
+        if (options.mode) {
+            auto readerOrException = ReadableStreamBYOBReader::create(jsDOMGlobalObject, *this);
+            if (readerOrException.hasException())
+                return readerOrException.releaseException();
+            auto newReaderValue = toJSNewlyCreated<IDLInterface<ReadableStreamBYOBReader>>(jsDOMGlobalObject, jsDOMGlobalObject, readerOrException.releaseReturnValue());
+            Ref vm = jsDOMGlobalObject.vm();
+            return JSC::Strong<JSC::JSObject> { vm.get(), newReaderValue.toObject(&jsDOMGlobalObject) };
+        }
+        auto readerOrException = ReadableStreamDefaultReader::create(jsDOMGlobalObject, *this);
         if (readerOrException.hasException())
             return readerOrException.releaseException();
-        auto newReaderValue = toJSNewlyCreated<IDLInterface<ReadableStreamBYOBReader>>(jsDOMGlobalObject, jsDOMGlobalObject, readerOrException.releaseReturnValue());
+        auto newReaderValue = toJSNewlyCreated<IDLInterface<ReadableStreamDefaultReader>>(jsDOMGlobalObject, jsDOMGlobalObject, readerOrException.releaseReturnValue());
         Ref vm = jsDOMGlobalObject.vm();
         return JSC::Strong<JSC::JSObject> { vm.get(), newReaderValue.toObject(&jsDOMGlobalObject) };
     }
@@ -204,9 +213,17 @@ ExceptionOr<JSC::Strong<JSC::JSObject>> ReadableStream::getReader(JSDOMGlobalObj
     return JSC::Strong<JSC::JSObject> { globalObject->vm(), newReaderValue.toObject(globalObject) };
 }
 
+void ReadableStream::setDefaultReader(ReadableStreamDefaultReader* reader)
+{
+    ASSERT(!m_defaultReader || !reader);
+    ASSERT(!m_byobReader);
+    m_defaultReader = WeakPtr { reader };
+}
+
 void ReadableStream::setByobReader(ReadableStreamBYOBReader* reader)
 {
     ASSERT(!m_byobReader || !reader);
+    ASSERT(!m_defaultReader);
     m_byobReader = WeakPtr { reader };
 }
 
@@ -324,11 +341,19 @@ void ReadableStream::cancel(JSDOMGlobalObject& globalObject, JSC::JSValue reason
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-get-num-read-into-requests
-size_t ReadableStream::getNumReadIntoRequests()
+size_t ReadableStream::getNumReadIntoRequests() const
 {
     ASSERT(m_byobReader);
     RefPtr byobReader = m_byobReader.get();
     return byobReader->readIntoRequestsSize();
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-get-num-read-requests
+size_t ReadableStream::getNumReadRequests() const
+{
+    ASSERT(m_defaultReader);
+    RefPtr defaultReader = m_defaultReader.get();
+    return defaultReader->getNumReadRequests();
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-add-read-into-request
@@ -337,6 +362,14 @@ void ReadableStream::addReadIntoRequest(Ref<DeferredPromise>&& promise)
     ASSERT(m_byobReader);
     RefPtr byobReader = m_byobReader.get();
     return byobReader->addReadIntoRequest(WTFMove(promise));
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-add-read-request
+void ReadableStream::addReadRequest(Ref<DeferredPromise>&& promise)
+{
+    ASSERT(m_defaultReader);
+    RefPtr defaultReader = m_defaultReader.get();
+    return defaultReader->addReadRequest(WTFMove(promise));
 }
 
 JSC::JSValue ReadableStream::storedError() const

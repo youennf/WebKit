@@ -25,11 +25,9 @@
 
 #pragma once
 
-#include "ReadableStreamType.h"
+#include "QueuingStrategySize.h"
 
 namespace WebCore {
-
-class QueuingStrategySize;
 
 class ByteLengthQueuingStrategy : public RefCounted<ByteLengthQueuingStrategy> {
 public:

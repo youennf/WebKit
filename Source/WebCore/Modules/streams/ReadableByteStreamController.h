@@ -68,6 +68,8 @@ public:
 
     void runCancelSteps(JSDOMGlobalObject&, JSC::JSValue, Function<void(std::optional<JSC::JSValue>&&)>&&);
 
+    void runPullSteps(JSDOMGlobalObject&, Ref<DeferredPromise>&&);
+
     void storeError(JSDOMGlobalObject&, JSC::JSValue);
     JSC::JSValue storedError() const;
 
@@ -126,6 +128,7 @@ private:
     void respondInClosedState(JSDOMGlobalObject&, PullIntoDescriptor&);
     void respondInReadableState(JSDOMGlobalObject&, size_t, PullIntoDescriptor&);
 
+    void fillReadRequestFromQueue(JSDOMGlobalObject&, Ref<DeferredPromise>&&);
     void handleQueueDrain(JSDOMGlobalObject&);
 
     WeakPtr<ReadableStream> m_stream;

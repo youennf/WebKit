@@ -33,6 +33,7 @@
 
 namespace WebCore {
 
+class DeferredPromise;
 class InternalReadableStream;
 class JSDOMGlobalObject;
 class ReadableByteStreamController;
@@ -76,6 +77,9 @@ public:
     void setByobReader(ReadableStreamBYOBReader*);
     ReadableStreamBYOBReader* byobReader();
 
+    void setDefaultReader(ReadableStreamDefaultReader*);
+    ReadableStreamDefaultReader* defaultReader();
+
     void setAsDisturbed() { m_disturbed = true; }
 
     void close();
@@ -84,8 +88,11 @@ public:
 
     JSC::JSValue storedError() const;
 
-    size_t getNumReadIntoRequests();
+    size_t getNumReadIntoRequests() const;
     void addReadIntoRequest(Ref<DeferredPromise>&&);
+
+    size_t getNumReadRequests() const;
+    void addReadRequest(Ref<DeferredPromise>&&);
 
 protected:
     static ExceptionOr<Ref<ReadableStream>> createFromJSValues(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
@@ -102,6 +109,7 @@ private:
 
     RefPtr<ReadableByteStreamController> m_controller;
     WeakPtr<ReadableStreamBYOBReader> m_byobReader;
+    WeakPtr<ReadableStreamDefaultReader> m_defaultReader;
 };
 
 } // namespace WebCore

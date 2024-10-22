@@ -26,12 +26,11 @@
 #pragma once
 
 #include "ReadableStreamType.h"
+#include "UnderlyingSourceCancelCallback.h"
+#include "UnderlyingSourcePullCallback.h"
+#include "UnderlyingSourceStartCallback.h"
 
 namespace WebCore {
-
-class UnderlyingSourceStartCallback;
-class UnderlyingSourcePullCallback;
-class UnderlyingSourceCancelCallback;
 
 struct UnderlyingSource {
     RefPtr<UnderlyingSourceStartCallback> start;

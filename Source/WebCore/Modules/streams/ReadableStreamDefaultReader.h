@@ -28,6 +28,7 @@
 #include "InternalReadableStreamDefaultReader.h"
 #include <JavaScriptCore/Strong.h>
 #include <wtf/RefCounted.h>
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -35,21 +36,36 @@ class InternalReadableStreamDefaultReader;
 class JSDOMGlobalObject;
 class ReadableStream;
 
-class ReadableStreamDefaultReader : public RefCounted<ReadableStreamDefaultReader> {
+class ReadableStreamDefaultReader : public RefCounted<ReadableStreamDefaultReader>, public CanMakeWeakPtr<ReadableStreamDefaultReader> {
 public:
     static ExceptionOr<Ref<ReadableStreamDefaultReader>> create(JSDOMGlobalObject&, ReadableStream&);
     static ExceptionOr<Ref<ReadableStreamDefaultReader>> create(JSDOMGlobalObject&, InternalReadableStream&);
-    static Ref<ReadableStreamDefaultReader> create(Ref<InternalReadableStreamDefaultReader>&&);
+    static Ref<ReadableStreamDefaultReader> create(JSDOMGlobalObject&, Ref<InternalReadableStreamDefaultReader>&&);
 
     ~ReadableStreamDefaultReader() = default;
 
-    ExceptionOr<void> releaseLock();
-    InternalReadableStreamDefaultReader& internalDefaultReader() { return m_internalDefaultReader.get(); }
+    ExceptionOr<void> releaseLock(JSDOMGlobalObject&);
+    InternalReadableStreamDefaultReader* internalDefaultReader() { return m_internalDefaultReader.get(); }
+
+    void read(JSDOMGlobalObject&, Ref<DeferredPromise>&&);
+    void genericCancel(JSDOMGlobalObject&, JSC::JSValue, Ref<DeferredPromise>&&);
+
+    size_t getNumReadRequests() const { return m_readRequests.size(); }
+    void addReadRequest(Ref<DeferredPromise>&& promise) { m_readRequests.append(WTFMove(promise)); }
+
+    JSC::JSValue closedPromise() const;
 
 private:
-    explicit ReadableStreamDefaultReader(Ref<InternalReadableStreamDefaultReader>&&);
+    explicit ReadableStreamDefaultReader(JSDOMGlobalObject&, Ref<InternalReadableStreamDefaultReader>&&);
+    explicit ReadableStreamDefaultReader(JSDOMGlobalObject&, Ref<ReadableStream>&&);
 
-    Ref<InternalReadableStreamDefaultReader> m_internalDefaultReader;
+    void genericRelease(JSDOMGlobalObject&);
+    void errorReadRequests(JSDOMGlobalObject&, const Exception&);
+
+    Ref<DeferredPromise> m_closedPromise;
+    RefPtr<InternalReadableStreamDefaultReader> m_internalDefaultReader;
+    RefPtr<ReadableStream> m_stream;
+    Deque<Ref<DeferredPromise>> m_readRequests;
 };
 
 } // namespace WebCore

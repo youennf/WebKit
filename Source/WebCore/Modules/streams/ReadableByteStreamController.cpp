@@ -327,8 +327,7 @@ void ReadableByteStreamController::enqueueChunkToQueue(Ref<JSC::ArrayBuffer>&& b
 
 static RefPtr<JSC::ArrayBuffer> cloneArrayBuffer(JSC::ArrayBuffer& buffer, size_t byteOffset, size_t byteLength)
 {
-    auto span = buffer.span();
-    span = { span.data() + byteOffset, byteLength };
+    auto span = buffer.span().subspan(byteOffset, byteLength);
     return JSC::ArrayBuffer::tryCreate(span);
 }
 
@@ -418,7 +417,7 @@ bool ReadableByteStreamController::shouldCallPull()
 
 static void copyDataBlockBytes(JSC::ArrayBuffer& destination, size_t destinationStart, JSC::ArrayBuffer& source, size_t sourceOffset, size_t bytesToCopy)
 {
-    memcpy(destination.mutableSpan().data() + destinationStart, source.mutableSpan().data() + sourceOffset, bytesToCopy);
+    memcpySpan(destination.mutableSpan().subspan(destinationStart, bytesToCopy), source.span().subspan(sourceOffset, bytesToCopy));
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-fill-pull-into-descriptor-from-queue
@@ -659,6 +658,39 @@ void ReadableByteStreamController::runCancelSteps(JSDOMGlobalObject& globalObjec
             break;
         }
     });
+}
+
+// https://streams.spec.whatwg.org/#rbs-controller-private-pull
+void ReadableByteStreamController::runPullSteps(JSDOMGlobalObject& globalObject, Ref<DeferredPromise>&& readRequest)
+{
+    RefPtr stream = m_stream.get();
+    ASSERT(stream->defaultReader());
+    
+    if (m_queueTotalSize) {
+        ASSERT(!stream->getNumReadRequests());
+        fillReadRequestFromQueue(globalObject, WTFMove(readRequest));
+        return;
+    }
+
+    if (auto autoAllocateChunkSize = m_autoAllocateChunkSize) {
+        auto buffer = JSC::ArrayBuffer::create(autoAllocateChunkSize, 1);
+        m_pendingPullIntos.append({ WTFMove(buffer), autoAllocateChunkSize, 0, autoAllocateChunkSize, 0, 1, 1, JSC::TypedArrayType::TypeUint8, ReaderType::Default });
+    }
+    stream->addReadRequest(WTFMove(readRequest));
+    callPullIfNeeded(globalObject);
+}
+
+// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerfillreadrequestfromqueue
+void ReadableByteStreamController::fillReadRequestFromQueue(JSDOMGlobalObject& globalObject, Ref<DeferredPromise>&& readRequest)
+{
+    ASSERT(m_queueTotalSize);
+    auto entry = m_queue.takeFirst();
+    m_queueTotalSize -= entry.byteLength;
+
+    handleQueueDrain(globalObject);
+
+    Ref view = Uint8Array::create(WTFMove(entry.buffer), entry.byteOffset, entry.byteLength);
+    readRequest->resolve<IDLUint8Array>(WTFMove(view));
 }
 
 void ReadableByteStreamController::storeError(JSDOMGlobalObject& globalObject, JSC::JSValue error)

@@ -26,7 +26,9 @@
 #include "config.h"
 #include "ReadableStreamDefaultReader.h"
 
+#include "JSDOMPromiseDeferred.h"
 #include "JSReadableStreamDefaultReader.h"
+#include "JSReadableStreamReadResult.h"
 #include "ReadableStream.h"
 
 namespace WebCore {
@@ -34,8 +36,10 @@ namespace WebCore {
 ExceptionOr<Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::create(JSDOMGlobalObject& globalObject, ReadableStream& stream)
 {
     RefPtr internalReadableStream = stream.internalReadableStream();
-    if (!internalReadableStream)
-        return Exception { ExceptionCode::NotSupportedError, "Not implemented"_s };
+    if (!internalReadableStream) {
+        ASSERT(stream.hasByteStreamController());
+        return adoptRef(*new ReadableStreamDefaultReader(globalObject, stream));
+    }
 
     return create(globalObject, *internalReadableStream);
 }
@@ -46,41 +50,133 @@ ExceptionOr<Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::creat
     if (internalReaderOrException.hasException())
         return internalReaderOrException.releaseException();
 
-    return create(internalReaderOrException.releaseReturnValue());
+    return create(globalObject, internalReaderOrException.releaseReturnValue());
 }
 
-Ref<ReadableStreamDefaultReader> ReadableStreamDefaultReader::create(Ref<InternalReadableStreamDefaultReader>&& internalDefaultReader)
+Ref<ReadableStreamDefaultReader> ReadableStreamDefaultReader::create(JSDOMGlobalObject& globalObject, Ref<InternalReadableStreamDefaultReader>&& internalDefaultReader)
 {
-    return adoptRef(*new ReadableStreamDefaultReader(WTFMove(internalDefaultReader)));
+    return adoptRef(*new ReadableStreamDefaultReader(globalObject, WTFMove(internalDefaultReader)));
 }
 
-ReadableStreamDefaultReader::ReadableStreamDefaultReader(Ref<InternalReadableStreamDefaultReader>&& internalDefaultReader)
-    : m_internalDefaultReader(WTFMove(internalDefaultReader))
+// FIXME: We use a DeferredPromise as we want to reject with a JSValue. We should instead improve DOMPromiseProxy to allow rejecting with a JSValue.
+ReadableStreamDefaultReader::ReadableStreamDefaultReader(JSDOMGlobalObject& globalObject, Ref<InternalReadableStreamDefaultReader>&& internalDefaultReader)
+    : m_closedPromise(DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull())
+    , m_internalDefaultReader(WTFMove(internalDefaultReader))
 {
 }
 
-ExceptionOr<void> ReadableStreamDefaultReader::releaseLock()
+ReadableStreamDefaultReader::ReadableStreamDefaultReader(JSDOMGlobalObject& globalObject, Ref<ReadableStream>&& stream)
+    : m_closedPromise(DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull())
+    , m_stream(WTFMove(stream))
 {
-    Ref internalDefaultReader = this->internalDefaultReader();
-    return internalDefaultReader->releaseLock();
+    ASSERT(m_stream->hasByteStreamController());
+}
+
+ExceptionOr<void> ReadableStreamDefaultReader::releaseLock(JSDOMGlobalObject& globalObject)
+{
+    if (RefPtr internalDefaultReader = this->internalDefaultReader())
+        return internalDefaultReader->releaseLock();
+    
+    genericRelease(globalObject);
+    errorReadRequests(globalObject, Exception { ExceptionCode::TypeError, "lock released"_s });
+    return { };
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-default-reader-read
+void ReadableStreamDefaultReader::read(JSDOMGlobalObject& globalObject, Ref<DeferredPromise>&& readRequest)
+{
+    RefPtr stream = m_stream;
+    if (!stream) {
+        readRequest->reject(Exception { ExceptionCode::TypeError, "stream is undefined"_s });
+        return;
+    }
+
+    ASSERT(stream->defaultReader() == this);
+    ASSERT(stream->hasByteStreamController());
+
+    stream->setAsDisturbed();
+    switch (stream->state()) {
+    case ReadableStream::State::Closed:
+        readRequest->resolve<IDLDictionary<ReadableStreamReadResult>>({ JSC::jsUndefined(), true });
+        break;
+    case ReadableStream::State::Errored:
+        readRequest->reject<IDLAny>(stream->storedError());
+        break;
+    case ReadableStream::State::Readable:
+        RefPtr { stream->controller() }->runPullSteps(globalObject, WTFMove(readRequest));
+    }
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-reader-generic-release
+void ReadableStreamDefaultReader::genericRelease(JSDOMGlobalObject& globalObject)
+{
+    ASSERT(m_stream);
+    ASSERT(m_stream->defaultReader() == this);
+
+    if (m_stream->state() == ReadableStream::State::Readable)
+        m_closedPromise->reject(Exception { ExceptionCode::TypeError, "releasing stream"_s }, RejectAsHandled::Yes);
+    else {
+        m_closedPromise = DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull();
+        m_closedPromise->reject(Exception { ExceptionCode::TypeError, "releasing stream"_s }, RejectAsHandled::Yes);
+    }
+
+    m_stream->setDefaultReader(nullptr);
+    m_stream = nullptr;
+}
+
+// https://streams.spec.whatwg.org/#abstract-opdef-readablestreamdefaultreadererrorreadrequests
+void ReadableStreamDefaultReader::errorReadRequests(JSDOMGlobalObject& globalObject, const Exception& exception)
+{
+    UNUSED_PARAM(globalObject);
+    auto readRequests = std::exchange(m_readRequests, { });
+    for (auto& readRequest : readRequests)
+        readRequest->reject(exception);
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-reader-generic-cancel
+void ReadableStreamDefaultReader::genericCancel(JSDOMGlobalObject& globalObject, JSC::JSValue value, Ref<DeferredPromise>&& promise)
+{
+    ASSERT(m_stream);
+    ASSERT(m_stream->defaultReader() == this);
+    RefPtr stream = m_stream;
+    stream->cancel(globalObject, value, WTFMove(promise));
+}
+
+JSC::JSValue ReadableStreamDefaultReader::closedPromise() const
+{
+    return m_closedPromise->promise();
 }
 
 JSC::JSValue JSReadableStreamDefaultReader::read(JSC::JSGlobalObject& globalObject, JSC::CallFrame&)
 {
-    Ref internalDefaultReader = wrapped().internalDefaultReader();
-    return internalDefaultReader->readForBindings(globalObject);
+    if (RefPtr internalDefaultReader = wrapped().internalDefaultReader())
+        return internalDefaultReader->readForBindings(globalObject);
+    
+    Ref vm = globalObject.vm();
+    auto& jsDOMGlobalObject = *JSC::jsCast<JSDOMGlobalObject*>(&globalObject);
+    auto* promise = JSC::JSPromise::create(vm.get(), globalObject.promiseStructure());
+    Ref { wrapped() }->read(jsDOMGlobalObject, DeferredPromise::create(jsDOMGlobalObject, *promise));
+    return promise;
 }
 
 JSC::JSValue JSReadableStreamDefaultReader::closed(JSC::JSGlobalObject& globalObject) const
 {
-    Ref internalDefaultReader = wrapped().internalDefaultReader();
-    return internalDefaultReader->closedForBindings(globalObject);
+    if (RefPtr internalDefaultReader = wrapped().internalDefaultReader())
+        return internalDefaultReader->closedForBindings(globalObject);
+    return  Ref { wrapped() }->closedPromise();
 }
 
+// https://streams.spec.whatwg.org/#generic-reader-cancel
 JSC::JSValue JSReadableStreamDefaultReader::cancel(JSC::JSGlobalObject& globalObject, JSC::CallFrame& callFrame)
 {
-    Ref internalDefaultReader = wrapped().internalDefaultReader();
-    return internalDefaultReader->cancelForBindings(globalObject, callFrame.argument(0));
+    if (RefPtr internalDefaultReader = wrapped().internalDefaultReader())
+        return internalDefaultReader->cancelForBindings(globalObject, callFrame.argument(0));
+
+    Ref vm = globalObject.vm();
+    auto& jsDOMGlobalObject = *JSC::jsCast<JSDOMGlobalObject*>(&globalObject);
+    auto* promise = JSC::JSPromise::create(vm.get(), globalObject.promiseStructure());
+    Ref { wrapped() }->genericCancel(jsDOMGlobalObject, callFrame.argument(0), DeferredPromise::create(jsDOMGlobalObject, *promise));
+    return promise;
 }
 
 } // namespace WebCore

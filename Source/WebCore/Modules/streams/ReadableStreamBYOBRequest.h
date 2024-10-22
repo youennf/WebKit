@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "ExceptionOr.h"
 #include <wtf/RefCounted.h>
 
 namespace JSC {
@@ -34,6 +35,7 @@ class ArrayBufferView;
 namespace WebCore {
 
 class JSDOMGlobalObject;
+class ReadableByteStreamController;
 
 class ReadableStreamBYOBRequest : public RefCounted<ReadableStreamBYOBRequest> {
 public:

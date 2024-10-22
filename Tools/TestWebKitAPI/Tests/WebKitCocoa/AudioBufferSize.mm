@@ -52,7 +52,7 @@ double waitForBufferSizeChange(WKWebView* webView, double oldSize)
         TestWebKitAPI::Util::runFor(0.1_s);
     } while (++tries <= 100);
 
-    ASSERT_NOT_REACHED();
+    RELEASE_ASSERT_NOT_REACHED();
     return 0;
 }
 
