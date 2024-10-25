@@ -165,6 +165,8 @@ void SWServerWorker::callTerminationCallbacks()
 
 void SWServerWorker::terminationTimerFired()
 {
+    RELEASE_LOG_ERROR(ServiceWorker, "Terminating service worker %" PRIu64 " due to unresponsiveness", identifier().toUInt64());
+
     ASSERT(isTerminating());
     contextConnection()->terminateDueToUnresponsiveness();
 }
