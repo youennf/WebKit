@@ -369,6 +369,7 @@ void ReadableStream::addReadRequest(Ref<DeferredPromise>&& promise)
 {
     ASSERT(m_defaultReader);
     RefPtr defaultReader = m_defaultReader.get();
+    fprintf(stderr, "defaultReader %p\n", defaultReader.get());
     return defaultReader->addReadRequest(WTFMove(promise));
 }
 

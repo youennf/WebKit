@@ -204,9 +204,9 @@ void ReadableByteStreamController::close()
     }
     
     if (!m_pendingPullIntos.isEmpty()) {
-        
+        // Feed the pending pulls.
     }
-    
+
     clearAlgorithms();
     stream->close();
 }
@@ -840,5 +840,21 @@ void ReadableByteStreamController::handleQueueDrain(JSDOMGlobalObject& globalObj
         callPullIfNeeded(globalObject);
     }
 }
+
+template<typename Visitor>
+void JSReadableByteStreamController::visitAdditionalChildren(Visitor& visitor)
+{
+    Ref controller = wrapped();
+
+    controller->underlyingSource().visit(visitor);
+    controller->storedErrorObject().visit(visitor);
+
+    if (auto* callback = controller->pullAlgorithmConcurrently())
+        callback->visitJSFunction(visitor);
+    if (auto* callback = controller->cancelAlgorithmConcurrently())
+        callback->visitJSFunction(visitor);
+}
+
+DEFINE_VISIT_ADDITIONAL_CHILDREN(JSReadableByteStreamController);
 
 } // namespace WebCore

@@ -70,6 +70,7 @@ ReadableStreamDefaultReader::ReadableStreamDefaultReader(JSDOMGlobalObject& glob
     , m_stream(WTFMove(stream))
 {
     ASSERT(m_stream->hasByteStreamController());
+    m_stream->setDefaultReader(this);
 }
 
 ExceptionOr<void> ReadableStreamDefaultReader::releaseLock(JSDOMGlobalObject& globalObject)

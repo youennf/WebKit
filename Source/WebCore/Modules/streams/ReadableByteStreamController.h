@@ -59,6 +59,7 @@ public:
     void start(JSDOMGlobalObject&, UnderlyingSourceStartCallback*);
 
     JSValueInWrappedObject& underlyingSource() { return m_underlyingSource; }
+    JSValueInWrappedObject& storedErrorObject() { return m_storedError; }
     ReadableStream* stream();
 
     UnderlyingSourcePullCallback* pullAlgorithmConcurrently() { return m_pullAlgorithm.get(); }
@@ -145,9 +146,9 @@ private:
     Deque<Entry> m_queue;
     size_t m_queueTotalSize { 0 };
 
-    // FIXME: Visit these two.
     JSValueInWrappedObject m_underlyingSource;
     JSValueInWrappedObject m_storedError;
+
     RefPtr<DOMPromise> m_callbackPromise;
     Function<void(std::optional<JSC::JSValue>&&)> m_cancelCallback;
 };
