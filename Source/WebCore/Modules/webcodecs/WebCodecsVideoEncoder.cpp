@@ -371,6 +371,7 @@ ExceptionOr<void> WebCodecsVideoEncoder::resetEncoder(const Exception& exception
     if (m_state == WebCodecsCodecState::Closed)
         return Exception { ExceptionCode::InvalidStateError, "VideoEncoder is closed"_s };
 
+    ++m_encoderCount;
     m_state = WebCodecsCodecState::Unconfigured;
     if (RefPtr internalEncoder = std::exchange(m_internalEncoder, { }))
         internalEncoder->reset();

@@ -358,6 +358,7 @@ ExceptionOr<void> WebCodecsAudioEncoder::resetEncoder(const Exception& exception
     if (m_state == WebCodecsCodecState::Closed)
         return Exception { ExceptionCode::InvalidStateError, "AudioEncoder is closed"_s };
 
+    ++m_encoderCount;
     m_state = WebCodecsCodecState::Unconfigured;
     if (RefPtr internalEncoder = std::exchange(m_internalEncoder, { }))
         internalEncoder->reset();
