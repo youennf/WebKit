@@ -68,7 +68,7 @@ private:
     ValidateUserMediaRequestConstraintsCallback m_validateUserMediaRequestConstraintsCallback;
 
     using GetMediaStreamDevicesCallback = CompletionHandler<void(Vector<WebCore::CaptureDeviceWithCapabilities>&&)>;
-    void getMediaStreamDevices(bool revealIdsAndLabels, GetMediaStreamDevicesCallback&&);
+    void retMediaStreamDevices(bool revealIdsAndLabels, WebCore::MediaDeviceHashSalts&&, GetMediaStreamDevicesCallback&&);
 
     CheckedRef<WebProcess> m_process;
 };

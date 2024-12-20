@@ -125,7 +125,7 @@ public:
         if (mock->flags.contains(MockMediaDevice::Flag::Invalid))
             return CaptureSourceOrError({ "Invalid mock camera device"_s, MediaAccessDenialReason::PermissionDenied });
 
-        return MockRealtimeVideoSource::create(String { device.persistentId() }, AtomString { device.label() }, WTFMove(hashSalts), constraints, pageIdentifier);
+        return MockRealtimeVideoSource::create(CaptureDevice { device }, WTFMove(hashSalts), constraints, pageIdentifier);
     }
 
 private:

@@ -34,16 +34,16 @@
 
 namespace WebCore {
 
-CaptureSourceOrError MockRealtimeVideoSource::create(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
+CaptureSourceOrError MockRealtimeVideoSource::create(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
 {
 #ifndef NDEBUG
-    auto device = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(deviceID);
-    ASSERT(device);
-    if (!device)
+    auto mockDevice = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(device.persistentId());
+    ASSERT(mockDevice);
+    if (!mockDevice)
         return CaptureSourceOrError({ "No mock camera device"_s , MediaAccessDenialReason::PermissionDenied });
 #endif
 
-    Ref<RealtimeMediaSource> source = adoptRef(*new MockRealtimeVideoSourceGStreamer(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier));
+    Ref<RealtimeMediaSource> source = adoptRef(*new MockRealtimeVideoSourceGStreamer(WTFMove(device), WTFMove(hashSalts), pageIdentifier));
     if (constraints) {
         if (auto error = source->applyConstraints(*constraints))
             return CaptureSourceOrError(CaptureSourceError { error->invalidConstraint });
@@ -52,18 +52,18 @@ CaptureSourceOrError MockRealtimeVideoSource::create(String&& deviceID, AtomStri
     return source;
 }
 
-MockRealtimeVideoSourceGStreamer::MockRealtimeVideoSourceGStreamer(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
-    : MockRealtimeVideoSource(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier)
+MockRealtimeVideoSourceGStreamer::MockRealtimeVideoSourceGStreamer(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
+    : MockRealtimeVideoSource(WTFMove(device), WTFMove(hashSalts), pageIdentifier)
 {
     ensureGStreamerInitialized();
     auto& singleton = GStreamerVideoCaptureDeviceManager::singleton();
-    auto device = singleton.gstreamerDeviceWithUID(this->captureDevice().persistentId());
-    ASSERT(device);
-    if (!device)
+    auto mockDevice = singleton.gstreamerDeviceWithUID(this->captureDevice().persistentId());
+    ASSERT(mockDevice);
+    if (!mockDevice)
         return;
 
-    device->setIsMockDevice(true);
-    m_capturer = adoptRef(*new GStreamerVideoCapturer(WTFMove(*device)));
+    mockDevice->setIsMockDevice(true);
+    m_capturer = adoptRef(*new GStreamerVideoCapturer(WTFMove(*mockDevice)));
     m_capturer->addObserver(*this);
     m_capturer->setupPipeline();
     m_capturer->setSinkVideoFrameCallback([this](auto&& videoFrame) {

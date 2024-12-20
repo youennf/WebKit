@@ -48,12 +48,12 @@ class ImageTransferSessionVT;
 class MockRealtimeVideoSourceMac final : public MockRealtimeVideoSource {
 public:
     static Ref<MockRealtimeVideoSource> createForMockDisplayCapturer(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&&, std::optional<PageIdentifier>);
-    static Ref<MockRealtimeVideoSource> create(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& salt, std::optional<PageIdentifier> pageIdentifier) { return adoptRef(*new MockRealtimeVideoSourceMac(WTFMove(deviceID), WTFMove(name), WTFMove(salt), WTFMove(pageIdentifier))); }
+    static Ref<MockRealtimeVideoSource> create(CaptureDevice&& device, MediaDeviceHashSalts&& salt, std::optional<PageIdentifier> pageIdentifier) { return adoptRef(*new MockRealtimeVideoSourceMac(WTFMove(device), WTFMove(salt), WTFMove(pageIdentifier))); }
 
     ~MockRealtimeVideoSourceMac();
 
 private:
-    MockRealtimeVideoSourceMac(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&&, std::optional<PageIdentifier>);
+    MockRealtimeVideoSourceMac(CaptureDevice&&, MediaDeviceHashSalts&&, std::optional<PageIdentifier>);
 
     PlatformLayer* platformLayer() const;
     void updateSampleBuffer() final;

@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <script src="/resources/testharness.js"></script>
+        <script src="/resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <script>
+function with_iframe(url) {
+    return new Promise(function(resolve) {
+        var frame = document.createElement('iframe');
+        frame.className = 'test-iframe';
+        frame.src = url;
+        frame.onload = function() { resolve(frame); };
+        document.body.appendChild(frame);
+    });
+ }
+
+function getDeviceFromTrack(track, devices)
+{
+    let matchingDevice;
+    const settings = track.getSettings();
+    devices.forEach(device => {
+        if (device.deviceId === settings.deviceId)
+            matchingDevice = device;
+    });
+    return matchingDevice;
+}
+
+promise_test(async () => {
+    const iframe1 = await with_iframe("/");
+    const iframe2 = await with_iframe("/");
+
+    const stream1 = await iframe1.contentWindow.navigator.mediaDevices.getUserMedia({ audio: true, video: true});
+    const devices1 = await iframe1.contentWindow.navigator.mediaDevices.enumerateDevices();
+   
+    const stream2 = await iframe2.contentWindow.navigator.mediaDevices.getUserMedia({ audio: true, video: true});
+    const devices2 = await iframe2.contentWindow.navigator.mediaDevices.enumerateDevices();
+
+    const stream3 = await iframe1.contentWindow.navigator.mediaDevices.getUserMedia({ audio: true, video: true});
+    const devices3 = await iframe1.contentWindow.navigator.mediaDevices.enumerateDevices();
+
+
+    const audioDevice1 = getDeviceFromTrack(stream1.getAudioTracks()[0], devices1);
+    const audioDevice2 = getDeviceFromTrack(stream1.getAudioTracks()[0], devices2);
+    const audioDevice3 = getDeviceFromTrack(stream1.getAudioTracks()[0], devices3);
+
+    assert_equals(audioDevice1.deviceId, stream1.getAudioTracks()[0].getSettings().deviceId, "deviceId1");
+    assert_equals(audioDevice2.deviceId, stream2.getAudioTracks()[0].getSettings().deviceId, "deviceId2");
+    assert_equals(audioDevice3.deviceId, stream3.getAudioTracks()[0].getSettings().deviceId, "deviceId3");
+
+    assert_equals(audioDevice1.groupId, stream1.getAudioTracks()[0].getSettings().groupId, "groupId1");
+    assert_equals(audioDevice2.groupId, stream2.getAudioTracks()[0].getSettings().groupId, "groupId2");
+    assert_equals(audioDevice3.groupId, stream3.getAudioTracks()[0].getSettings().groupId, "groupId3");
+
+    assert_equals(stream1.getAudioTracks()[0].getCapabilities().groupId, stream1.getAudioTracks()[0].getSettings().groupId, "groupId1 capability");
+    assert_equals(stream2.getAudioTracks()[0].getCapabilities().groupId, stream2.getAudioTracks()[0].getSettings().groupId, "groupId1 capability");
+    assert_equals(stream3.getAudioTracks()[0].getCapabilities().groupId, stream3.getAudioTracks()[0].getSettings().groupId, "groupId1 capability");
+
+    assert_not_equals(audioDevice1.groupId, audioDevice2.groupId, "1 and 2");
+    assert_equals(audioDevice1.groupId, audioDevice3.groupId, "1 and 3");
+}, "check groupId persistency");
+        </script>
+    </body>
+</html>

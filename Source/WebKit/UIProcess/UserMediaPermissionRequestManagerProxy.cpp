@@ -907,14 +907,14 @@ bool UserMediaPermissionRequestManagerProxy::wasGrantedVideoAccess(FrameIdentifi
 }
 
 #if !USE(GLIB)
-void UserMediaPermissionRequestManagerProxy::platformGetMediaStreamDevices(bool revealIdsAndLabels, CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&)>&& completionHandler)
+void UserMediaPermissionRequestManagerProxy::platformGetMediaStreamDevices(bool revealIdsAndLabels, MediaDeviceHashSalts&& hashSalts, CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&, MediaDeviceHashSalts&&)>&& completionHandler)
 {
-    RealtimeMediaSourceCenter::singleton().getMediaStreamDevices([revealIdsAndLabels, completionHandler = WTFMove(completionHandler)](auto&& devices) mutable {
-        auto devicesWithCapabilities = WTF::compactMap(devices, [revealIdsAndLabels](auto& device) -> std::optional<CaptureDeviceWithCapabilities> {
+    RealtimeMediaSourceCenter::singleton().getMediaStreamDevices([revealIdsAndLabels, hashSalts = WTFMove(hashSalts), completionHandler = WTFMove(completionHandler)](auto&& devices) mutable {
+        auto devicesWithCapabilities = WTF::compactMap(devices, [revealIdsAndLabels, &hashSalts](auto& device) -> std::optional<CaptureDeviceWithCapabilities> {
             RealtimeMediaSourceCapabilities deviceCapabilities;
 
             if (revealIdsAndLabels && device.isInputDevice()) {
-                auto capabilities = RealtimeMediaSourceCenter::singleton().getCapabilities(device);
+                auto capabilities = RealtimeMediaSourceCenter::singleton().getCapabilities(device, hashSalts);
                 if (!capabilities)
                     return std::nullopt;
 
@@ -925,20 +925,20 @@ void UserMediaPermissionRequestManagerProxy::platformGetMediaStreamDevices(bool 
             return CaptureDeviceWithCapabilities { WTFMove(device), WTFMove(deviceCapabilities) };
         });
 
-        completionHandler(WTFMove(devicesWithCapabilities));
+        completionHandler(WTFMove(devicesWithCapabilities), WTFMove(hashSalts));
     });
 }
 #endif
 
-void UserMediaPermissionRequestManagerProxy::computeFilteredDeviceList(FrameIdentifier frameID, bool revealIdsAndLabels, CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&)>&& completion)
+void UserMediaPermissionRequestManagerProxy::computeFilteredDeviceList(FrameIdentifier frameID, bool revealIdsAndLabels, MediaDeviceHashSalts&& hashSalts,  CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&, MediaDeviceHashSalts&&)>&& completion)
 {
     static const unsigned defaultMaximumCameraCount = 1;
     static const unsigned defaultMaximumMicrophoneCount = 1;
 
-    platformGetMediaStreamDevices(revealIdsAndLabels || wasGrantedVideoAccess(frameID) || wasGrantedAudioAccess(frameID), [frameID, logIdentifier = LOGIDENTIFIER, this, weakThis = WeakPtr { *this }, revealIdsAndLabels, completion = WTFMove(completion)](auto&& devicesWithCapabilities) mutable {
+    platformGetMediaStreamDevices(revealIdsAndLabels || wasGrantedVideoAccess(frameID) || wasGrantedAudioAccess(frameID), WTFMove(hashSalts), [frameID, logIdentifier = LOGIDENTIFIER, this, weakThis = WeakPtr { *this }, revealIdsAndLabels, completion = WTFMove(completion)](auto&& devicesWithCapabilities, auto&& hashSalts) mutable {
         RefPtr protectedThis = weakThis.get();
         if (!protectedThis) {
-            completion({ });
+            completion({ }, { });
             return;
         }
 
@@ -986,7 +986,7 @@ void UserMediaPermissionRequestManagerProxy::computeFilteredDeviceList(FrameIden
 
         ALWAYS_LOG(logIdentifier, "exposing ", cameraCount, " camera(s) filtering = ", shouldRestrictCamera, ", ", microphoneCount, " microphone(s) filtering = ", shouldRestrictMicrophone, ", ", speakerCount, " speaker(s) filtering = ", shouldRestrictSpeaker);
 
-        completion(WTFMove(filteredDevices));
+        completion(WTFMove(filteredDevices), WTFMove(hashSalts));
     });
 }
 #endif
@@ -1040,7 +1040,7 @@ void UserMediaPermissionRequestManagerProxy::enumerateMediaDevicesForFrame(Frame
             bool revealIdsAndLabels = originHasPersistentAccess;
 
             callCompletionHandler.release();
-            computeFilteredDeviceList(frameID, revealIdsAndLabels, [completionHandler = WTFMove(completionHandler), hashSaltsForRequest = WTFMove(hashSaltsForRequest)] (auto&& devices) mutable {
+            computeFilteredDeviceList(frameID, revealIdsAndLabels, WTFMove(hashSaltsForRequest), [completionHandler = WTFMove(completionHandler)] (auto&& devices, auto&& hashSaltsForRequest) mutable {
                 completionHandler(devices, WTFMove(hashSaltsForRequest));
             });
         });

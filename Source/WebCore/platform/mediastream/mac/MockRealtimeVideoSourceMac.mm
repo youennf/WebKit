@@ -53,16 +53,16 @@
 
 namespace WebCore {
 
-CaptureSourceOrError MockRealtimeVideoSource::create(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
+CaptureSourceOrError MockRealtimeVideoSource::create(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
 {
 #ifndef NDEBUG
-    auto device = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(deviceID);
-    ASSERT(device);
-    if (!device)
+    auto mockDevice = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(device.persistentId());
+    ASSERT(mockDevice);
+    if (!mockDevice)
         return CaptureSourceOrError({ "No mock camera device"_s , MediaAccessDenialReason::PermissionDenied });
 #endif
 
-    Ref<RealtimeMediaSource> source = MockRealtimeVideoSourceMac::create(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier);
+    Ref<RealtimeMediaSource> source = MockRealtimeVideoSourceMac::create(WTFMove(device), WTFMove(hashSalts), pageIdentifier);
     if (constraints) {
         if (auto error = source->applyConstraints(*constraints))
             return CaptureSourceOrError(CaptureSourceError { error->invalidConstraint });
@@ -73,11 +73,11 @@ CaptureSourceOrError MockRealtimeVideoSource::create(String&& deviceID, AtomStri
 
 Ref<MockRealtimeVideoSource> MockRealtimeVideoSourceMac::createForMockDisplayCapturer(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
 {
-    return adoptRef(*new MockRealtimeVideoSourceMac(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier));
+    return adoptRef(*new MockRealtimeVideoSourceMac({ WTFMove(deviceID), CaptureDevice::DeviceType::Screen, WTFMove(name) }, WTFMove(hashSalts), pageIdentifier));
 }
 
-MockRealtimeVideoSourceMac::MockRealtimeVideoSourceMac(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
-    : MockRealtimeVideoSource(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier)
+MockRealtimeVideoSourceMac::MockRealtimeVideoSourceMac(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
+    : MockRealtimeVideoSource(WTFMove(device), WTFMove(hashSalts), pageIdentifier)
 {
 }
 

@@ -39,9 +39,9 @@ void UserMediaPermissionRequestManagerProxy::platformValidateUserMediaRequestCon
     });
 }
 
-void UserMediaPermissionRequestManagerProxy::platformGetMediaStreamDevices(bool revealIdsAndLabels, CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&)>&& completionHandler)
+void UserMediaPermissionRequestManagerProxy::platformGetMediaStreamDevices(bool revealIdsAndLabels,  MediaDeviceHashSalts&& hashSalts, CompletionHandler<void(Vector<CaptureDeviceWithCapabilities>&&)>&& completionHandler)
 {
-    m_page->legacyMainFrameProcess().protectedConnection()->sendWithAsyncReply(Messages::UserMediaCaptureManager::GetMediaStreamDevices(revealIdsAndLabels), WTFMove(completionHandler));
+    m_page->legacyMainFrameProcess().protectedConnection()->sendWithAsyncReply(Messages::UserMediaCaptureManager::GetMediaStreamDevices(revealIdsAndLabels, hashSalts), WTFMove(completionHandler));
 }
 
 } // namespace WebKit

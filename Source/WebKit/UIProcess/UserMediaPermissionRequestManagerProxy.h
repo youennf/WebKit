@@ -177,8 +177,8 @@ private:
     bool wasGrantedAudioAccess(WebCore::FrameIdentifier);
     bool wasGrantedVideoAccess(WebCore::FrameIdentifier);
 
-    void computeFilteredDeviceList(WebCore::FrameIdentifier, bool revealIdsAndLabels, CompletionHandler<void(Vector<WebCore::CaptureDeviceWithCapabilities>&&)>&&);
-    void platformGetMediaStreamDevices(bool revealIdsAndLabels, CompletionHandler<void(Vector<WebCore::CaptureDeviceWithCapabilities>&&)>&&);
+    void computeFilteredDeviceList(WebCore::FrameIdentifier, bool revealIdsAndLabels, WebCore::MediaDeviceHashSalts&&, CompletionHandler<void(Vector<WebCore::CaptureDeviceWithCapabilities>&&, WebCore::MediaDeviceHashSalts&&)>&&);
+    void platformGetMediaStreamDevices(bool revealIdsAndLabels, WebCore::MediaDeviceHashSalts&&, CompletionHandler<void(Vector<WebCore::CaptureDeviceWithCapabilities>&&, WebCore::MediaDeviceHashSalts&&)>&&);
 
     void processUserMediaPermissionRequest();
     void processUserMediaPermissionInvalidRequest(WebCore::MediaConstraintType invalidConstraint);

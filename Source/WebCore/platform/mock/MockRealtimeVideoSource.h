@@ -50,7 +50,7 @@ enum class VideoFrameRotation : uint16_t;
 
 class MockRealtimeVideoSource : public RealtimeVideoCaptureSource, private OrientationNotifier::Observer {
 public:
-    static CaptureSourceOrError create(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&&, const MediaConstraints*, std::optional<PageIdentifier>);
+    static CaptureSourceOrError create(CaptureDevice&&, MediaDeviceHashSalts&&, const MediaConstraints*, std::optional<PageIdentifier>);
     virtual ~MockRealtimeVideoSource();
 
     static void setIsInterrupted(bool);
@@ -58,7 +58,7 @@ public:
     ImageBuffer* imageBuffer();
 
 protected:
-    MockRealtimeVideoSource(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&&, std::optional<PageIdentifier>);
+    MockRealtimeVideoSource(CaptureDevice&&, MediaDeviceHashSalts&&, std::optional<PageIdentifier>);
 
     virtual void updateSampleBuffer() = 0;
 
@@ -107,8 +107,8 @@ private:
 
     void delaySamples(Seconds) final;
 
-    bool mockCamera() const { return std::holds_alternative<MockCameraProperties>(m_device.properties); }
-    bool mockDisplay() const { return std::holds_alternative<MockDisplayProperties>(m_device.properties); }
+    bool mockCamera() const { return std::holds_alternative<MockCameraProperties>(m_mockDevice.properties); }
+    bool mockDisplay() const { return std::holds_alternative<MockDisplayProperties>(m_mockDevice.properties); }
     bool mockScreen() const { return mockDisplayType(CaptureDevice::DeviceType::Screen); }
     bool mockWindow() const { return mockDisplayType(CaptureDevice::DeviceType::Window); }
     bool mockDisplayType(CaptureDevice::DeviceType) const;
@@ -165,7 +165,7 @@ private:
     RealtimeMediaSourceSupportedConstraints m_supportedConstraints;
     Color m_fillColor { Color::black };
     Color m_fillColorWithZoom { Color::red };
-    MockMediaDevice m_device;
+    MockMediaDevice m_mockDevice;
     std::optional<VideoPreset> m_preset;
     VideoFrameRotation m_deviceOrientation;
 

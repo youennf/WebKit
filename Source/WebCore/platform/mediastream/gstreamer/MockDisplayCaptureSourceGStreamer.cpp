@@ -30,7 +30,7 @@ namespace WebCore {
 
 CaptureSourceOrError MockDisplayCaptureSourceGStreamer::create(const CaptureDevice& device, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
 {
-    auto mockSource = adoptRef(*new MockRealtimeVideoSourceGStreamer(String { device.persistentId() }, AtomString { device.label() }, MediaDeviceHashSalts { hashSalts }, pageIdentifier));
+    auto mockSource = adoptRef(*new MockRealtimeVideoSourceGStreamer(CaptureDevice { String { device.persistentId() }, CaptureDevice::DeviceType::Screen, AtomString { device.label() } }, MediaDeviceHashSalts { hashSalts }, pageIdentifier));
 
     if (constraints) {
         if (auto error = mockSource->applyConstraints(*constraints))

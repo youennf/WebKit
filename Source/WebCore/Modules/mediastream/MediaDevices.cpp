@@ -63,7 +63,6 @@ inline MediaDevices::MediaDevices(Document& document)
     : ActiveDOMObject(document)
     , m_scheduledEventTimer(RunLoop::main(), this, &MediaDevices::scheduledEventTimerFired)
     , m_eventNames(eventNames())
-    , m_groupIdHashSalt(createVersion4UUIDString())
 {
     static_assert(static_cast<size_t>(MediaDevices::DisplayCaptureSurfaceType::Monitor) == static_cast<size_t>(DisplaySurfaceType::Monitor), "MediaDevices::DisplayCaptureSurfaceType::Monitor is not equal to DisplaySurfaceType::Monitor as expected");
     static_assert(static_cast<size_t>(MediaDevices::DisplayCaptureSurfaceType::Window) == static_cast<size_t>(DisplaySurfaceType::Window), "MediaDevices::DisplayCaptureSurfaceType::Window is not DisplaySurfaceType::Window as expected");
@@ -345,16 +344,11 @@ void MediaDevices::exposeDevices(Vector<CaptureDeviceWithCapabilities>&& newDevi
         if (!canAccessSpeaker && newDevice.type() == CaptureDevice::DeviceType::Speaker)
             continue;
 
-        auto& center = RealtimeMediaSourceCenter::singleton();
-        String deviceId;
-        if (newDevice.isEphemeral())
-            deviceId = center.hashStringWithSalt(newDevice.persistentId(), deviceIDHashSalts.ephemeralDeviceSalt);
-        else
-            deviceId = center.hashStringWithSalt(newDevice.persistentId(), deviceIDHashSalts.persistentDeviceSalt);
-        auto groupId = newDevice.groupId().isEmpty() ? emptyString() : hashedGroupId(newDevice.groupId());
-
         if (newDevice.type() == CaptureDevice::DeviceType::Speaker) {
             if (exposeSpeakersWithoutMicrophoneAccess(document) || haveMicrophoneDevice(newDevices, newDevice.groupId())) {
+                auto deviceId = RealtimeMediaSourceCenter::singleton().hashStringWithSalt(newDevice.persistentId(), newDevice.isEphemeral() ? deviceIDHashSalts.ephemeralDeviceSalt : deviceIDHashSalts.persistentDeviceSalt);
+                auto groupId = RealtimeMediaSourceCenter::singleton().hashStringWithSalt(newDevice.groupId(), deviceIDHashSalts.ephemeralDeviceSalt);
+
                 m_audioOutputDeviceIdToPersistentId.add(deviceId, newDevice.persistentId());
                 devices.append(RefPtr<MediaDeviceInfo> { MediaDeviceInfo::create(newDevice.label(), WTFMove(deviceId), WTFMove(groupId), toMediaDeviceInfoKind(newDevice.type())) });
             }
@@ -363,15 +357,10 @@ void MediaDevices::exposeDevices(Vector<CaptureDeviceWithCapabilities>&& newDevi
                 m_hasRestrictedCameraDevices = false;
             if (newDevice.type() == CaptureDevice::DeviceType::Microphone && !newDevice.label().isEmpty())
                 m_hasRestrictedMicrophoneDevices = false;
-            devices.append(RefPtr<InputDeviceInfo> { InputDeviceInfo::create(WTFMove(newDeviceWithCapabilities), WTFMove(deviceId), WTFMove(groupId)) });
+            devices.append(RefPtr<InputDeviceInfo> { InputDeviceInfo::create(WTFMove(newDeviceWithCapabilities)) });
         }
     }
     promise.resolve(WTFMove(devices));
-}
-
-String MediaDevices::hashedGroupId(const String& groupId)
-{
-    return RealtimeMediaSourceCenter::singleton().hashStringWithSalt(groupId, m_groupIdHashSalt);
 }
 
 void MediaDevices::enumerateDevices(EnumerateDevicesPromise&& promise)

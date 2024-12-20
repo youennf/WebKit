@@ -35,15 +35,15 @@ namespace WebCore {
 
 WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(InputDeviceInfo);
 
-InputDeviceInfo::InputDeviceInfo(CaptureDeviceWithCapabilities&& deviceWithCapabilities, String&& saltedDeviceId, String&& saltedGroupId)
-    : MediaDeviceInfo(deviceWithCapabilities.device.label(), WTFMove(saltedDeviceId), WTFMove(saltedGroupId), toMediaDeviceInfoKind(deviceWithCapabilities.device.type()))
+InputDeviceInfo::InputDeviceInfo(CaptureDeviceWithCapabilities&& deviceWithCapabilities)
+    : MediaDeviceInfo(deviceWithCapabilities.device.label(), deviceWithCapabilities.capabilities.deviceId(), deviceWithCapabilities.capabilities.groupId(), toMediaDeviceInfoKind(deviceWithCapabilities.device.type()))
     , m_capabilities(WTFMove(deviceWithCapabilities.capabilities))
 {
 }
 
 MediaTrackCapabilities InputDeviceInfo::getCapabilities() const
 {
-    return toMediaTrackCapabilities(m_capabilities, groupId());
+    return toMediaTrackCapabilities(m_capabilities);
 }
 
 } // namespace WebCore

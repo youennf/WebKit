@@ -56,16 +56,16 @@
 namespace WebCore {
 
 #if !PLATFORM(MAC) && !PLATFORM(IOS_FAMILY) && !USE(GSTREAMER)
-CaptureSourceOrError MockRealtimeVideoSource::create(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
+CaptureSourceOrError MockRealtimeVideoSource::create(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, const MediaConstraints* constraints, std::optional<PageIdentifier> pageIdentifier)
 {
 #ifndef NDEBUG
-    auto device = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(deviceID);
-    ASSERT(device);
-    if (!device)
+    auto mockDevice = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(device.persistentId());
+    ASSERT(mockDevice);
+    if (!mockDevice)
         return { "No mock camera device"_s };
 #endif
 
-    auto source = adoptRef(*new MockRealtimeVideoSource(WTFMove(deviceID), WTFMove(name), WTFMove(hashSalts), pageIdentifier));
+    auto source = adoptRef(*new MockRealtimeVideoSource(WTFMove(device), WTFMove(hashSalts), pageIdentifier));
     if (constraints) {
         if (auto error = source->applyConstraints(*constraints))
             return CaptureSourceOrError({ WTFMove(error->invalidConstraint), MediaAccessDenialReason::InvalidConstraint });
@@ -135,29 +135,29 @@ const FontCascade& MockRealtimeVideoSource::DrawingState::statsFont()
     return *m_statsFont;
 }
 
-MockRealtimeVideoSource::MockRealtimeVideoSource(String&& deviceID, AtomString&& name, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
-    : RealtimeVideoCaptureSource(CaptureDevice { WTFMove(deviceID), CaptureDevice::DeviceType::Camera, WTFMove(name) }, WTFMove(hashSalts), pageIdentifier)
+MockRealtimeVideoSource::MockRealtimeVideoSource(CaptureDevice&& device, MediaDeviceHashSalts&& hashSalts, std::optional<PageIdentifier> pageIdentifier)
+    : RealtimeVideoCaptureSource(WTFMove(device), WTFMove(hashSalts), pageIdentifier)
     , m_runLoop(RunLoop::create("WebKit::MockRealtimeVideoSource generateFrame runloop"_s))
     , m_emitFrameTimer(m_runLoop.get(), this, &MockRealtimeVideoSource::generateFrame)
     , m_deviceOrientation { VideoFrameRotation::None }
 {
     allMockRealtimeVideoSource().add(*this);
 
-    auto device = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(persistentID());
-    ASSERT(device);
-    m_device = *device;
+    auto mockDevice = MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(persistentID());
+    ASSERT(mockDevice);
+    m_mockDevice = WTFMove(*mockDevice);
 
     m_dashWidths.appendList({ 6, 6 });
 
     if (mockDisplay()) {
-        auto& properties = std::get<MockDisplayProperties>(m_device.properties);
+        auto& properties = std::get<MockDisplayProperties>(m_mockDevice.properties);
         setIntrinsicSize(properties.defaultSize);
         setSize(properties.defaultSize);
         m_fillColor = properties.fillColor;
         return;
     }
 
-    auto& properties = std::get<MockCameraProperties>(m_device.properties);
+    auto& properties = std::get<MockCameraProperties>(m_mockDevice.properties);
     setFrameRate(properties.defaultFrameRate);
     setFacingMode(properties.facingMode);
     m_fillColor = properties.fillColor;
@@ -193,7 +193,7 @@ void MockRealtimeVideoSource::setSizeFrameRateAndZoom(const VideoPresetConstrain
 void MockRealtimeVideoSource::generatePresets()
 {
     ASSERT(mockCamera());
-    setSupportedPresets(WTFMove(std::get<MockCameraProperties>(m_device.properties).presets));
+    setSupportedPresets(WTFMove(std::get<MockCameraProperties>(m_mockDevice.properties).presets));
 }
 
 const RealtimeMediaSourceCapabilities& MockRealtimeVideoSource::capabilities()
@@ -205,9 +205,10 @@ const RealtimeMediaSourceCapabilities& MockRealtimeVideoSource::capabilities()
     RealtimeMediaSourceCapabilities capabilities(supportedConstraints);
 
     capabilities.setDeviceId(hashedId());
+    capabilities.setGroupId(hashedGroupId());
 
     if (mockCamera()) {
-        auto facingMode = std::get<MockCameraProperties>(m_device.properties).facingMode;
+        auto facingMode = std::get<MockCameraProperties>(m_mockDevice.properties).facingMode;
         if (facingMode != VideoFacingMode::Unknown)
             capabilities.addFacingMode(facingMode);
         capabilities.setDeviceId(hashedId());
@@ -218,18 +219,18 @@ const RealtimeMediaSourceCapabilities& MockRealtimeVideoSource::capabilities()
             supportedConstraints.setSupportsFocusDistance(true);
         }
 
-        auto whiteBalanceModes = std::get<MockCameraProperties>(m_device.properties).whiteBalanceMode;
+        auto whiteBalanceModes = std::get<MockCameraProperties>(m_mockDevice.properties).whiteBalanceMode;
         if (!whiteBalanceModes.isEmpty()) {
             capabilities.setWhiteBalanceModes(WTFMove(whiteBalanceModes));
             supportedConstraints.setSupportsWhiteBalanceMode(true);
         }
 
-        if (std::get<MockCameraProperties>(m_device.properties).hasTorch) {
+        if (std::get<MockCameraProperties>(m_mockDevice.properties).hasTorch) {
             capabilities.setTorch(true);
             supportedConstraints.setSupportsTorch(true);
         }
 
-        capabilities.setBackgroundBlur(std::get<MockCameraProperties>(m_device.properties).hasBackgroundBlur ? RealtimeMediaSourceCapabilities::BackgroundBlur::On : RealtimeMediaSourceCapabilities::BackgroundBlur::Off);
+        capabilities.setBackgroundBlur(std::get<MockCameraProperties>(m_mockDevice.properties).hasBackgroundBlur ? RealtimeMediaSourceCapabilities::BackgroundBlur::On : RealtimeMediaSourceCapabilities::BackgroundBlur::Off);
         supportedConstraints.setSupportsBackgroundBlur(true);
 
         capabilities.setPowerEfficient(canBePowerEfficient());
@@ -237,8 +238,8 @@ const RealtimeMediaSourceCapabilities& MockRealtimeVideoSource::capabilities()
 
         capabilities.setSupportedConstraints(supportedConstraints);
     } else if (mockDisplay()) {
-        capabilities.setWidth({ 72, std::get<MockDisplayProperties>(m_device.properties).defaultSize.width() });
-        capabilities.setHeight({ 45, std::get<MockDisplayProperties>(m_device.properties).defaultSize.height() });
+        capabilities.setWidth({ 72, std::get<MockDisplayProperties>(m_mockDevice.properties).defaultSize.width() });
+        capabilities.setHeight({ 45, std::get<MockDisplayProperties>(m_mockDevice.properties).defaultSize.height() });
         capabilities.setFrameRate({ .01, 60.0 });
     } else {
         capabilities.setWidth({ 72, 2880 });
@@ -288,7 +289,7 @@ auto MockRealtimeVideoSource::getPhotoSettings() -> Ref<PhotoSettingsNativePromi
 {
     if (!m_photoSettings) {
         std::optional<FillLightMode> fillLightMode;
-        if (std::get<MockCameraProperties>(m_device.properties).hasTorch)
+        if (std::get<MockCameraProperties>(m_mockDevice.properties).hasTorch)
             fillLightMode = { torch() ? FillLightMode::Flash : FillLightMode::Off };
 
         auto settings = this->settings();
@@ -319,7 +320,7 @@ const RealtimeMediaSourceSettings& MockRealtimeVideoSource::settings()
         settings.setLogicalSurface(false);
     }
     settings.setDeviceId(hashedId());
-    settings.setGroupId(captureDevice().groupId());
+    settings.setGroupId(hashedGroupId());
 
     settings.setFrameRate(frameRate());
     auto size = this->size();
@@ -346,12 +347,12 @@ const RealtimeMediaSourceSettings& MockRealtimeVideoSource::settings()
             settings.setZoom(zoom());
         }
 
-        if (std::get<MockCameraProperties>(m_device.properties).whiteBalanceMode.size()) {
+        if (std::get<MockCameraProperties>(m_mockDevice.properties).whiteBalanceMode.size()) {
             supportedConstraints.setSupportsWhiteBalanceMode(true);
             settings.setWhiteBalanceMode(whiteBalanceMode());
         }
 
-        if (std::get<MockCameraProperties>(m_device.properties).hasTorch) {
+        if (std::get<MockCameraProperties>(m_mockDevice.properties).hasTorch) {
             supportedConstraints.setSupportsTorch(true);
             settings.setTorch(torch());
         }
@@ -361,7 +362,7 @@ const RealtimeMediaSourceSettings& MockRealtimeVideoSource::settings()
         supportedConstraints.setSupportsPowerEfficient(true);
 
         supportedConstraints.setSupportsBackgroundBlur(true);
-        settings.setBackgroundBlur(std::get<MockCameraProperties>(m_device.properties).hasBackgroundBlur);
+        settings.setBackgroundBlur(std::get<MockCameraProperties>(m_mockDevice.properties).hasBackgroundBlur);
     } else {
         supportedConstraints.setSupportsDisplaySurface(true);
         supportedConstraints.setSupportsLogicalSurface(true);
@@ -696,10 +697,10 @@ ImageBuffer* MockRealtimeVideoSource::imageBufferInternal()
 
 bool MockRealtimeVideoSource::mockDisplayType(CaptureDevice::DeviceType type) const
 {
-    if (!std::holds_alternative<MockDisplayProperties>(m_device.properties))
+    if (!std::holds_alternative<MockDisplayProperties>(m_mockDevice.properties))
         return false;
 
-    return std::get<MockDisplayProperties>(m_device.properties).type == type;
+    return std::get<MockDisplayProperties>(m_mockDevice.properties).type == type;
 }
 
 void MockRealtimeVideoSource::rotationAngleForHorizonLevelDisplayChanged(const String& persistentID, VideoFrameRotation rotation)
@@ -749,7 +750,7 @@ void MockRealtimeVideoSource::orientationChanged(IntDegrees orientation)
 
 void MockRealtimeVideoSource::monitorOrientation(OrientationNotifier& notifier)
 {
-    if (!mockCamera() || std::get<MockCameraProperties>(m_device.properties).facingMode == VideoFacingMode::Unknown)
+    if (!mockCamera() || std::get<MockCameraProperties>(m_mockDevice.properties).facingMode == VideoFacingMode::Unknown)
         return;
 
     notifier.addObserver(*this);

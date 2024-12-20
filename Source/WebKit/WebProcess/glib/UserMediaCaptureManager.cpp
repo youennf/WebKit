@@ -78,14 +78,14 @@ void UserMediaCaptureManager::validateUserMediaRequestConstraints(WebCore::Media
     RealtimeMediaSourceCenter::singleton().validateRequestConstraints(WTFMove(validHandler), WTFMove(invalidHandler), request, WTFMove(deviceIdentifierHashSalts));
 }
 
-void UserMediaCaptureManager::getMediaStreamDevices(bool revealIdsAndLabels, GetMediaStreamDevicesCallback&& completionHandler)
+void UserMediaCaptureManager::getMediaStreamDevices(bool revealIdsAndLabels, WebCore::MediaDeviceHashSalts&& hashSalts, GetMediaStreamDevicesCallback&& completionHandler)
 {
-    RealtimeMediaSourceCenter::singleton().getMediaStreamDevices([completionHandler = WTFMove(completionHandler), revealIdsAndLabels](auto&& devices) mutable {
+    RealtimeMediaSourceCenter::singleton().getMediaStreamDevices([completionHandler = WTFMove(completionHandler), hashSalts = WTFMove(hashSalts), revealIdsAndLabels](auto&& devices) mutable {
         auto devicesWithCapabilities = WTF::compactMap(devices, [&](auto& device) -> std::optional<CaptureDeviceWithCapabilities> {
             RealtimeMediaSourceCapabilities deviceCapabilities;
 
             if (device.isInputDevice()) {
-                auto capabilities = RealtimeMediaSourceCenter::singleton().getCapabilities(device);
+                auto capabilities = RealtimeMediaSourceCenter::singleton().getCapabilities(device, hashSalts);
                 if (!capabilities)
                     return std::nullopt;
 
