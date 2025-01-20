@@ -2741,6 +2741,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     workers/service/ExtendableEvent.h
     workers/service/ExtendableEventInit.h
     workers/service/FetchEvent.h
+    workers/service/InstallEvent.h
     workers/service/NavigationPreloadState.h
     workers/service/SWClientConnection.h
     workers/service/ServiceWorkerClientData.h

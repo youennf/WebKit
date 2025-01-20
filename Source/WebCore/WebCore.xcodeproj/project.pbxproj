@@ -1318,6 +1318,7 @@
 		411223C52603567D00B0A0B6 /* DetachedRTCDataChannel.h in Headers */ = {isa = PBXBuildFile; fileRef = 411223C32603567C00B0A0B6 /* DetachedRTCDataChannel.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4112B5431F9F9CA000E67875 /* ServiceWorkerThreadProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 4112B53F1F9F9C9B00E67875 /* ServiceWorkerThreadProxy.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4114FE3225BEBD19009D9F20 /* RTCRtcpParameters.h in Headers */ = {isa = PBXBuildFile; fileRef = 4114FE2F25BEBD18009D9F20 /* RTCRtcpParameters.h */; };
+		411945A92D3E3D4F00C40F6B /* InstallEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945A62D3E3D4F00C40F6B /* InstallEvent.h */; };
 		41201F3727F2F74900D56CC2 /* NotificationEventType.h in Headers */ = {isa = PBXBuildFile; fileRef = 41201F3627F2F74600D56CC2 /* NotificationEventType.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4123081B138C429700BCCFCA /* WebCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93F19B1A08245E5A001E9ABC /* WebCore.framework */; };
 		41230913138C42FF00BCCFCA /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8216299029F4FB501000131 /* JavaScriptCore.framework */; };
@@ -9994,6 +9995,9 @@
 		41189EF71AD8232800B90A0D /* ReadableStreamDefaultController.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ReadableStreamDefaultController.idl; sourceTree = "<group>"; };
 		41189EF71AD8232800B93F64 /* ReadableByteStreamController.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ReadableByteStreamController.idl; sourceTree = "<group>"; };
 		41189EF71AD8232800B95672 /* ReadableStreamBYOBRequest.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ReadableStreamBYOBRequest.idl; sourceTree = "<group>"; };
+		411945A62D3E3D4F00C40F6B /* InstallEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InstallEvent.h; sourceTree = "<group>"; };
+		411945A72D3E3D4F00C40F6B /* InstallEvent.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InstallEvent.cpp; sourceTree = "<group>"; };
+		411945A82D3E3D4F00C40F6B /* InstallEvent.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = InstallEvent.idl; sourceTree = "<group>"; };
 		41201F3627F2F74600D56CC2 /* NotificationEventType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationEventType.h; sourceTree = "<group>"; };
 		41209E24257A2FBB00120ACA /* SFrameUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SFrameUtils.h; sourceTree = "<group>"; };
 		41209E26257A2FBB00120ACA /* SFrameUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SFrameUtils.cpp; sourceTree = "<group>"; };
@@ -26592,6 +26596,9 @@
 				41AF37941F8DA49500111C31 /* FetchEvent.cpp */,
 				41AF37881F8C1E7900111C31 /* FetchEvent.h */,
 				41AF378D1F8C1E7B00111C31 /* FetchEvent.idl */,
+				411945A72D3E3D4F00C40F6B /* InstallEvent.cpp */,
+				411945A62D3E3D4F00C40F6B /* InstallEvent.h */,
+				411945A82D3E3D4F00C40F6B /* InstallEvent.idl */,
 				41E2F198274FAECB00A089EE /* NavigationPreloadManager.cpp */,
 				41E2F197274FAECB00A089EE /* NavigationPreloadManager.h */,
 				41E2F195274FAECA00A089EE /* NavigationPreloadManager.idl */,
@@ -41583,6 +41590,7 @@
 				A5B81CB31FAA44620037D1E6 /* InspectorTimelineAgent.h in Headers */,
 				A593CF8B1840535200BFCE27 /* InspectorWebAgentBase.h in Headers */,
 				A5B81CB41FAA44620037D1E6 /* InspectorWorkerAgent.h in Headers */,
+				411945A92D3E3D4F00C40F6B /* InstallEvent.h in Headers */,
 				F3ABFE0C130E9DA000E7F7D1 /* InstrumentingAgents.h in Headers */,
 				2D550A1429C30F3F00BD0C1F /* IntDegrees.h in Headers */,
 				077FD1B32CC82C5D00C5D9E0 /* IntelligenceTextEffectsSupport.h in Headers */,
