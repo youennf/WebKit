@@ -25,30 +25,46 @@
 
 #pragma once
 
-#include "ExtendableEvent.h"
-#include "RouterRule.h"
+#include "FetchRequestDestination.h"
+#include "FetchRequestMode.h"
+#include "RunningStatus.h"
+#include "RouterSourceDict.h"
+#include "RouterSourceEnum.h"
+#include <optional>
+#include <variant>
 #include <wtf/Vector.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class DeferredPromise;
-class ScriptExecutionContext;
+struct ServiceWorkerRouteCondition {
+    WTF_MAKE_STRUCT_FAST_ALLOCATED;
 
-class InstallEvent final : public ExtendableEvent {
-    WTF_MAKE_TZONE_OR_ISO_ALLOCATED(InstallEvent);
-public:
-    static Ref<InstallEvent> create(const AtomString& type, ExtendableEventInit&& initializer, IsTrusted isTrusted = IsTrusted::No)
-    {
-        return adoptRef(*new InstallEvent(type, WTFMove(initializer), isTrusted));
-    }
-    ~InstallEvent();
+    using Component = String;
+    struct Pattern {
+        Component protocol;
+        Component username;
+        Component password;
+        Component hostname;
+        Component pathname;
+        Component port;
+        Component search;
+        Component hash;
+    };
 
-    void addRoutes(ScriptExecutionContext&, std::variant<RouterRule, Vector<RouterRule>>&&, Ref<DeferredPromise>&&);
+    Pattern urlPattern;
+    String requestMethod;
+    std::optional<FetchRequestMode> requestMode;
+    std::optional<FetchRequestDestination> requestDestination;
+    std::optional<RunningStatus> runningStatus;
 
-private:
-    WEBCORE_EXPORT InstallEvent(const AtomString&, ExtendableEventInit&&, IsTrusted);
+    Vector<ServiceWorkerRouteCondition> orConditions;
+    std::unique_ptr<ServiceWorkerRouteCondition> notCondition;
+};
 
-    size_t m_rulesCount { 0 };
+struct ServiceWorkerRoute {
+    ServiceWorkerRouteCondition condition;
+    std::variant<RouterSourceDict, RouterSourceEnum> source;
 };
 
 } // namespace WebCore

@@ -4469,12 +4469,17 @@ JSResizeObserverCallback.cpp
 JSResizeObserverEntry.cpp
 JSResizeObserverOptions.cpp
 JSResizeObserverSize.cpp
+JSRouterCondition.cpp
+JSRouterRule.cpp
+JSRouterSourceDict.cpp
+JSRouterSourceEnum.cpp
 JSRsaHashedImportParams.cpp
 JSRsaHashedKeyGenParams.cpp
 JSRsaKeyGenParams.cpp
 JSRsaOaepParams.cpp
 JSRsaOtherPrimesInfo.cpp
 JSRsaPssParams.cpp
+JSRunningStatus.cpp
 JSSQLError.cpp
 JSSQLResultSet.cpp
 JSSQLResultSetRowList.cpp

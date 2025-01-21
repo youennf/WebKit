@@ -25,30 +25,46 @@
 
 #pragma once
 
-#include "ExtendableEvent.h"
-#include "RouterRule.h"
+#include "FetchRequestMode.h"
+#include "FetchRequestDestination.h"
+#include "RunningStatus.h"
+#include "URLPattern.h"
+#include <wtf/FastMalloc.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class DeferredPromise;
-class ScriptExecutionContext;
-
-class InstallEvent final : public ExtendableEvent {
-    WTF_MAKE_TZONE_OR_ISO_ALLOCATED(InstallEvent);
+struct RouterCondition;
+class RouterNotCondition {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    static Ref<InstallEvent> create(const AtomString& type, ExtendableEventInit&& initializer, IsTrusted isTrusted = IsTrusted::No)
-    {
-        return adoptRef(*new InstallEvent(type, WTFMove(initializer), isTrusted));
-    }
-    ~InstallEvent();
+    RouterNotCondition(RouterCondition&&);
 
-    void addRoutes(ScriptExecutionContext&, std::variant<RouterRule, Vector<RouterRule>>&&, Ref<DeferredPromise>&&);
+    const RouterCondition& value() const { return m_value.get(); }
+    RouterCondition& value() & { return m_value.get(); }
+    RouterCondition&& value() && { return WTFMove(m_value.get()); }
 
 private:
-    WEBCORE_EXPORT InstallEvent(const AtomString&, ExtendableEventInit&&, IsTrusted);
-
-    size_t m_rulesCount { 0 };
+    UniqueRef<RouterCondition> m_value;
 };
+
+struct RouterCondition {
+    WTF_MAKE_STRUCT_FAST_ALLOCATED;
+
+    std::optional<URLPattern::Compatible> urlPattern;
+    String requestMethod;
+    std::optional<FetchRequestMode> requestMode;
+    std::optional<FetchRequestDestination> requestDestination;
+    std::optional<RunningStatus> runningStatus;
+
+    using Condition = RouterCondition;
+    Vector<Condition> orConditions;
+    std::optional<RouterNotCondition> notCondition;
+};
+
+inline RouterNotCondition::RouterNotCondition(RouterCondition&& value)
+    : m_value(makeUniqueRef<RouterCondition>(WTFMove(value)))
+{
+}
 
 } // namespace WebCore

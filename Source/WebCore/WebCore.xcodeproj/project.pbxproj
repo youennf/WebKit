@@ -1319,6 +1319,7 @@
 		4112B5431F9F9CA000E67875 /* ServiceWorkerThreadProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 4112B53F1F9F9C9B00E67875 /* ServiceWorkerThreadProxy.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4114FE3225BEBD19009D9F20 /* RTCRtcpParameters.h in Headers */ = {isa = PBXBuildFile; fileRef = 4114FE2F25BEBD18009D9F20 /* RTCRtcpParameters.h */; };
 		411945A92D3E3D4F00C40F6B /* InstallEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945A62D3E3D4F00C40F6B /* InstallEvent.h */; };
+		411945B52D3FAE8D00C40F6B /* ServiceWorkerRoute.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945B22D3FAE8D00C40F6B /* ServiceWorkerRoute.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		41201F3727F2F74900D56CC2 /* NotificationEventType.h in Headers */ = {isa = PBXBuildFile; fileRef = 41201F3627F2F74600D56CC2 /* NotificationEventType.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4123081B138C429700BCCFCA /* WebCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93F19B1A08245E5A001E9ABC /* WebCore.framework */; };
 		41230913138C42FF00BCCFCA /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8216299029F4FB501000131 /* JavaScriptCore.framework */; };
@@ -9998,6 +9999,18 @@
 		411945A62D3E3D4F00C40F6B /* InstallEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InstallEvent.h; sourceTree = "<group>"; };
 		411945A72D3E3D4F00C40F6B /* InstallEvent.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InstallEvent.cpp; sourceTree = "<group>"; };
 		411945A82D3E3D4F00C40F6B /* InstallEvent.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = InstallEvent.idl; sourceTree = "<group>"; };
+		411945B22D3FAE8D00C40F6B /* ServiceWorkerRoute.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ServiceWorkerRoute.h; sourceTree = "<group>"; };
+		411945B32D3FAE8D00C40F6B /* ServiceWorkerRoute.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ServiceWorkerRoute.cpp; sourceTree = "<group>"; };
+		411945B62D3FB14400C40F6B /* RouterSourceDict.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RouterSourceDict.h; sourceTree = "<group>"; };
+		411945B72D3FB14400C40F6B /* RouterSourceDict.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterSourceDict.idl; sourceTree = "<group>"; };
+		411945B82D3FB14400C40F6B /* RouterSourceEnum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RouterSourceEnum.h; sourceTree = "<group>"; };
+		411945B92D3FB14400C40F6B /* RouterSourceEnum.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterSourceEnum.idl; sourceTree = "<group>"; };
+		411945BA2D3FB14400C40F6B /* RunningStatus.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RunningStatus.h; sourceTree = "<group>"; };
+		411945BB2D3FB14400C40F6B /* RunningStatus.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RunningStatus.idl; sourceTree = "<group>"; };
+		411945BC2D3FD02E00C40F6B /* RouterCondition.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RouterCondition.h; sourceTree = "<group>"; };
+		411945BD2D3FD02E00C40F6B /* RouterCondition.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterCondition.idl; sourceTree = "<group>"; };
+		411945BE2D3FD02E00C40F6B /* RouterRule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RouterRule.h; sourceTree = "<group>"; };
+		411945BF2D3FD02E00C40F6B /* RouterRule.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterRule.idl; sourceTree = "<group>"; };
 		41201F3627F2F74600D56CC2 /* NotificationEventType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationEventType.h; sourceTree = "<group>"; };
 		41209E24257A2FBB00120ACA /* SFrameUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SFrameUtils.h; sourceTree = "<group>"; };
 		41209E26257A2FBB00120ACA /* SFrameUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SFrameUtils.cpp; sourceTree = "<group>"; };
@@ -26604,6 +26617,16 @@
 				41E2F195274FAECA00A089EE /* NavigationPreloadManager.idl */,
 				41E2F19B274FB0A600A089EE /* NavigationPreloadState.h */,
 				41E2F19A274FB0A500A089EE /* NavigationPreloadState.idl */,
+				411945BC2D3FD02E00C40F6B /* RouterCondition.h */,
+				411945BD2D3FD02E00C40F6B /* RouterCondition.idl */,
+				411945BE2D3FD02E00C40F6B /* RouterRule.h */,
+				411945BF2D3FD02E00C40F6B /* RouterRule.idl */,
+				411945B62D3FB14400C40F6B /* RouterSourceDict.h */,
+				411945B72D3FB14400C40F6B /* RouterSourceDict.idl */,
+				411945B82D3FB14400C40F6B /* RouterSourceEnum.h */,
+				411945B92D3FB14400C40F6B /* RouterSourceEnum.idl */,
+				411945BA2D3FB14400C40F6B /* RunningStatus.h */,
+				411945BB2D3FB14400C40F6B /* RunningStatus.idl */,
 				51F1755B1F3EBC0C00C74950 /* ServiceWorker.cpp */,
 				51F1755A1F3EBC0C00C74950 /* ServiceWorker.h */,
 				51F175591F3EBC0C00C74950 /* ServiceWorker.idl */,
@@ -26649,6 +26672,8 @@
 				517A53261F4B90B200DCDC0A /* ServiceWorkerRegistrationKey.h */,
 				51F645A01F4BF51600B54DED /* ServiceWorkerRegistrationOptions.cpp */,
 				51F1754A1F3EBC0C00C74950 /* ServiceWorkerRegistrationOptions.h */,
+				411945B32D3FAE8D00C40F6B /* ServiceWorkerRoute.cpp */,
+				411945B22D3FAE8D00C40F6B /* ServiceWorkerRoute.h */,
 				515E37F41FAA938800D7F22A /* ServiceWorkerTypes.h */,
 				51F175471F3EBC0C00C74950 /* ServiceWorkerUpdateViaCache.h */,
 				51F175461F3EBC0C00C74950 /* ServiceWorkerUpdateViaCache.idl */,
@@ -43934,6 +43959,7 @@
 				517A53291F4B90B900DCDC0A /* ServiceWorkerRegistrationKey.h in Headers */,
 				51F175691F3EBC8300C74950 /* ServiceWorkerRegistrationOptions.h in Headers */,
 				EBB9738327100684007732EF /* ServiceWorkerRegistrationPushAPI.h in Headers */,
+				411945B52D3FAE8D00C40F6B /* ServiceWorkerRoute.h in Headers */,
 				51BCCE301F8F179E006BA0ED /* ServiceWorkerThread.h in Headers */,
 				4112B5431F9F9CA000E67875 /* ServiceWorkerThreadProxy.h in Headers */,
 				515E37F61FAA940200D7F22A /* ServiceWorkerTypes.h in Headers */,

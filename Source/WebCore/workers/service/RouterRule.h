@@ -25,30 +25,15 @@
 
 #pragma once
 
-#include "ExtendableEvent.h"
-#include "RouterRule.h"
-#include <wtf/Vector.h>
+#include "RouterCondition.h"
+#include "RouterSourceDict.h"
+#include "RouterSourceEnum.h"
 
 namespace WebCore {
 
-class DeferredPromise;
-class ScriptExecutionContext;
-
-class InstallEvent final : public ExtendableEvent {
-    WTF_MAKE_TZONE_OR_ISO_ALLOCATED(InstallEvent);
-public:
-    static Ref<InstallEvent> create(const AtomString& type, ExtendableEventInit&& initializer, IsTrusted isTrusted = IsTrusted::No)
-    {
-        return adoptRef(*new InstallEvent(type, WTFMove(initializer), isTrusted));
-    }
-    ~InstallEvent();
-
-    void addRoutes(ScriptExecutionContext&, std::variant<RouterRule, Vector<RouterRule>>&&, Ref<DeferredPromise>&&);
-
-private:
-    WEBCORE_EXPORT InstallEvent(const AtomString&, ExtendableEventInit&&, IsTrusted);
-
-    size_t m_rulesCount { 0 };
+struct RouterRule {
+    RouterCondition condition;
+    std::variant<RouterSourceDict, RouterSourceEnum> source;
 };
 
 } // namespace WebCore

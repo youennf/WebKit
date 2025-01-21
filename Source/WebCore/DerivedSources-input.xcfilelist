@@ -2112,6 +2112,11 @@ $(PROJECT_DIR)/workers/service/NavigationPreloadState.idl
 $(PROJECT_DIR)/workers/service/PushEvent.idl
 $(PROJECT_DIR)/workers/service/PushEventInit.idl
 $(PROJECT_DIR)/workers/service/PushMessageData.idl
+$(PROJECT_DIR)/workers/service/RouterCondition.idl
+$(PROJECT_DIR)/workers/service/RouterRule.idl
+$(PROJECT_DIR)/workers/service/RouterSourceDict.idl
+$(PROJECT_DIR)/workers/service/RouterSourceEnum.idl
+$(PROJECT_DIR)/workers/service/RunningStatus.idl
 $(PROJECT_DIR)/workers/service/ServiceWorker.idl
 $(PROJECT_DIR)/workers/service/ServiceWorkerClient.idl
 $(PROJECT_DIR)/workers/service/ServiceWorkerClientType.idl

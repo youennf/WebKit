@@ -23,14 +23,6 @@
 * THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-[
-    EnabledBySetting=ServiceWorkersEnabled,
-    ExportMacro=WEBCORE_EXPORT,
-    Exposed=ServiceWorker,
-    JSGenerateToNativeObject
-]
-interface InstallEvent : ExtendableEvent {
-    constructor([AtomString] DOMString type, optional ExtendableEventInit eventInitDict = {});
-    // FIXME: Expose behind a flag.
-    [CallWith=CurrentScriptExecutionContext] Promise<undefined> addRoutes((RouterRule or sequence<RouterRule>) rules);
+dictionary RouterSourceDict {
+    DOMString cacheName;
 };
