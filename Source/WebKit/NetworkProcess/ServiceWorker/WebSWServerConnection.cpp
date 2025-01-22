@@ -941,6 +941,16 @@ void WebSWServerConnection::cookieChangeSubscriptions(WebCore::ServiceWorkerRegi
     callback(registration->cookieChangeSubscriptions());
 }
 
+void WebSWServerConnection::addRoutes(WebCore::ServiceWorkerRegistrationIdentifier registrationIdentifier, Vector<WebCore::ServiceWorkerRoute>&& routes, CompletionHandler<void(Expected<void, WebCore::ExceptionData>&&)>&& callback)
+{
+    RefPtr server = this->server();
+    if (!server) {
+        callback(makeUnexpected(WebCore::ExceptionData { ExceptionCode::TypeError, "Internal error"_s }));
+        return;
+    }
+    server->addRoutes(registrationIdentifier, WTFMove(routes), WTFMove(callback));
+}
+
 #if ENABLE(WEB_PUSH_NOTIFICATIONS)
 void WebSWServerConnection::getNotifications(const URL& registrationURL, const String& tag, CompletionHandler<void(Expected<Vector<WebCore::NotificationData>, WebCore::ExceptionData>&&)>&& completionHandler)
 {

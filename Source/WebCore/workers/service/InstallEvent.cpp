@@ -43,12 +43,12 @@ InstallEvent::InstallEvent(const AtomString& type, ExtendableEventInit&& initial
 
 InstallEvent::~InstallEvent() = default;
 
-static ExceptionOr<ServiceWorkerRouteCondition::Pattern> toServiceWorkerRoutePattern(const URLPattern& pattern)
+static ExceptionOr<ServiceWorkerRoutePattern> toServiceWorkerRoutePattern(const URLPattern& pattern)
 {
     if (pattern.hasRegExpGroups())
         return Exception { ExceptionCode::TypeError, "Service Worker route url pattern has regexp groups"_s };
 
-    return ServiceWorkerRouteCondition::Pattern {
+    return ServiceWorkerRoutePattern {
         pattern.protocol(),
         pattern.username(),
         pattern.password(),
@@ -60,12 +60,9 @@ static ExceptionOr<ServiceWorkerRouteCondition::Pattern> toServiceWorkerRoutePat
     };
 }
 
-static ExceptionOr<ServiceWorkerRouteCondition> toServiceWorkerRouteCondition(RouterCondition&& condition, size_t depth = 0)
+static ExceptionOr<ServiceWorkerRouteCondition> toServiceWorkerRouteCondition(RouterCondition&& condition)
 {
-    if (++depth > maxRouteConditionDepth)
-        return Exception { ExceptionCode::TypeError, "Service Worker route condition depth is too high"_s };
-
-    std::optional<ServiceWorkerRouteCondition::Pattern> pattern;
+    std::optional<ServiceWorkerRoutePattern> pattern;
     if (condition.urlPattern) {
         auto patternOrException = toServiceWorkerRoutePattern(*std::get<RefPtr<URLPattern>>(*condition.urlPattern));
         if (patternOrException.hasException())
@@ -75,7 +72,7 @@ static ExceptionOr<ServiceWorkerRouteCondition> toServiceWorkerRouteCondition(Ro
 
     Vector<ServiceWorkerRouteCondition> orConditions;
     for (auto& orCondition : condition.orConditions) {
-        auto orConditionOrException = toServiceWorkerRouteCondition(WTFMove(orCondition), depth);
+        auto orConditionOrException = toServiceWorkerRouteCondition(WTFMove(orCondition));
         if (orConditionOrException.hasException())
             return orConditionOrException.releaseException();
         orConditions.append(orConditionOrException.releaseReturnValue());
@@ -83,14 +80,14 @@ static ExceptionOr<ServiceWorkerRouteCondition> toServiceWorkerRouteCondition(Ro
 
     std::unique_ptr<ServiceWorkerRouteCondition> notCondition;
     if (condition.notCondition) {
-        auto notConditionOrException = toServiceWorkerRouteCondition(WTFMove(*condition.notCondition).value(), depth);
+        auto notConditionOrException = toServiceWorkerRouteCondition(WTFMove(*condition.notCondition).value());
         if (notConditionOrException.hasException())
             return notConditionOrException.releaseException();
         notCondition = makeUnique<ServiceWorkerRouteCondition>(notConditionOrException.releaseReturnValue());
     }
 
     return ServiceWorkerRouteCondition {
-        WTFMove(*pattern),
+        WTFMove(pattern),
         WTFMove(condition.requestMethod),
         WTFMove(condition.requestMode),
         WTFMove(condition.requestDestination),
@@ -185,13 +182,14 @@ void InstallEvent::addRoutes(ScriptExecutionContext& context, std::variant<Route
         return;
     }
 
-    m_rulesCount += routes.size();
-    if (m_rulesCount > maxRouteCount) {
-        promise->reject(Exception { ExceptionCode::TypeError, "Too many rules"_s });
-        return;
-    }
-
-    promise->reject(Exception { ExceptionCode::NotSupportedError, "Not yet implemented"_s });
+    Ref<SWClientConnection> connection = serviceWorkerGlobalScope->swClientConnection();
+    serviceWorkerGlobalScope->enqueueTaskWhenSettled(connection->addRoutes(serviceWorkerGlobalScope->registration().identifier(), WTFMove(routes)), TaskSource::Networking, [promise = WTFMove(promise)](auto&& result) mutable {
+        if (!result) {
+            promise->reject(result.error().toException());
+            return;
+        }
+        promise->resolve();
+    });
 }
 
 } // namespace WebCore

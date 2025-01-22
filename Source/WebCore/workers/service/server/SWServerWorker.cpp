@@ -27,6 +27,7 @@
 #include "SWServerWorker.h"
 
 #include "Logging.h"
+#include "ServiceWorkerRoute.h"
 #include "SWServer.h"
 #include "SWServerRegistration.h"
 #include "SWServerToContextConnection.h"
@@ -35,6 +36,9 @@
 #include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
+
+static constexpr size_t maxRouteConditionDepth = 10;
+static constexpr size_t maxRouteCount = 256;
 
 HashMap<ServiceWorkerIdentifier, WeakRef<SWServerWorker>>& SWServerWorker::allWorkers()
 {
@@ -473,6 +477,21 @@ bool SWServerWorker::matchingImportedScripts(const Vector<std::pair<URL, ScriptB
             return false;
     }
     return true;
+}
+
+std::optional<ExceptionData> SWServerWorker::addRoutes(Vector<ServiceWorkerRoute>&& routes)
+{
+    if (routes.size() + m_routes.size() > maxRouteCount)
+        return ExceptionData { ExceptionCode::TypeError, "Too many routes are registered"_s };
+
+    for (auto& route : routes) {
+        if (auto exception = validateServiceWorkerRoute(route, maxRouteConditionDepth))
+            return exception;
+    }
+
+    m_routes.appendVector(WTFMove(routes));
+
+    return { };
 }
 
 } // namespace WebCore

@@ -24,109 +24,108 @@
  */
 
 #include "config.h"
-#include "ExtendableEvent.h"
+#include "ServiceWorkerRoute.h"
 
-#include "JSDOMGlobalObject.h"
-#include "JSDOMPromise.h"
-#include "ScriptExecutionContext.h"
-#include <JavaScriptCore/Microtask.h>
-#include <wtf/TZoneMallocInlines.h>
+#include "URLPatternCanonical.h"
+#include "URLPatternParser.h"
+#include <wtf/CrossThreadCopier.h>
 
 namespace WebCore {
 
-WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(ExtendableEvent);
-
-ExtendableEvent::ExtendableEvent(enum EventInterfaceType eventInterface, const AtomString& type, const ExtendableEventInit& initializer, IsTrusted isTrusted)
-    : Event(eventInterface, type, initializer, isTrusted)
+static std::optional<ExceptionData> validateURLPatternComponent(StringView component, EncodingCallbackType type)
 {
-}
+    auto result = URLPatternUtilities::URLPatternParser::parse(component, { .ignoreCase = true }, type);
+    if (result.hasException())
+        return ExceptionData { result.exception().code(), result.releaseException().releaseMessage() };
 
-ExtendableEvent::ExtendableEvent(enum EventInterfaceType eventInterface, const AtomString& type, CanBubble canBubble, IsCancelable cancelable)
-    : Event(eventInterface, type, canBubble, cancelable)
-{
-}
+    auto parts = result.releaseReturnValue();
+    for (auto& part : parts) {
+        // FIXME: We should only reject for regexp group and support all other values.
+        if (part.type != URLPatternUtilities::PartType::FixedText && part.type != URLPatternUtilities::PartType::FullWildcard)
+            return ExceptionData { ExceptionCode::NotSupportedError, "URLPattern component value not supported"_s };
+    }
 
-ExtendableEvent::~ExtendableEvent()
-{
-}
-
-// https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
-ExceptionOr<void> ExtendableEvent::waitUntil(Ref<DOMPromise>&& promise)
-{
-    if (!isTrusted())
-        return Exception { ExceptionCode::InvalidStateError, "Event is not trusted"_s };
-
-    // If the pending promises count is zero and the dispatch flag is unset, throw an "InvalidStateError" DOMException.
-    if (!m_pendingPromiseCount && !isBeingDispatched())
-        return Exception { ExceptionCode::InvalidStateError, "Event is no longer being dispatched and has no pending promises"_s };
-
-    addExtendLifetimePromise(WTFMove(promise));
     return { };
 }
 
-class FunctionMicrotask final : public JSC::Microtask {
-public:
-    static Ref<FunctionMicrotask> create(Function<void()>&& function)
-    {
-        return adoptRef(*new FunctionMicrotask(WTFMove(function)));
-    }
-
-private:
-    explicit FunctionMicrotask(Function<void()>&& function)
-        : m_function(WTFMove(function))
-    {
-    }
-
-    void run(JSC::JSGlobalObject*) final
-    {
-        m_function();
-    }
-
-    Function<void()> m_function;
-};
-
-void ExtendableEvent::addExtendLifetimePromise(Ref<DOMPromise>&& promise)
+static inline std::optional<ExceptionData> validateServiceWorkerRouteCondition(ServiceWorkerRouteCondition& condition, size_t maxRouteConditionDepth, size_t depth = 0)
 {
-    promise->whenSettled([this, protectedThis = Ref { *this }, settledPromise = promise.ptr()] () mutable {
-        auto& globalObject = *settledPromise->globalObject();
-        globalObject.queueMicrotask(FunctionMicrotask::create([this, protectedThis = WTFMove(protectedThis), settledPromise = WTFMove(settledPromise)] () mutable {
-            --m_pendingPromiseCount;
+    if (++depth > maxRouteConditionDepth)
+        return ExceptionData { ExceptionCode::TypeError, "Service Worker route condition depth is too high"_s };
 
-            // FIXME: Let registration be the context object's relevant global object's associated service worker's containing service worker registration.
-            // FIXME: If registration's uninstalling flag is set, invoke Try Clear Registration with registration.
-            // FIXME: If registration is not null, invoke Try Activate with registration.
+    if (condition.urlPattern) {
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->protocol, EncodingCallbackType::Protocol))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->username, EncodingCallbackType::Username))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->password, EncodingCallbackType::Password))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->hostname, EncodingCallbackType::Host))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->pathname, EncodingCallbackType::Path))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->port, EncodingCallbackType::Port))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->search, EncodingCallbackType::Search))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->hash, EncodingCallbackType::Hash))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->protocol, EncodingCallbackType::Protocol))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->protocol, EncodingCallbackType::Protocol))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->protocol, EncodingCallbackType::Protocol))
+            return exception;
+        if (auto exception = validateURLPatternComponent(condition.urlPattern->protocol, EncodingCallbackType::Protocol))
+            return exception;
+    }
 
-            auto* context = settledPromise->globalObject()->scriptExecutionContext();
-            if (!context)
-                return;
-            context->postTask([this, protectedThis = WTFMove(protectedThis)] (ScriptExecutionContext&) mutable {
-                if (m_pendingPromiseCount)
-                    return;
+    Vector<ServiceWorkerRouteCondition> orConditions;
+    for (auto& orCondition : condition.orConditions) {
+        if (auto exception = validateServiceWorkerRouteCondition(orCondition, depth))
+            return *exception;
+    }
 
-                m_isWaiting = false;
-                auto settledPromises = WTFMove(m_extendLifetimePromises);
-                if (auto handler = WTFMove(m_whenAllExtendLifetimePromisesAreSettledHandler))
-                    handler(WTFMove(settledPromises));
-            });
-        }));
-    });
-
-    m_extendLifetimePromises.add(WTFMove(promise));
-    ++m_pendingPromiseCount;
+    if (condition.notCondition) {
+        if (auto exception = validateServiceWorkerRouteCondition(*condition.notCondition, depth))
+            return *exception;
+    }
+    return { };
 }
 
-void ExtendableEvent::whenAllExtendLifetimePromisesAreSettled(Function<void(HashSet<Ref<DOMPromise>>&&)>&& handler)
+std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute& route, size_t maxRouteConditionDepth)
 {
-    ASSERT_WITH_MESSAGE(target(), "Event has not been dispatched yet");
-    ASSERT(!m_whenAllExtendLifetimePromisesAreSettledHandler);
+    return validateServiceWorkerRouteCondition(route.condition, maxRouteConditionDepth);
+}
 
-    if (!m_pendingPromiseCount) {
-        m_isWaiting = false;
-        handler(WTFMove(m_extendLifetimePromises));
-        return;
-    }
+ServiceWorkerRouteCondition ServiceWorkerRouteCondition::isolatedCopy() &&
+{
+    std::unique_ptr<ServiceWorkerRouteCondition> notConditionCopy;
+    if (notCondition)
+        notConditionCopy = makeUnique<ServiceWorkerRouteCondition>(WTFMove(*notCondition));
+    return {
+        crossThreadCopy(WTFMove(urlPattern)),
+        crossThreadCopy(WTFMove(requestMethod)),
+        requestMode,
+        requestDestination,
+        runningStatus,
+        crossThreadCopy(WTFMove(orConditions)),
+        WTFMove(notConditionCopy)
+    };
+}
 
-    m_whenAllExtendLifetimePromisesAreSettledHandler = WTFMove(handler);
+ServiceWorkerRoutePattern ServiceWorkerRoutePattern::isolatedCopy() &&
+{
+    return {
+        crossThreadCopy(WTFMove(protocol)),
+        crossThreadCopy(WTFMove(username)),
+        crossThreadCopy(WTFMove(password)),
+        crossThreadCopy(WTFMove(hostname)),
+        crossThreadCopy(WTFMove(pathname)),
+        crossThreadCopy(WTFMove(port)),
+        crossThreadCopy(WTFMove(search)),
+        crossThreadCopy(WTFMove(hash))
+    };
 }
 
 } // namespace WebCore

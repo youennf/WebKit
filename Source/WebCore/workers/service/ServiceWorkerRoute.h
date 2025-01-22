@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "ExceptionData.h"
 #include "FetchRequestDestination.h"
 #include "FetchRequestMode.h"
 #include "RunningStatus.h"
@@ -37,22 +38,27 @@
 
 namespace WebCore {
 
+struct ServiceWorkerRoutePattern {
+    ServiceWorkerRoutePattern isolatedCopy() &&;
+
+    using Component = String;
+
+    Component protocol;
+    Component username;
+    Component password;
+    Component hostname;
+    Component pathname;
+    Component port;
+    Component search;
+    Component hash;
+};
+
 struct ServiceWorkerRouteCondition {
     WTF_MAKE_STRUCT_FAST_ALLOCATED;
 
-    using Component = String;
-    struct Pattern {
-        Component protocol;
-        Component username;
-        Component password;
-        Component hostname;
-        Component pathname;
-        Component port;
-        Component search;
-        Component hash;
-    };
+    ServiceWorkerRouteCondition isolatedCopy() &&;
 
-    Pattern urlPattern;
+    std::optional<ServiceWorkerRoutePattern> urlPattern;
     String requestMethod;
     std::optional<FetchRequestMode> requestMode;
     std::optional<FetchRequestDestination> requestDestination;
@@ -66,5 +72,7 @@ struct ServiceWorkerRoute {
     ServiceWorkerRouteCondition condition;
     std::variant<RouterSourceDict, RouterSourceEnum> source;
 };
+
+std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute&, size_t maxRouteConditionDepth);
 
 } // namespace WebCore

@@ -47,8 +47,6 @@ public:
 
 private:
     WEBCORE_EXPORT InstallEvent(const AtomString&, ExtendableEventInit&&, IsTrusted);
-
-    size_t m_rulesCount { 0 };
 };
 
 } // namespace WebCore

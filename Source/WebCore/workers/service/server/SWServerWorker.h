@@ -28,6 +28,7 @@
 #include "ClientOrigin.h"
 #include "ContentSecurityPolicyResponseHeaders.h"
 #include "CrossOriginEmbedderPolicy.h"
+#include "ExceptionData.h"
 #include "ScriptExecutionContextIdentifier.h"
 #include "ServiceWorkerClientData.h"
 #include "ServiceWorkerContextData.h"
@@ -52,6 +53,7 @@ class SWServerToContextConnection;
 struct ServiceWorkerClientQueryOptions;
 struct ServiceWorkerContextData;
 struct ServiceWorkerJobDataIdentifier;
+struct ServiceWorkerRoute;
 enum class WorkerThreadMode : bool;
 enum class WorkerType : bool;
 
@@ -154,6 +156,8 @@ public:
     void needsRunning() { m_lastNeedRunningTime = ApproximateTime::now(); }
     bool isIdle(Seconds) const;
 
+    std::optional<ExceptionData> addRoutes(Vector<ServiceWorkerRoute>&&);
+
 private:
     SWServerWorker(SWServer&, SWServerRegistration&, const URL&, const ScriptBuffer&, const CertificateInfo&, const ContentSecurityPolicyResponseHeaders&, const CrossOriginEmbedderPolicy&, String&& referrerPolicy, WorkerType, ServiceWorkerIdentifier, MemoryCompactRobinHoodHashMap<URL, ServiceWorkerContextData::ImportedScript>&&);
 
@@ -195,6 +199,7 @@ private:
     bool m_isInspected { false };
     bool m_isActivateEventFired { false };
     ApproximateTime m_lastNeedRunningTime;
+    Vector<ServiceWorkerRoute> m_routes;
 };
 
 } // namespace WebCore
