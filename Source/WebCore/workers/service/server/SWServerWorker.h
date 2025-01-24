@@ -35,6 +35,7 @@
 #include "ServiceWorkerData.h"
 #include "ServiceWorkerIdentifier.h"
 #include "ServiceWorkerRegistrationKey.h"
+#include "ServiceWorkerRoute.h"
 #include "ServiceWorkerTypes.h"
 #include "Site.h"
 #include "Timer.h"
@@ -128,7 +129,7 @@ public:
     WEBCORE_EXPORT SWServerToContextConnection* contextConnection();
     String userAgent() const;
 
-    bool shouldSkipFetchEvent() const { return m_shouldSkipHandleFetch; }
+    WEBCORE_EXPORT RouterSource getRouterSource(const FetchOptions&, const ResourceRequest&) const;
     
     WEBCORE_EXPORT SWServerRegistration* registration() const;
 

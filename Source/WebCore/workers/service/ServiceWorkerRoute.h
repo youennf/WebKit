@@ -38,6 +38,9 @@
 
 namespace WebCore {
 
+class ResourceRequest;
+struct FetchOptions;
+
 struct ServiceWorkerRoutePattern {
     ServiceWorkerRoutePattern isolatedCopy() &&;
 
@@ -68,11 +71,14 @@ struct ServiceWorkerRouteCondition {
     std::unique_ptr<ServiceWorkerRouteCondition> notCondition;
 };
 
+using RouterSource = std::variant<RouterSourceDict, RouterSourceEnum>;
+
 struct ServiceWorkerRoute {
     ServiceWorkerRouteCondition condition;
-    std::variant<RouterSourceDict, RouterSourceEnum> source;
+    RouterSource source;
 };
 
 std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute&, size_t maxRouteConditionDepth);
+bool matchRouterCondition(const ServiceWorkerRouteCondition&, const FetchOptions&, const ResourceRequest&, bool isServiceWorkerRunning);
 
 } // namespace WebCore

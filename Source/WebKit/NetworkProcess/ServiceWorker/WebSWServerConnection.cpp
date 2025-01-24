@@ -281,11 +281,18 @@ RefPtr<ServiceWorkerFetchTask> WebSWServerConnection::createFetchTask(NetworkRes
         return nullptr;
     }
 
-    if (worker->shouldSkipFetchEvent()) {
-        if (registration->shouldSoftUpdate(loader.parameters().options))
-            registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
-
-        return nullptr;
+    // FIXME: Add support for cache route w/o cacheName, for now we go to fetch event.
+    auto routerSource = worker->getRouterSource(loader.parameters().options, request);
+    if (std::holds_alternative<RouterSourceEnum>(routerSource)) {
+        switch (std::get<RouterSourceEnum>(routerSource)) {
+        case RouterSourceEnum::Cache:
+        case RouterSourceEnum::FetchEvent:
+            break;
+        case RouterSourceEnum::Network:
+            if (registration->shouldSoftUpdate(loader.parameters().options))
+                registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
+            return nullptr;
+        }
     }
 
     if (worker->hasTimedOutAnyFetchTasks()) {

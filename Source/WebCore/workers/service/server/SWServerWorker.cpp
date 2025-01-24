@@ -494,4 +494,17 @@ std::optional<ExceptionData> SWServerWorker::addRoutes(Vector<ServiceWorkerRoute
     return { };
 }
 
+// https://w3c.github.io/ServiceWorker/#get-router-source
+RouterSource SWServerWorker::getRouterSource(const FetchOptions& options, const ResourceRequest& request) const
+{
+    if (m_shouldSkipHandleFetch)
+        return RouterSourceEnum::Network;
+
+    for (auto& route : m_routes) {
+        if (matchRouterCondition(route.condition, options, request, isRunning()))
+            return route.source;
+    }
+    return RouterSourceEnum::FetchEvent;
+}
+
 } // namespace WebCore

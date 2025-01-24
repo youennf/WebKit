@@ -472,6 +472,9 @@ void ServiceWorkerThread::queueTaskToFireBackgroundFetchClickEvent(BackgroundFet
 void ServiceWorkerThread::finishedEvaluatingScript()
 {
     ASSERT(globalScope()->isContextThread());
+
+    Ref scope = *dynamicDowncast<ServiceWorkerGlobalScope>(globalScope());
+
     m_doesHandleFetch = globalScope()->hasEventListeners(eventNames().fetchEvent);
 }
 
