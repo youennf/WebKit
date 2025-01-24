@@ -29,6 +29,7 @@
 #include "HTTPParsers.h"
 #include "ServiceWorkerGlobalScope.h"
 #include "ServiceWorkerRoute.h"
+#include <wtf/Algorithms.h>
 
 namespace WebCore {
 
@@ -172,9 +173,9 @@ void InstallEvent::addRoutes(ScriptExecutionContext& context, std::variant<Route
         promise->reject(Exception { ExceptionCode::TypeError, "Too late to add a rule"_s });
         return;
     }
-
+    
     RefPtr serviceWorkerGlobalScope = dynamicDowncast<ServiceWorkerGlobalScope>(context);
-
+    
     Vector<ServiceWorkerRoute> routes;
     auto exception = switchOn(rules, [&](RouterRule& rule) -> std::optional<Exception> {
         return addServiceWorkerRoute(routes, WTFMove(rule), *serviceWorkerGlobalScope);
@@ -188,6 +189,16 @@ void InstallEvent::addRoutes(ScriptExecutionContext& context, std::variant<Route
     if (exception) {
         promise->reject(WTFMove(*exception));
         return;
+    }
+    
+    if (!serviceWorkerGlobalScope->hasFetchEventHandler()) {
+        bool hasFetchEventSource = anyOf(routes, [](auto& route) {
+            return std::holds_alternative<RouterSourceEnum>(route.source) && std::get<RouterSourceEnum>(route.source) == RouterSourceEnum::FetchEvent;
+        });
+        if (hasFetchEventSource) {
+            promise->reject(Exception { ExceptionCode::TypeError, "Rule source is fetch event but no fetch event handler is registered"_s });
+            return;
+        }
     }
 
     Ref<SWClientConnection> connection = serviceWorkerGlobalScope->swClientConnection();

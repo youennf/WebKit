@@ -475,7 +475,8 @@ void ServiceWorkerThread::finishedEvaluatingScript()
 
     Ref scope = *dynamicDowncast<ServiceWorkerGlobalScope>(globalScope());
 
-    m_doesHandleFetch = globalScope()->hasEventListeners(eventNames().fetchEvent);
+    scope->storeEventTypesToHandle();
+    m_doesHandleFetch = scope->hasFetchEventHandler();
 }
 
 void ServiceWorkerThread::start(Function<void(const String&, bool)>&& callback)
