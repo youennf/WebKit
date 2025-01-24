@@ -26,6 +26,7 @@
 #include "config.h"
 #include "InstallEvent.h"
 
+#include "HTTPParsers.h"
 #include "ServiceWorkerGlobalScope.h"
 #include "ServiceWorkerRoute.h"
 
@@ -119,8 +120,15 @@ static std::optional<Exception> verifyRouterCondition(RouterCondition& condition
             return urlPatternOrException.releaseException();
         condition.urlPattern = urlPatternOrException.releaseReturnValue();
     }
-    if (!condition.requestMethod.isNull())
+    if (!condition.requestMethod.isNull()) {
+        if (!isValidHTTPToken(condition.requestMethod))
+            return Exception { ExceptionCode::TypeError, "Method is not a valid HTTP token."_s };
+        if (isForbiddenMethod(condition.requestMethod))
+            return Exception { ExceptionCode::TypeError, "Method is forbidden."_s };
+        condition.requestMethod = normalizeHTTPMethod(condition.requestMethod);
+
         hasCondition = true;
+    }
     if (condition.requestMode)
         hasCondition = true;
     if (condition.requestDestination)
