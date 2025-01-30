@@ -31,6 +31,8 @@ namespace WebCore {
 
 struct RouterSourceDict {
     String cacheName;
+    
+    RouterSourceDict isolatedCopy() && { return { WTFMove(cacheName).isolatedCopy() }; }
 };
 
 } // namespace WebCore

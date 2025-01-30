@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2025 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,33 +25,16 @@
 
 #pragma once
 
-#include <optional>
-#include <wtf/Forward.h>
-#include <wtf/RefCountedAndCanMakeWeakPtr.h>
-#include <wtf/TZoneMallocInlines.h>
-#include <wtf/Vector.h>
-
+#include "ServiceWorkerContextData.h"
+#include "ServiceWorkerRoute.h"
+ 
 namespace WebCore {
 
-class SWServerRegistration;
-class ServiceWorkerRegistrationKey;
+struct ServiceWorkerPersistentData {
+    ServiceWorkerContextData contextData;
+    Vector<ServiceWorkerRoute> routes;
 
-struct ServiceWorkerPersistentData;
-struct ServiceWorkerRoute;
-
-class SWRegistrationStore : public RefCountedAndCanMakeWeakPtr<SWRegistrationStore> {
-    WTF_MAKE_TZONE_ALLOCATED_INLINE(SWRegistrationStore);
-public:
-    virtual ~SWRegistrationStore() = default;
-    virtual void clearAll(CompletionHandler<void()>&&) = 0;
-    virtual void flushChanges(CompletionHandler<void()>&&) = 0;
-    virtual void closeFiles(CompletionHandler<void()>&&) = 0;
-    virtual void importRegistrations(CompletionHandler<void(std::optional<Vector<ServiceWorkerPersistentData>>)>&&) = 0;
-    virtual void updateRegistration(ServiceWorkerPersistentData&&) = 0;
-    virtual void removeRegistration(const ServiceWorkerRegistrationKey&) = 0;
-
-protected:
-    SWRegistrationStore() = default;
+    ServiceWorkerPersistentData isolatedCopy() && { return { WTFMove(contextData).isolatedCopy(), crossThreadCopy(WTFMove(routes)) }; }
 };
 
 } // namespace WebCore

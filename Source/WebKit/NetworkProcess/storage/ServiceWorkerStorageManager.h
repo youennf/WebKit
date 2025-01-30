@@ -38,8 +38,8 @@ public:
 
     void closeFiles();
     void clearAllRegistrations();
-    std::optional<Vector<WebCore::ServiceWorkerContextData>> importRegistrations();
-    std::optional<Vector<WebCore::ServiceWorkerScripts>> updateRegistrations(const Vector<WebCore::ServiceWorkerContextData>&, const Vector<WebCore::ServiceWorkerRegistrationKey>&);
+    std::optional<Vector<WebCore::ServiceWorkerPersistentData>> importRegistrations();
+    std::optional<Vector<WebCore::ServiceWorkerScripts>> updateRegistrations(const Vector<WebCore::ServiceWorkerPersistentData>&, const Vector<WebCore::ServiceWorkerRegistrationKey>&);
 
 private:
     WebCore::SWRegistrationDatabase* ensureDatabase();

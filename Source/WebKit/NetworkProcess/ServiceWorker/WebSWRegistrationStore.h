@@ -26,7 +26,7 @@
 #pragma once
 
 #include <WebCore/SWRegistrationStore.h>
-#include <WebCore/ServiceWorkerContextData.h>
+#include <WebCore/ServiceWorkerPersistentData.h>
 #include <WebCore/Timer.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/TZoneMalloc.h>
@@ -55,8 +55,8 @@ private:
     void clearAll(CompletionHandler<void()>&&);
     void flushChanges(CompletionHandler<void()>&&);
     void closeFiles(CompletionHandler<void()>&&);
-    void importRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerContextData>>)>&&);
-    void updateRegistration(const WebCore::ServiceWorkerContextData&);
+    void importRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerPersistentData>>)>&&);
+    void updateRegistration(WebCore::ServiceWorkerPersistentData&&);
     void removeRegistration(const WebCore::ServiceWorkerRegistrationKey&);
 
     void scheduleUpdateIfNecessary();
@@ -69,7 +69,7 @@ private:
     WeakPtr<WebCore::SWServer> m_server;
     WeakPtr<NetworkStorageManager> m_manager;
     WebCore::Timer m_updateTimer;
-    HashMap<WebCore::ServiceWorkerRegistrationKey, std::optional<WebCore::ServiceWorkerContextData>> m_updates;
+    HashMap<WebCore::ServiceWorkerRegistrationKey, std::optional<WebCore::ServiceWorkerPersistentData>> m_updates;
 };
 
 } // namespace WebKit

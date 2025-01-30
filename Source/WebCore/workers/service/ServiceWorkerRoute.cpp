@@ -209,6 +209,24 @@ ServiceWorkerRouteCondition ServiceWorkerRouteCondition::isolatedCopy() &&
     };
 }
 
+ServiceWorkerRouteCondition ServiceWorkerRouteCondition::copy() const
+{
+    std::unique_ptr<ServiceWorkerRouteCondition> notConditionCopy;
+    if (notCondition)
+        notConditionCopy = makeUnique<ServiceWorkerRouteCondition>(WTFMove(*notCondition));
+
+    return {
+        urlPattern,
+        requestMethod,
+        requestMode,
+        requestDestination,
+        runningStatus,
+        orConditions.map([](auto& condition) { return condition.copy(); }),
+        WTFMove(notConditionCopy)
+    };
+}
+
+
 ServiceWorkerRoutePattern ServiceWorkerRoutePattern::isolatedCopy() &&
 {
     return {
@@ -220,6 +238,23 @@ ServiceWorkerRoutePattern ServiceWorkerRoutePattern::isolatedCopy() &&
         crossThreadCopy(WTFMove(port)),
         crossThreadCopy(WTFMove(search)),
         crossThreadCopy(WTFMove(hash))
+    };
+}
+
+static RouterSource crossThreadCopyRouterSource(RouterSource&& source)
+{
+    return WTF::switchOn(source, [](RouterSourceDict& dict) -> RouterSource {
+        return WTFMove(dict).isolatedCopy();
+    }, [](auto value) -> RouterSource {
+        return value;
+    });
+}
+
+ServiceWorkerRoute ServiceWorkerRoute::isolatedCopy() &&
+{
+    return {
+        WTFMove(condition).isolatedCopy(),
+        crossThreadCopyRouterSource(WTFMove(source))
     };
 }
 

@@ -31,11 +31,10 @@
 #include "ExceptionData.h"
 #include "ScriptExecutionContextIdentifier.h"
 #include "ServiceWorkerClientData.h"
-#include "ServiceWorkerContextData.h"
 #include "ServiceWorkerData.h"
 #include "ServiceWorkerIdentifier.h"
+#include "ServiceWorkerPersistentData.h"
 #include "ServiceWorkerRegistrationKey.h"
-#include "ServiceWorkerRoute.h"
 #include "ServiceWorkerTypes.h"
 #include "Site.h"
 #include "Timer.h"
@@ -156,6 +155,8 @@ public:
 
     void needsRunning() { m_lastNeedRunningTime = ApproximateTime::now(); }
     bool isIdle(Seconds) const;
+
+    ServiceWorkerPersistentData persistentData();
 
     std::optional<ExceptionData> addRoutes(Vector<ServiceWorkerRoute>&&);
 

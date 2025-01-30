@@ -26,6 +26,7 @@
 #pragma once
 
 #include "ServiceWorkerTypes.h"
+#include "ServiceWorkerPersistentData.h"
 #include "ServiceWorkerUpdateViaCache.h"
 #include <wtf/TZoneMalloc.h>
 
@@ -36,7 +37,6 @@ class SQLiteDatabase;
 class SQLiteStatement;
 class SQLiteStatementAutoResetScope;
 class SWScriptStorage;
-struct ServiceWorkerContextData;
 
 class SWRegistrationDatabase {
     WTF_MAKE_TZONE_ALLOCATED_EXPORT(SWRegistrationDatabase, WEBCORE_EXPORT);
@@ -46,8 +46,8 @@ public:
     WEBCORE_EXPORT SWRegistrationDatabase(const String& path);
     WEBCORE_EXPORT ~SWRegistrationDatabase();
     
-    WEBCORE_EXPORT std::optional<Vector<ServiceWorkerContextData>> importRegistrations();
-    WEBCORE_EXPORT std::optional<Vector<ServiceWorkerScripts>> updateRegistrations(const Vector<ServiceWorkerContextData>&, const Vector<ServiceWorkerRegistrationKey>&);
+    WEBCORE_EXPORT std::optional<Vector<ServiceWorkerPersistentData>> importRegistrations();
+    WEBCORE_EXPORT std::optional<Vector<ServiceWorkerScripts>> updateRegistrations(const Vector<ServiceWorkerPersistentData>&, const Vector<ServiceWorkerRegistrationKey>&);
     WEBCORE_EXPORT void clearAllRegistrations();
     
 private:

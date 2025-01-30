@@ -36,7 +36,7 @@
 #include "SQLiteTransaction.h"
 #include "SWScriptStorage.h"
 #include "ServiceWorkerClientData.h"
-#include "ServiceWorkerContextData.h"
+#include "ServiceWorkerPersistentData.h"
 #include "ServiceWorkerRegistrationKey.h"
 #include "WebCorePersistentCoders.h"
 #include "WorkerType.h"
@@ -306,14 +306,14 @@ bool SWRegistrationDatabase::ensureValidRecordsTable()
     return true;
 }
 
-std::optional<Vector<ServiceWorkerContextData>> SWRegistrationDatabase::importRegistrations()
+std::optional<Vector<ServiceWorkerPersistentData>> SWRegistrationDatabase::importRegistrations()
 {
     if (!prepareDatabase(ShouldCreateIfNotExists::No))
         return std::nullopt;
 
     if (!m_database) {
         clearAllRegistrations();
-        return Vector<ServiceWorkerContextData> { };
+        return Vector<ServiceWorkerPersistentData> { };
     }
 
     auto statement = cachedStatement(StatementType::GetAllRecords);
@@ -322,7 +322,7 @@ std::optional<Vector<ServiceWorkerContextData>> SWRegistrationDatabase::importRe
         return std::nullopt;
     }
 
-    Vector<ServiceWorkerContextData> registrations;
+    Vector<ServiceWorkerPersistentData> registrations;
     int result = statement->step();
     for (; result == SQLITE_ROW; result = statement->step()) {
         auto key = ServiceWorkerRegistrationKey::fromDatabaseKey(statement->columnText(0));
@@ -420,7 +420,8 @@ std::optional<Vector<ServiceWorkerContextData>> SWRegistrationDatabase::importRe
         auto registration = ServiceWorkerRegistrationData { WTFMove(*key), registrationIdentifier, WTFMove(scopeURL), *updateViaCache, lastUpdateCheckTime, std::nullopt, std::nullopt, WTFMove(serviceWorkerData) };
         auto contextData = ServiceWorkerContextData { std::nullopt, WTFMove(registration), workerIdentifier, WTFMove(script), WTFMove(*certificateInfo), WTFMove(*contentSecurityPolicy), WTFMove(*coep), WTFMove(referrerPolicy), WTFMove(scriptURL), *workerType, true, LastNavigationWasAppInitiated::Yes, WTFMove(scriptResourceMap), std::nullopt, WTFMove(*navigationPreloadState) };
 
-        registrations.append(WTFMove(contextData));
+        // Append routes.
+        registrations.append({ WTFMove(contextData), { } });
     }
 
     if (result != SQLITE_DONE)
@@ -429,7 +430,7 @@ std::optional<Vector<ServiceWorkerContextData>> SWRegistrationDatabase::importRe
     return registrations;
 }
 
-std::optional<Vector<ServiceWorkerScripts>> SWRegistrationDatabase::updateRegistrations(const Vector<ServiceWorkerContextData>& registrationsToUpdate, const Vector<ServiceWorkerRegistrationKey>& registrationsToDelete)
+std::optional<Vector<ServiceWorkerScripts>> SWRegistrationDatabase::updateRegistrations(const Vector<ServiceWorkerPersistentData>& registrationsToUpdate, const Vector<ServiceWorkerRegistrationKey>& registrationsToDelete)
 {
     if (!prepareDatabase(ShouldCreateIfNotExists::Yes))
         return std::nullopt;
@@ -446,7 +447,9 @@ std::optional<Vector<ServiceWorkerScripts>> SWRegistrationDatabase::updateRegist
         scriptStorage().clear(registration);
     }
 
-    for (auto&& data : registrationsToUpdate) {
+    for (auto&& registration : registrationsToUpdate) {
+        // FIXME: store service worker rules.
+        auto& data = registration.contextData;
         auto statement = cachedStatement(StatementType::InsertRecord);
         if (!statement) {
             RELEASE_LOG_ERROR(ServiceWorker, "SWRegistrationDatabase::updateRegistrations failed to prepare statement for inserting record (%d) - %s", m_database->lastError(), m_database->lastErrorMsg());
@@ -493,7 +496,8 @@ std::optional<Vector<ServiceWorkerScripts>> SWRegistrationDatabase::updateRegist
         scriptStorage().clear(registrationKey);
 
     Vector<ServiceWorkerScripts> result;
-    for (auto& data : registrationsToUpdate) {
+    for (auto& registration : registrationsToUpdate) {
+        auto& data = registration.contextData;
         auto mainScript = scriptStorage().store(data.registration.key, data.scriptURL, data.script);
         if (!mainScript)
             continue;

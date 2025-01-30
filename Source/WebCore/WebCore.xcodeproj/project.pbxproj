@@ -1323,6 +1323,7 @@
 		411945C22D3FFE7300C40F6B /* RunningStatus.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945BA2D3FB14400C40F6B /* RunningStatus.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		411945C32D3FFE9A00C40F6B /* RouterSourceEnum.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945B82D3FB14400C40F6B /* RouterSourceEnum.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		411945C42D40048000C40F6B /* RouterSourceDict.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945B62D3FB14400C40F6B /* RouterSourceDict.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		411945C82D4398AB00C40F6B /* ServiceWorkerPersistentData.h in Headers */ = {isa = PBXBuildFile; fileRef = 411945C72D4398AB00C40F6B /* ServiceWorkerPersistentData.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		41201F3727F2F74900D56CC2 /* NotificationEventType.h in Headers */ = {isa = PBXBuildFile; fileRef = 41201F3627F2F74600D56CC2 /* NotificationEventType.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4123081B138C429700BCCFCA /* WebCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93F19B1A08245E5A001E9ABC /* WebCore.framework */; };
 		41230913138C42FF00BCCFCA /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8216299029F4FB501000131 /* JavaScriptCore.framework */; };
@@ -10014,6 +10015,7 @@
 		411945BD2D3FD02E00C40F6B /* RouterCondition.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterCondition.idl; sourceTree = "<group>"; };
 		411945BE2D3FD02E00C40F6B /* RouterRule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RouterRule.h; sourceTree = "<group>"; };
 		411945BF2D3FD02E00C40F6B /* RouterRule.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = RouterRule.idl; sourceTree = "<group>"; };
+		411945C72D4398AB00C40F6B /* ServiceWorkerPersistentData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ServiceWorkerPersistentData.h; sourceTree = "<group>"; };
 		41201F3627F2F74600D56CC2 /* NotificationEventType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationEventType.h; sourceTree = "<group>"; };
 		41209E24257A2FBB00120ACA /* SFrameUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SFrameUtils.h; sourceTree = "<group>"; };
 		41209E26257A2FBB00120ACA /* SFrameUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SFrameUtils.cpp; sourceTree = "<group>"; };
@@ -26664,6 +26666,7 @@
 				51F645661F45399F00B54DED /* ServiceWorkerJobData.h */,
 				838CA6BB1FC0DFDD005D9FA5 /* ServiceWorkerJobDataIdentifier.h */,
 				51F645651F45399F00B54DED /* ServiceWorkerJobType.h */,
+				411945C72D4398AB00C40F6B /* ServiceWorkerPersistentData.h */,
 				51F1754F1F3EBC0C00C74950 /* ServiceWorkerProvider.cpp */,
 				51F1754E1F3EBC0C00C74950 /* ServiceWorkerProvider.h */,
 				51F1754D1F3EBC0C00C74950 /* ServiceWorkerRegistration.cpp */,
@@ -43959,6 +43962,7 @@
 				51F645691F4539B900B54DED /* ServiceWorkerJobData.h in Headers */,
 				838CA6BD1FC0DFE9005D9FA5 /* ServiceWorkerJobDataIdentifier.h in Headers */,
 				51F6456A1F4539C000B54DED /* ServiceWorkerJobType.h in Headers */,
+				411945C82D4398AB00C40F6B /* ServiceWorkerPersistentData.h in Headers */,
 				51F175661F3EBC8300C74950 /* ServiceWorkerProvider.h in Headers */,
 				51F175681F3EBC8300C74950 /* ServiceWorkerRegistration.h in Headers */,
 				517A534F1F54A8BA00DCDC0A /* ServiceWorkerRegistrationData.h in Headers */,

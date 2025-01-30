@@ -58,15 +58,16 @@ struct ServiceWorkerRoutePattern {
 
 struct ServiceWorkerRouteCondition {
     WTF_MAKE_STRUCT_FAST_ALLOCATED;
-
+    
     ServiceWorkerRouteCondition isolatedCopy() &&;
+    ServiceWorkerRouteCondition copy() const;
 
     std::optional<ServiceWorkerRoutePattern> urlPattern;
     String requestMethod;
     std::optional<FetchRequestMode> requestMode;
     std::optional<FetchRequestDestination> requestDestination;
     std::optional<RunningStatus> runningStatus;
-
+    
     Vector<ServiceWorkerRouteCondition> orConditions;
     std::unique_ptr<ServiceWorkerRouteCondition> notCondition;
 };
@@ -76,6 +77,9 @@ using RouterSource = std::variant<RouterSourceDict, RouterSourceEnum>;
 struct ServiceWorkerRoute {
     ServiceWorkerRouteCondition condition;
     RouterSource source;
+
+    ServiceWorkerRoute copy() const { return { condition.copy(), source }; }
+    ServiceWorkerRoute isolatedCopy() &&;
 };
 
 std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute&, size_t maxRouteConditionDepth);

@@ -38,7 +38,7 @@
 #include "WorkerType.h"
 #include <wtf/RobinHoodHashMap.h>
 #include <wtf/URLHash.h>
-
+ 
 namespace WebCore {
 
 enum class LastNavigationWasAppInitiated : bool;

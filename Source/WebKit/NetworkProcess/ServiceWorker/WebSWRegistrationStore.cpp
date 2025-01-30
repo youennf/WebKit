@@ -83,7 +83,7 @@ void WebSWRegistrationStore::closeFiles(CompletionHandler<void()>&& callback)
     checkedManager()->closeServiceWorkerRegistrationFiles(WTFMove(callback));
 }
 
-void WebSWRegistrationStore::importRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerContextData>>)>&& callback)
+void WebSWRegistrationStore::importRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerPersistentData>>)>&& callback)
 {
     if (!m_manager)
         return callback(std::nullopt);
@@ -91,9 +91,10 @@ void WebSWRegistrationStore::importRegistrations(CompletionHandler<void(std::opt
     checkedManager()->importServiceWorkerRegistrations(WTFMove(callback));
 }
 
-void WebSWRegistrationStore::updateRegistration(const WebCore::ServiceWorkerContextData& registration)
+void WebSWRegistrationStore::updateRegistration(WebCore::ServiceWorkerPersistentData&& data)
 {
-    m_updates.set(registration.registration.key, registration);
+    auto key = data.contextData.registration.key;
+    m_updates.set(key, WTFMove(data));
     scheduleUpdateIfNecessary();
 }
 
@@ -118,7 +119,7 @@ void WebSWRegistrationStore::updateToStorage(CompletionHandler<void()>&& callbac
     ASSERT(RunLoop::isMain());
 
     Vector<WebCore::ServiceWorkerRegistrationKey> registrationsToDelete;
-    Vector<WebCore::ServiceWorkerContextData> registrationsToUpdate;
+    Vector<WebCore::ServiceWorkerPersistentData> registrationsToUpdate;
     for (auto& [key, registation] : m_updates) {
         if (!registation)
             registrationsToDelete.append(key);

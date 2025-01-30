@@ -78,7 +78,7 @@ struct IDBGetAllRecordsData;
 struct IDBIterateCursorData;
 struct IDBKeyRangeData;
 struct RetrieveRecordsOptions;
-struct ServiceWorkerContextData;
+struct ServiceWorkerPersistentData;
 enum class FileSystemWriteCloseReason : bool;
 enum class FileSystemWriteCommandType : uint8_t;
 enum class StorageType : uint8_t;
@@ -144,8 +144,8 @@ public:
     void notifyBackgroundFetchChange(const String&, BackgroundFetchChange);
     void closeServiceWorkerRegistrationFiles(CompletionHandler<void()>&&);
     void clearServiceWorkerRegistrations(CompletionHandler<void()>&&);
-    void importServiceWorkerRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerContextData>>)>&&);
-    void updateServiceWorkerRegistrations(Vector<WebCore::ServiceWorkerContextData>&&, Vector<WebCore::ServiceWorkerRegistrationKey>&&, CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerScripts>>)>&&);
+    void importServiceWorkerRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerPersistentData>>)>&&);
+    void updateServiceWorkerRegistrations(Vector<WebCore::ServiceWorkerPersistentData>&&, Vector<WebCore::ServiceWorkerRegistrationKey>&&, CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerScripts>>)>&&);
     const String& path() const { return m_pathNormalizedMainThread; }
     const String& customIDBStoragePath() const { return m_customIDBStoragePathNormalizedMainThread; }
 
@@ -250,7 +250,7 @@ private:
     void cloneSessionStorageNamespace(StorageNamespaceIdentifier, StorageNamespaceIdentifier);
     bool shouldManageServiceWorkerRegistrationsByOrigin();
     void migrateServiceWorkerRegistrationsToOrigins();
-    Vector<WebCore::ServiceWorkerScripts> updateServiceWorkerRegistrationsByOrigin(Vector<WebCore::ServiceWorkerContextData>&&, Vector<WebCore::ServiceWorkerRegistrationKey>&&);
+    Vector<WebCore::ServiceWorkerScripts> updateServiceWorkerRegistrationsByOrigin(Vector<WebCore::ServiceWorkerPersistentData>&&, Vector<WebCore::ServiceWorkerRegistrationKey>&&);
 
     void spaceGrantedForOrigin(const WebCore::ClientOrigin&, uint64_t amount);
     void prepareForEviction();

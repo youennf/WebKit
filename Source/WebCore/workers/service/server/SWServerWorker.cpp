@@ -507,4 +507,9 @@ RouterSource SWServerWorker::getRouterSource(const FetchOptions& options, const 
     return RouterSourceEnum::FetchEvent;
 }
 
+ServiceWorkerPersistentData SWServerWorker::persistentData()
+{
+    return { contextData(), m_routes.map([](auto& item) { return item.copy(); }) };
+}
+
 } // namespace WebCore

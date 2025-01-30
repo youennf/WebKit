@@ -192,7 +192,7 @@ void SWServer::registrationStoreDatabaseFailedToOpen()
         registrationStoreImportComplete();
 }
 
-void SWServer::addRegistrationFromStore(ServiceWorkerContextData&& data, CompletionHandler<void()>&& completionHandler)
+void SWServer::addRegistrationFromStore(ServiceWorkerPersistentData&& persistentData, CompletionHandler<void()>&& completionHandler)
 {
     ASSERT(isMainThread());
 
@@ -201,14 +201,17 @@ void SWServer::addRegistrationFromStore(ServiceWorkerContextData&& data, Complet
 
     LOG(ServiceWorker, "Adding registration from store for %s", data.registration.key.loggingString().utf8().data());
 
+    auto& data = persistentData.contextData;
     auto registrationKey = data.registration.key;
     auto registrableDomain = WebCore::RegistrableDomain(registrationKey.topOrigin());
-    validateRegistrationDomain(registrableDomain, ServiceWorkerJobType::Register, m_scopeToRegistrationMap.contains(registrationKey), [this, weakThis = WeakPtr { *this }, data = WTFMove(data), completionHandler = WTFMove(completionHandler)] (bool isValid) mutable {
+    validateRegistrationDomain(registrableDomain, ServiceWorkerJobType::Register, m_scopeToRegistrationMap.contains(registrationKey), [this, weakThis = WeakPtr { *this }, persistentData = WTFMove(persistentData), completionHandler = WTFMove(completionHandler)] (bool isValid) mutable {
         ASSERT(isMainThread());
         RefPtr protectedThis = weakThis.get();
         if (!protectedThis)
             return completionHandler();
         if (m_hasServiceWorkerEntitlement || isValid) {
+            auto& data = persistentData.contextData;
+
             Ref registration = SWServerRegistration::create(*this, data.registration.key, data.registration.updateViaCache, data.registration.scopeURL, data.scriptURL, data.serviceWorkerPageIdentifier, WTFMove(data.navigationPreloadState));
             registration->setLastUpdateTime(data.registration.lastUpdateTime);
             addRegistration(registration.copyRef());
@@ -736,7 +739,7 @@ void SWServer::didFinishActivation(SWServerWorker& worker)
 void SWServer::storeRegistrationForWorker(SWServerWorker& worker)
 {
     if (RefPtr store = m_registrationStore)
-        store->updateRegistration(worker.contextData());
+        store->updateRegistration(worker.persistentData());
 }
 
 // https://w3c.github.io/ServiceWorker/#clients-getall

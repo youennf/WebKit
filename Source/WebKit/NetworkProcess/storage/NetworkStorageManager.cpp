@@ -2121,7 +2121,7 @@ void NetworkStorageManager::clearServiceWorkerRegistrations(CompletionHandler<vo
     });
 }
 
-void NetworkStorageManager::importServiceWorkerRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerContextData>>)>&& completionHandler)
+void NetworkStorageManager::importServiceWorkerRegistrations(CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerPersistentData>>)>&& completionHandler)
 {
     ASSERT(RunLoop::isMain());
 
@@ -2131,12 +2131,12 @@ void NetworkStorageManager::importServiceWorkerRegistrations(CompletionHandler<v
     protectedWorkQueue()->dispatch([this, protectedThis = Ref { *this }, completionHandler = WTFMove(completionHandler)]() mutable {
         assertIsCurrent(workQueue());
 
-        std::optional<Vector<WebCore::ServiceWorkerContextData>> result;
+        std::optional<Vector<WebCore::ServiceWorkerPersistentData>> result;
         if (m_sharedServiceWorkerStorageManager)
             result = m_sharedServiceWorkerStorageManager->importRegistrations();
         else {
             bool hasResult = false;
-            Vector<WebCore::ServiceWorkerContextData> registrations;
+            Vector<WebCore::ServiceWorkerPersistentData> registrations;
             for (auto& origin : getAllOrigins()) {
                 if (auto originRegistrations = checkedOriginStorageManager(origin)->serviceWorkerStorageManager().importRegistrations()) {
                     hasResult = true;
@@ -2154,7 +2154,7 @@ void NetworkStorageManager::importServiceWorkerRegistrations(CompletionHandler<v
     });
 }
 
-void NetworkStorageManager::updateServiceWorkerRegistrations(Vector<WebCore::ServiceWorkerContextData>&& registrationsToUpdate, Vector<WebCore::ServiceWorkerRegistrationKey>&& registrationsToDelete, CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerScripts>>)>&& completionHandler)
+void NetworkStorageManager::updateServiceWorkerRegistrations(Vector<WebCore::ServiceWorkerPersistentData>&& registrationsToUpdate, Vector<WebCore::ServiceWorkerRegistrationKey>&& registrationsToDelete, CompletionHandler<void(std::optional<Vector<WebCore::ServiceWorkerScripts>>)>&& completionHandler)
 {
     ASSERT(RunLoop::isMain());
 
@@ -2189,15 +2189,15 @@ void NetworkStorageManager::migrateServiceWorkerRegistrationsToOrigins()
     sharedServiceWorkerStorageManager->clearAllRegistrations();
 }
 
-Vector<WebCore::ServiceWorkerScripts> NetworkStorageManager::updateServiceWorkerRegistrationsByOrigin(Vector<WebCore::ServiceWorkerContextData>&& registrationsToUpdate, Vector<WebCore::ServiceWorkerRegistrationKey>&& registrationsToDelete)
+Vector<WebCore::ServiceWorkerScripts> NetworkStorageManager::updateServiceWorkerRegistrationsByOrigin(Vector<WebCore::ServiceWorkerPersistentData>&& registrationsToUpdate, Vector<WebCore::ServiceWorkerRegistrationKey>&& registrationsToDelete)
 {
     ASSERT(!RunLoop::isMain());
 
-    HashMap<WebCore::ClientOrigin, std::pair<Vector<WebCore::ServiceWorkerContextData>, Vector<WebCore::ServiceWorkerRegistrationKey>>> originRegistrations;
+    HashMap<WebCore::ClientOrigin, std::pair<Vector<WebCore::ServiceWorkerPersistentData>, Vector<WebCore::ServiceWorkerRegistrationKey>>> originRegistrations;
     for (auto& registration : registrationsToUpdate) {
-        auto origin = registration.registration.key.clientOrigin();
+        auto origin = registration.contextData.registration.key.clientOrigin();
         auto& registrations = originRegistrations.ensure(origin, []() {
-            return std::pair<Vector<WebCore::ServiceWorkerContextData>, Vector<WebCore::ServiceWorkerRegistrationKey>> { };
+            return std::pair<Vector<WebCore::ServiceWorkerPersistentData>, Vector<WebCore::ServiceWorkerRegistrationKey>> { };
         }).iterator->value.first;
         registrations.append(WTFMove(registration));
     }
@@ -2206,7 +2206,7 @@ Vector<WebCore::ServiceWorkerScripts> NetworkStorageManager::updateServiceWorker
     for (auto&& key : registrationsToDelete) {
         auto origin = key.clientOrigin();
         auto& keys = originRegistrations.ensure(origin, []() {
-            return std::pair<Vector<WebCore::ServiceWorkerContextData>, Vector<WebCore::ServiceWorkerRegistrationKey>> { };
+            return std::pair<Vector<WebCore::ServiceWorkerPersistentData>, Vector<WebCore::ServiceWorkerRegistrationKey>> { };
         }).iterator->value.second;
         keys.append(WTFMove(key));
     }

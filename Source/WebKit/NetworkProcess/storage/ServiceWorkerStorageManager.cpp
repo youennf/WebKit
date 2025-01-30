@@ -59,7 +59,7 @@ void ServiceWorkerStorageManager::clearAllRegistrations()
         database->clearAllRegistrations();
 }
 
-std::optional<Vector<WebCore::ServiceWorkerContextData>> ServiceWorkerStorageManager::importRegistrations()
+std::optional<Vector<WebCore::ServiceWorkerPersistentData>> ServiceWorkerStorageManager::importRegistrations()
 {
     if (auto database = ensureDatabase())
         return database->importRegistrations();
@@ -67,7 +67,7 @@ std::optional<Vector<WebCore::ServiceWorkerContextData>> ServiceWorkerStorageMan
     return std::nullopt;
 }
 
-std::optional<Vector<WebCore::ServiceWorkerScripts>> ServiceWorkerStorageManager::updateRegistrations(const Vector<WebCore::ServiceWorkerContextData>& registrationsToUpdate, const Vector<WebCore::ServiceWorkerRegistrationKey>& registrationsToDelete)
+std::optional<Vector<WebCore::ServiceWorkerScripts>> ServiceWorkerStorageManager::updateRegistrations(const Vector<WebCore::ServiceWorkerPersistentData>& registrationsToUpdate, const Vector<WebCore::ServiceWorkerRegistrationKey>& registrationsToDelete)
 {
     if (auto database = ensureDatabase())
         return database->updateRegistrations(registrationsToUpdate, registrationsToDelete);
