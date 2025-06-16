@@ -19,7 +19,7 @@
 
 namespace webrtc {
 
-rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> ObjCToNativeVideoCapturer(
+webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface> ObjCToNativeVideoCapturer(
     RTCVideoCapturer* objc_video_capturer,
     rtc::Thread* signaling_thread,
     rtc::Thread* worker_thread);
