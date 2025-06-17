@@ -37,8 +37,8 @@ NS_ASSUME_NONNULL_BEGIN
                            type:(RTCMediaSourceType)type NS_UNAVAILABLE;
 
 - (instancetype)initWithFactory:(RTCPeerConnectionFactory *)factory
-                signalingThread:(rtc::Thread *)signalingThread
-                   workerThread:(rtc::Thread *)workerThread;
+                signalingThread:(webrtc::Thread *)signalingThread
+                   workerThread:(webrtc::Thread *)workerThread;
 
 @end
 

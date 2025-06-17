@@ -753,14 +753,8 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
     }
   }
 
-  // WEBRTC_WEBKIT_BUILD FDXME: checl what to do!
-  // if (packet->codec() == kVideoCodecH264 &&
-  //     !UseH26xPacketBuffer(packet->codec())) {
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (packet->codec() == kVideoCodecH264) {
-#else
-  if (packet->codec() == kVideoCodecH264 && !h26x_packet_buffer_) {
-#endif
+  if (packet->codec() == kVideoCodecH264 &&
+      !UseH26xPacketBuffer(packet->codec())) {
     video_coding::H264SpsPpsTracker::FixedBitstream fixed =
         tracker_.CopyAndFixBitstream(
             MakeArrayView(codec_payload.cdata(), codec_payload.size()),
@@ -785,15 +779,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
   rtcp_feedback_buffer_.SendBufferedRtcpFeedback();
   frame_counter_.Add(packet->timestamp);
 
-  // WEBRTC_WEBKIT_BUILD FDXME: checl what to do!
-  //if (h26x_packet_buffer_ && UseH26xPacketBuffer(packet->codec())) {
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if ((
-#else
-  if ((packet->codec() == kVideoCodecH264 ||
-#endif
-       packet->codec() == kVideoCodecH265) &&
-      h26x_packet_buffer_) {
+  if (h26x_packet_buffer_ && UseH26xPacketBuffer(packet->codec())) {
     OnInsertedPacket(h26x_packet_buffer_->InsertPacket(std::move(packet)));
   } else {
     OnInsertedPacket(packet_buffer_.InsertPacket(std::move(packet)));
