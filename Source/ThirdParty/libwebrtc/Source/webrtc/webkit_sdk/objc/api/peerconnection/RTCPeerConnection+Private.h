@@ -48,9 +48,9 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
 
   void OnIceCandidate(const IceCandidateInterface *candidate) override;
 
-  void OnIceCandidatesRemoved(const std::vector<cricket::Candidate> &candidates) override;
+  void OnIceCandidatesRemoved(const std::vector<webrtc::Candidate> &candidates) override;
 
-  void OnIceSelectedCandidatePairChanged(const cricket::CandidatePairChangeEvent &event) override;
+  void OnIceSelectedCandidatePairChanged(const webrtc::CandidatePairChangeEvent &event) override;
 
   void OnAddTrack(webrtc::scoped_refptr<RtpReceiverInterface> receiver,
                   const std::vector<webrtc::scoped_refptr<MediaStreamInterface>> &streams) override;

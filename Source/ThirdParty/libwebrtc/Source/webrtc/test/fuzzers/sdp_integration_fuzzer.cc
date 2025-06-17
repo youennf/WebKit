@@ -18,6 +18,8 @@
 #include <string>
 #include <utility>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -28,6 +30,7 @@
 #include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/wait_until.h"
+#pragma clang diagnostic pop
 
 namespace webrtc {
 

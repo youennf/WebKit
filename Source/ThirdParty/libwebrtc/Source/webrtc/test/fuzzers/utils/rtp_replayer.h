@@ -20,7 +20,12 @@
 
 #include "api/test/video/function_video_decoder_factory.h"
 #include "api/video_codecs/video_decoder.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
 #include "call/call.h"
+#pragma clang diagnostic pop
+
 #include "media/engine/internal_decoder_factory.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/time_utils.h"
