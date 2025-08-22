@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../resources/testharness.js"></script>
+        <script src="../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <script>
+var pc1, pc2;
+promise_test(async test => {
+    pc1 = new RTCPeerConnection();
+    pc1.addTransceiver("audio");
+    const offer = await pc1.createOffer();
+
+    let sdp = offer.sdp;
+    sdp = sdp.replace("urn:ietf:params:rtp-hdrext:ssrc-audio-level", "urn:ietf:params:rtp-hdrext:encrypt urn:ietf:params:rtp-hdrext:ssrc-audio-level");
+
+    await pc1.setLocalDescription({ type:"offer", sdp });
+    pc2 = new RTCPeerConnection();
+    await pc2.setRemoteDescription(offer);
+
+    const answer = await pc2.createAnswer();
+    sdp = answer.sdp;
+    sdp = sdp.replace("urn:ietf:params:rtp-hdrext:ssrc-audio-level", "urn:ietf:params:rtp-hdrext:encrypt urn:ietf:params:rtp-hdrext:ssrc-audio-level");
+    await pc2.setLocalDescription(answer);
+    await pc1.setRemoteDescription({ type:"answer", sdp });
+
+    const parameters = pc1.getSenders()[0].getParameters();
+
+    assert_true(parameters.headerExtensions[0].encrypted);
+    return pc1.getSenders()[0].setParameters(parameters);
+});
+        </script>
+    </body>
+</html>
