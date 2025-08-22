@@ -34,6 +34,7 @@
 #if ENABLE(WEB_RTC)
 
 #include "ContextDestructionObserverInlines.h"
+#include "Document.h"
 #include "JSDOMPromiseDeferred.h"
 #include "Logging.h"
 #include "RTCDTMFSender.h"
@@ -255,6 +256,22 @@ std::optional<RTCRtpTransform::Internal> RTCRtpSender::transform()
     if (!m_transform)
         return { };
     return m_transform->internalTransform();
+}
+
+ExceptionOr<RTCEncodedStreams> RTCRtpSender::createEncodedStreams(Document& document)
+{
+    if (!m_backend)
+        return Exception { ExceptionCode::InvalidStateError };
+
+    if (!m_encodedStreamProducer) {
+        auto producerOrException = RTCEncodedStreamProducer::create(document, m_backend->rtcRtpTransformBackend(), m_trackKind == "video"_s);
+        if (producerOrException.hasException())
+            return producerOrException.releaseException();
+
+        lazyInitialize(m_encodedStreamProducer, producerOrException.releaseReturnValue());
+    }
+
+    return m_encodedStreamProducer->streams();
 }
 
 #if !RELEASE_LOG_DISABLED

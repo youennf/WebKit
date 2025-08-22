@@ -33,10 +33,13 @@
 
 #if ENABLE(WEB_RTC)
 
+#include "Document.h"
 #include "JSDOMPromiseDeferred.h"
 #include "Logging.h"
 #include "PeerConnectionBackend.h"
 #include "RTCRtpCapabilities.h"
+#include "RTCEncodedStreamProducer.h"
+#include "ReadableStreamSource.h"
 #include "ScriptWrappableInlines.h"
 #include <wtf/TZoneMallocInlines.h>
 
@@ -121,6 +124,22 @@ std::optional<RTCRtpTransform::Internal> RTCRtpReceiver::transform()
     if (!m_transform)
         return { };
     return m_transform->internalTransform();
+}
+
+ExceptionOr<RTCEncodedStreams> RTCRtpReceiver::createEncodedStreams(Document& document)
+{
+    if (!m_backend)
+        return Exception { ExceptionCode::InvalidStateError };
+
+    if (!m_encodedStreamProducer) {
+        auto producerOrException = RTCEncodedStreamProducer::create(document, m_backend->rtcRtpTransformBackend(), m_track->isVideo());
+        if (producerOrException.hasException())
+            return producerOrException.releaseException();
+
+        lazyInitialize(m_encodedStreamProducer, producerOrException.releaseReturnValue());
+    }
+
+    return m_encodedStreamProducer->streams();
 }
 
 #if !RELEASE_LOG_DISABLED
