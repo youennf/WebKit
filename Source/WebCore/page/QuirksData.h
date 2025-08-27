@@ -148,6 +148,7 @@ struct WEBCORE_EXPORT QuirksData {
     bool shouldFlipScreenDimensionsQuirk : 1 { false };
 #endif
 
+    bool shouldEnableCameraAndMicrophonePermissionStateQuirk : 1 { false };
 #if ENABLE(MEDIA_STREAM)
     bool shouldDisableImageCaptureQuirk : 1 { false };
     bool shouldEnableLegacyGetUserMediaQuirk : 1 { false };

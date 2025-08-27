@@ -144,6 +144,7 @@ public:
 
     WEBCORE_EXPORT static bool shouldTranscodeHeicImagesForURL(const URL&);
 
+    bool shouldEnableCameraAndMicrophonePermissionStateQuirk() const;
 #if ENABLE(MEDIA_STREAM)
     bool shouldEnableLegacyGetUserMediaQuirk() const;
     bool shouldDisableImageCaptureQuirk() const;
