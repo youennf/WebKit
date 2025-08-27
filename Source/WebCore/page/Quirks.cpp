@@ -2361,6 +2361,10 @@ static void handleFacebookQuirks(QuirksData& quirksData, const URL& quirksURL, c
     // facebook.com rdar://67273166
     quirksData.requiresUserGestureToPauseInPictureInPictureQuirk = true;
 #endif
+#if ENABLE(WEB_RTC)
+    // facebook.com rdar://158736355
+    quirksData.shouldEnableRTCEncodedStreamsQuirk = true;
+#endif
 }
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
