@@ -40,6 +40,7 @@
 #include "GenericCachedHTMLCollection.h"
 #include "HTMLFormControlsCollection.h"
 #include "HTMLOptionsCollection.h"
+#include "HTMLScriptElement.h"
 #include "HTMLSlotElement.h"
 #include "HTMLTableRowsCollection.h"
 #include "InspectorInstrumentation.h"
@@ -51,6 +52,7 @@
 #include "NodeRareData.h"
 #include "NodeRenderStyle.h"
 #include "RadioNodeList.h"
+#include "Quirks.h"
 #include "RenderBox.h"
 #include "RenderTheme.h"
 #include "RenderTreeUpdater.h"
@@ -1159,6 +1161,26 @@ ExceptionOr<Ref<NodeList>> ContainerNode::querySelectorAll(const String& selecto
     auto nodeList = query.releaseReturnValue().queryAll(*this);
     if (isCacheable)
         document->addResultForSelectorAll(*this, selectors, nodeList, classNameToMatch);
+
+#if ENABLE(MEDIA_STREAM)
+    if (nodeList->length() && document->quirks().shouldEnableLiveRecordingFlagQuirk() && selectors == "script[data-sjs]:not([data-processed])"_s) {
+        Ref script = HTMLScriptElement::create(HTMLNames::scriptTag, document, false);
+        script->dataset().setNamedItem("contentLen"_s, "100"_s);
+
+        Ref text = Text::create(document, "{\"require\":[[\"HasteSupportData\",\"handle\",null,[{\"gkxData\":{\"23460\":{\"result\":true,\"hash\":null}}}]]]}"_s);
+        script->appendChild(text);
+
+        Vector<Ref<Element>> elements;
+        for (size_t cptr = 0; cptr < nodeList->length(); ++cptr) {
+            if (RefPtr element = dynamicDowncast<Element>(nodeList->item(cptr)))
+                elements.append(element.releaseNonNull());
+        }
+        elements.append(WTFMove(script));
+
+        nodeList = StaticElementList::create(WTFMove(elements));
+    }
+#endif
+
     return nodeList;
 }
 
