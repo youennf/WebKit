@@ -192,11 +192,11 @@ void ReadableStream::pipeTo(ReadableStreamSink& sink)
         internalReadableStream->pipeTo(sink);
 }
 
-ExceptionOr<Vector<Ref<ReadableStream>>> ReadableStream::tee(JSDOMGlobalObject&, bool shouldClone)
+ExceptionOr<Vector<Ref<ReadableStream>>> ReadableStream::tee(JSDOMGlobalObject& globalObject, bool shouldClone)
 {
     if (!m_internalReadableStream) {
         ASSERT(m_controller);
-        return Exception { ExceptionCode::NotSupportedError };
+        return byteStreamTee(globalObject);
     }
 
     Ref internalReadableStream = *m_internalReadableStream;
@@ -264,6 +264,215 @@ Ref<ReadableStream> ReadableStream::createReadableByteStream(ReadableByteStreamC
     Ref readableStream = adoptRef(*new ReadableStream());
     readableStream->setupReadableByteStreamController(WTFMove(pullAlgorithm), WTFMove(cancelAlgorithm), 0);
     return readableStream;
+}
+
+static RefPtr<DOMPromise> domPromiseFromDeferred(JSDOMGlobalObject& globalObject, DeferredPromise& deferred)
+{
+    auto* promise = jsCast<JSC::JSPromise*>(deferred.promise());
+    if (!promise)
+        return nullptr;
+    return DOMPromise::create(globalObject, *promise);
+}
+
+class TeeState : public RefCounted<TeeState> {
+public:
+    static Ref<TeeState> create(JSDOMGlobalObject& globalObject, Ref<ReadableStream>&& stream, Ref<ReadableStreamDefaultReader>&& reader) { return adoptRef(*new TeeState(globalObject, WTFMove(stream), WTFMove(reader))); }
+    
+    bool isReader(const ReadableStreamDefaultReader* thisReader) const { return m_defaultReader && m_defaultReader.get() == thisReader; }
+    bool isReader(const ReadableStreamBYOBReader* thisReader) const { return m_byobReader && m_byobReader.get() == thisReader; }
+
+    bool reading() const { return m_reading;}
+    void setReading(bool value) { m_reading = value; }
+    void setReadAgainForBranch1() { m_readAgainForBranch1 = true; }
+
+    bool canceled1() const { return m_canceled1;}
+    bool canceled2() const { return m_canceled2;}
+    void setCanceled1() { m_canceled1 = true; }
+    void setCanceled2() { m_canceled2 = true; }
+
+    ReadableStream& stream() const { return m_stream; }
+    ReadableStream* branch1() const { return m_branch1.get(); }
+    ReadableStream* branch2() const { return m_branch2.get(); }
+
+    DOMPromise* readPromise() const {return m_readPromise.get(); }
+    void setReadPromise(Ref<DOMPromise>&& promise)
+    {
+        ASSERT(!m_readPromise);
+        m_readPromise = WTFMove(promise);
+    }
+
+    RefPtr<ReadableStreamBYOBReader> takeBYOBReader() { return std::exchange(m_byobReader, { }); }
+
+    ReadableStreamDefaultReader* defaultReader() const { return m_defaultReader.get(); }
+    void setReader(Ref<ReadableStreamDefaultReader>&& reader)
+    {
+        ASSERT(!m_defaultReader);
+        ASSERT(!m_byobReader);
+        m_defaultReader = WTFMove(reader);
+    }
+
+    DOMPromise& cancelPromise() { return m_cancelPromise; }
+    void resolveCancelPromise()
+    {
+        m_cancelDeferredPromise->resolve();
+    }
+
+private:
+    explicit TeeState(JSDOMGlobalObject& globalObject, Ref<ReadableStream>&& stream, RefPtr<ReadableStreamDefaultReader>&& reader)
+        : m_stream(WTFMove(stream))
+        , m_defaultReader(WTFMove(reader))
+        , m_cancelDeferredPromise(DeferredPromise::create(globalObject).releaseNonNull())
+        , m_cancelPromise(domPromiseFromDeferred(globalObject, m_cancelDeferredPromise).releaseNonNull())
+    {
+    }
+
+    const Ref<ReadableStream> m_stream;
+    RefPtr<ReadableStreamDefaultReader> m_defaultReader;
+    RefPtr<ReadableStreamBYOBReader> m_byobReader;
+    bool m_reading = false;
+    bool m_readAgainForBranch1 = false;
+    bool m_readAgainForBranch2 = false;
+    bool m_canceled1 = false;
+    bool m_canceled2 = false;
+    Ref<DeferredPromise> m_cancelDeferredPromise;
+    Ref<DOMPromise> m_cancelPromise;
+    RefPtr<ReadableStream> m_branch1;
+    RefPtr<ReadableStream> m_branch2;
+
+    RefPtr<DOMPromise> m_readPromise;
+};
+/*
+template<typename Reader>
+void forwardReadError(TeeState& state, Reader& reader)
+{
+    reader.onClosedPromiseRejection([state = Ref { state }, reader = &thisReader](auto& globalObject, auto&& reason) {
+        if (!state->isReader(thisReader))
+            return;
+        if (RefPtr branch1 = state->branch1())
+            branch1->controller()->storeError(globalObject, reason);
+        if (RefPtr branch2 = state->branch2())
+            branch2->controller()->storeError(globalObject, reason);
+    });
+}
+*/
+static void pullWithDefaultReader(JSDOMGlobalObject& globalObject, TeeState& state)
+{
+    if (RefPtr byobReader = state.takeBYOBReader()) {
+        ASSERT(!byobReader->readIntoRequestsSize());
+        byobReader->releaseLock(globalObject);
+
+        auto readerOrException = ReadableStreamDefaultReader::create(globalObject, Ref { state.stream() }.get());
+        if (readerOrException.hasException()) {
+            ASSERT_NOT_REACHED();
+            return;
+        }
+        state.setReader(readerOrException.releaseReturnValue());
+    }
+    RefPtr reader = state.defaultReader();
+    RefPtr promise = DeferredPromise::create(globalObject);
+    reader->read(globalObject, *promise);
+    promise->whenSettled([state = Ref {state }, weakReader = WeakPtr { *reader }] {
+        RefPtr readPromise = state->readPromise();
+        RefPtr reader = weakReader.get();
+        if (!readPromise || !reader)
+            return;
+
+        switch (readPromise->status()) {
+        case DOMPromise::Status::Fulfilled:
+            // close steps or chunk steps.
+            // Convert result.
+            // If done is not false, apply read requests.
+            // If done is false, apply close steps.
+            //callback(*globalObject, { });
+            break;
+        case DOMPromise::Status::Rejected:
+            // error steps.
+            state->setReading(false);
+            break;
+        case DOMPromise::Status::Pending:
+            ASSERT_NOT_REACHED();
+            break;
+        }
+    });
+    state.setReadPromise(domPromiseFromDeferred(globalObject, *promise).releaseNonNull());
+}
+
+// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamtee
+ExceptionOr<Vector<Ref<ReadableStream>>> ReadableStream::byteStreamTee(JSDOMGlobalObject& globalObject)
+{
+    ASSERT(!!m_controller);
+
+    auto readerOrException = ReadableStreamDefaultReader::create(globalObject, *this);
+    if (readerOrException.hasException())
+        return readerOrException.releaseException();
+
+    Ref state = TeeState::create(globalObject, *this, readerOrException.releaseReturnValue());
+
+/*
+    RefPtr pull1Algorithm;
+    RefPtr pull2Algorithm;
+    RefPtr cancel1Algorithm;
+    RefPtr cancel2Algorithm;
+*/
+    auto forwardReadError = [state](auto& thisReader) {
+        thisReader.onClosedPromiseRejection([state, &thisReader](auto& globalObject, auto&& reason) {
+            if (state->defaultReader() != &thisReader)
+                return;
+            if (RefPtr branch1 = state->branch1())
+                branch1->controller()->error(globalObject, reason);
+            if (RefPtr branch2 = state->branch2())
+                branch2->controller()->error(globalObject, reason);
+        });
+    };
+
+    ReadableByteStreamController::PullAlgorithm pull1Algorithm = [state = Ref { state }](auto& globalObject, auto&& controller) {
+        if (state->reading()) {
+            state->setReadAgainForBranch1();
+            // FIXME: We can do better;
+            RefPtr promise = DeferredPromise::create(globalObject);
+            promise->resolve();
+            return domPromiseFromDeferred(globalObject, *promise).releaseNonNull();
+        }
+        state->setReading(true);
+
+        RefPtr byobRequest = controller.getByobRequest();
+        if (!byobRequest)
+            pullWithDefaultReader(globalObject, state);
+        //else
+          //  pullWithBYOBReader(*biobyRequest, false);
+
+        // FIXME: We can do better;
+        RefPtr promise = DeferredPromise::create(globalObject);
+        promise->resolve();
+        return domPromiseFromDeferred(globalObject, *promise).releaseNonNull();
+    };
+
+    ReadableByteStreamController::CancelAlgorithm cancel1Algorithm = [state = Ref { state }](auto& globalObject, auto&&, auto&&) {
+        state->setCanceled1();
+        // set reason1;
+        if (state->canceled2()) {
+            // Create the array of reason1 and reason2.
+            //JSC::VM& vm = JSC::getVM(&globalObject);
+            //auto scope = DECLARE_THROW_SCOPE(vm);
+            JSC::MarkedArgumentBuffer list;
+            list.ensureCapacity(2);
+            // FIXME
+//            list.append(state->reason1());
+  //          list.append(state->reason2());
+
+            RefPtr promise = DeferredPromise::create(globalObject);
+            state->stream().cancel(globalObject, JSC::constructArray(&globalObject, static_cast<JSC::ArrayAllocationProfile*>(nullptr), list), *promise);
+            // Chain cancel returned promise to call resolveCancelPromise
+            promise->whenSettled([state] {
+                state->resolveCancelPromise();
+            });
+        }
+        return Ref { state->cancelPromise() };
+    };
+    Vector<Ref<ReadableStream>> branches;
+    branches.append(createReadableByteStream(WTFMove(pull1Algorithm), WTFMove(cancel1Algorithm)));
+//    branches.append(createReadableByteStream());
+    return branches;
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-fulfill-read-request
