@@ -35,7 +35,7 @@
     [CallWith=CurrentGlobalObject] constructor(ReadableStream stream);
 
     [Custom, ReturnsOwnPromise] Promise<any> read();
-    undefined releaseLock();
+    [CallWith=CurrentGlobalObject] undefined releaseLock();
 
     [Custom] readonly attribute Promise<boolean> closed;
     [Custom, ReturnsOwnPromise] Promise<any> cancel(optional any reason);

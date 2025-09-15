@@ -4,7 +4,6 @@ if (self.importScripts) {
     self.importScripts('../resources/testharness.js');
 }
 
-
 // FIXME: Remove next line when bug https://bugs.webkit.org/show_bug.cgi?id=167697
 // is fixed. For the moment, so that test may pass, we have to insert a reference
 // to Uint8Array here (otherwise, the private variable cannot be resolved).
@@ -20,7 +19,7 @@ test(function() {
         type: "bytes"
     });
 
-    assert_equals(controller.byobRequest, undefined, "by default byobRequest should be undefined");
+    assert_not_equals(controller.byobRequest, undefined, "by default byobRequest should be defined");
 }, "By default, byobRequest should be undefined");
 
 test(function() {
@@ -75,9 +74,9 @@ test(function() {
     rs.getReader().read();
     const byobReq = controller.byobRequest;
 
-    assert_throws_js(RangeError,
+    assert_throws_js(TypeError,
         function() { byobReq.respond(-1); });
-}, "Calling respond() with a negative bytesWritten value should throw a RangeError");
+}, "Calling respond() with a negative bytesWritten value should throw a TypeError");
 
 test(function() {
 
@@ -93,9 +92,9 @@ test(function() {
     rs.getReader().read();
     const byobReq = controller.byobRequest;
 
-    assert_throws_js(RangeError,
+    assert_throws_js(TypeError,
         function() { byobReq.respond("abc"); });
-}, "Calling respond() with a bytesWritten value which is not a number should throw a RangeError");
+}, "Calling respond() with a bytesWritten value which is not a number should throw a TypeeError");
 
 test(function() {
 
@@ -111,9 +110,9 @@ test(function() {
     rs.getReader().read();
     const byobReq = controller.byobRequest;
 
-    assert_throws_js(RangeError,
+    assert_throws_js(TypeError,
         function() { byobReq.respond(Number.POSITIVE_INFINITY); });
-}, "Calling respond() with a positive infinity bytesWritten value should throw a RangeError");
+}, "Calling respond() with a positive infinity bytesWritten value should throw a TypeError");
 
 test(function() {
 

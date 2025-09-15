@@ -39,9 +39,9 @@ namespace WebCore {
 class UnderlyingSourceCancelCallback : public RefCounted<UnderlyingSourceCancelCallback>, public ActiveDOMCallback {
 public:
     using ActiveDOMCallback::ActiveDOMCallback;
-    
-    virtual CallbackResult<RefPtr<DOMPromise>> handleEvent(JSC::JSValue thisValue, JSC::JSValue reason) = 0;
-    
+
+    virtual CallbackResult<RefPtr<DOMPromise>> invoke(JSC::JSValue thisValue, JSC::JSValue reason) = 0;
+
 private:
     virtual bool hasCallback() const = 0;
 };

@@ -238,23 +238,6 @@ JSC::JSValue InternalReadableStream::cancel(JSC::JSGlobalObject& globalObject, J
     return result.returnValue();
 }
 
-JSC::JSValue InternalReadableStream::getReader(JSC::JSGlobalObject& globalObject, JSC::JSValue options)
-{
-    auto* clientData = downcast<JSVMClientData>(globalObject.vm().clientData);
-    auto& privateName = clientData->builtinFunctions().readableStreamInternalsBuiltins().readableStreamGetReaderForBindingsPrivateName();
-
-    JSC::MarkedArgumentBuffer arguments;
-    arguments.append(guardedObject());
-    arguments.append(options);
-    ASSERT(!arguments.hasOverflowed());
-
-    auto result = invokeReadableStreamFunction(globalObject, privateName, arguments);
-    if (result.hasException())
-        return { };
-
-    return result.returnValue();
-}
-
 JSC::JSValue InternalReadableStream::pipeTo(JSC::JSGlobalObject& globalObject, JSC::JSValue streams, JSC::JSValue options)
 {
     auto* clientData = downcast<JSVMClientData>(globalObject.vm().clientData);

@@ -42,7 +42,7 @@ class UnderlyingSourcePullCallback : public RefCounted<UnderlyingSourcePullCallb
 public:
     using ActiveDOMCallback::ActiveDOMCallback;
 
-    virtual CallbackResult<RefPtr<DOMPromise>> handleEvent(JSC::JSValue, ReadableByteStreamController&) = 0;
+    virtual CallbackResult<RefPtr<DOMPromise>> invoke(JSC::JSValue, ReadableByteStreamController&) = 0;
 
 private:
     virtual bool hasCallback() const = 0;

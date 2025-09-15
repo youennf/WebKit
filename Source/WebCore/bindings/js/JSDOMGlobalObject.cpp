@@ -102,6 +102,7 @@ JSC_DECLARE_HOST_FUNCTION(removeAbortAlgorithmFromSignal);
 JSC_DECLARE_HOST_FUNCTION(signalAbort);
 JSC_DECLARE_HOST_FUNCTION(isAbortSignal);
 JSC_DECLARE_HOST_FUNCTION(createAbortSignal);
+JSC_DECLARE_HOST_FUNCTION(byteLengthQueuingStrategySize);
 
 const ClassInfo JSDOMGlobalObject::s_info = { "DOMGlobalObject"_s, &JSGlobalObject::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSDOMGlobalObject) };
 
@@ -211,7 +212,7 @@ JSC_DEFINE_HOST_FUNCTION(getInternalReadableStream, (JSGlobalObject*, CallFrame*
     if (!readableStream) [[unlikely]]
         return JSValue::encode(jsUndefined());
     RefPtr internalReadableStream = readableStream->wrapped().internalReadableStream();
-    if (UNLIKELY(!internalReadableStream))
+    if (!internalReadableStream)  [[unlikely]]
         return JSValue::encode(jsUndefined());
     return JSValue::encode(*internalReadableStream);
 }
@@ -277,6 +278,34 @@ JSC_DEFINE_HOST_FUNCTION(signalAbort, (JSGlobalObject*, CallFrame* callFrame))
     if (abortSignal) [[unlikely]]
         abortSignal->protectedWrapped()->signalAbort(callFrame->uncheckedArgument(1));
     return JSValue::encode(JSC::jsUndefined());
+}
+
+JSC_DEFINE_HOST_FUNCTION(byteLengthQueuingStrategySize, (JSGlobalObject* globalObject, CallFrame* callFrame))
+{
+    ASSERT(callFrame);
+    Ref vm = globalObject->vm();
+    auto throwScope = DECLARE_THROW_SCOPE(vm);
+    if (!callFrame->argumentCount()) {
+        throwException(globalObject, throwScope, createNotEnoughArgumentsError(globalObject));
+        return encodedJSValue();
+    }
+
+    auto chunk = callFrame->uncheckedArgument(0);
+
+    if (chunk.isUndefinedOrNull()) {
+        throwException(globalObject, throwScope, createNotAnObjectError(globalObject, chunk));
+        return encodedJSValue();
+    }
+
+    auto* object = chunk.getObject();
+    if (!object)
+        return JSValue::encode(JSC::jsUndefined());
+
+    auto byteLengthValue = object->get(globalObject, JSC::Identifier::fromString(vm, "byteLength"_s));
+    if (throwScope.exception())
+        return encodedJSValue();
+
+    return JSValue::encode(byteLengthValue);
 }
 
 SUPPRESS_ASAN void JSDOMGlobalObject::addBuiltinGlobals(VM& vm)
@@ -436,6 +465,9 @@ void JSDOMGlobalObject::visitChildrenImpl(JSCell* cell, Visitor& visitor)
         for (auto& guarded : thisObject->m_guardedObjects)
             guarded->visitAggregate(visitor);
     }
+
+    if (thisObject->m_readableStreamByteStrategySize)
+        visitor.append(thisObject->m_readableStreamByteStrategySize);
 
     for (auto& constructor : thisObject->constructors().array())
         visitor.append(constructor);
@@ -767,6 +799,16 @@ String JSDOMGlobalObject::agentClusterID() const
     if (is<SharedWorkerGlobalScope>(scriptExecutionContext()))
         return makeString(Process::identifier().toUInt64(), "-sharedworker"_s);
     return defaultAgentClusterID();
+}
+
+
+JSC::JSObject* JSDOMGlobalObject::readableStreamByteStrategySize()
+{
+    if (!m_readableStreamByteStrategySize) {
+        Ref vm = this->vm();
+        m_readableStreamByteStrategySize = JSFunction::create(vm, this, 1, "size"_s, byteLengthQueuingStrategySize, ImplementationVisibility::Public);
+    }
+    return m_readableStreamByteStrategySize.get();
 }
 
 JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext& context, DOMWrapperWorld& world)

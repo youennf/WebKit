@@ -36,8 +36,14 @@ Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::create(Init&& init)
 
 ByteLengthQueuingStrategy::~ByteLengthQueuingStrategy() = default;
 
-ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(Init&&)
+ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(Init&& init)
+    : m_highWaterMark(init.highWaterMark)
 {
+}
+
+JSC::JSValue ByteLengthQueuingStrategy::size(JSDOMGlobalObject& globalObject)
+{
+    return globalObject.readableStreamByteStrategySize();
 }
 
 } // namespace WebCore

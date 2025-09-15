@@ -61,7 +61,7 @@ ExceptionOr<Ref<InternalReadableStreamDefaultReader>> InternalReadableStreamDefa
     ASSERT(!arguments.hasOverflowed());
 
     auto result = invokeReadableStreamDefaultReaderFunction(globalObject, privateName, arguments);
-    if (UNLIKELY(result.hasException()))
+    if (result.hasException())  [[unlikely]]
         return result.releaseException();
 
     ASSERT(result.returnValue().isObject());
