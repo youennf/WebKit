@@ -4557,7 +4557,6 @@ JSPushSubscriptionOptions.cpp
 JSPushSubscriptionOptionsInit.cpp
 JSQueuingStrategy.cpp
 JSQueuingStrategySize.cpp
-JSRedEyeReduction.cpp
 JSRTCAnswerOptions.cpp
 JSRTCCertificate.cpp
 JSRTCConfiguration.cpp
@@ -4627,6 +4626,7 @@ JSRadioNodeList.cpp
 JSRange.cpp
 JSReadableByteStreamController.cpp
 JSReadableStream.cpp
+JSReadableStreamReadResult.cpp
 JSReadableStreamType.cpp
 JSReadableStreamBYOBReader.cpp
 JSReadableStreamBYOBRequest.cpp
@@ -4900,18 +4900,13 @@ JSURLPatternInit.cpp
 JSURLPatternOptions.cpp
 JSURLPatternResult.cpp
 JSURLSearchParams.cpp
-<<<<<<< HEAD
-JSUndoItem.cpp
-JSUndoManager.cpp
-JSUnknownCredentialOptions.cpp
-=======
 JSUnderlyingSource.cpp
 JSUnderlyingSourceCancelCallback.cpp
 JSUnderlyingSourcePullCallback.cpp
 JSUnderlyingSourceStartCallback.cpp
 JSUndoItem.cpp
 JSUndoManager.cpp
->>>>>>> 89a82f95892f (Make ReadableStreamDefaultReader a C++ class)
+JSUnknownCredentialOptions.cpp
 JSUserActivation.cpp
 JSUserMessageHandler.cpp
 JSUserMessageHandlersNamespace.cpp

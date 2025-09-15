@@ -597,6 +597,7 @@ namespace WebCore {
     macro(controller) \
     macro(cookieStore) \
     macro(createAbortSignal) \
+    macro(createByteLengthQueuingStrategySize) \
     macro(createImageBitmap) \
     macro(createReadableStream) \
     macro(createWritableStreamFromInternal) \

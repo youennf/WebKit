@@ -109,6 +109,8 @@ public:
     JSC::JSFunction* createCrossOriginFunction(JSC::JSGlobalObject*, JSC::PropertyName, JSC::NativeFunction, unsigned length);
     JSC::GetterSetter* createCrossOriginGetterSetter(JSC::JSGlobalObject*, JSC::PropertyName, JSC::GetValueFunc, JSC::PutValueFunc);
 
+    JSC::JSObject* readableStreamByteStrategySize();
+
     ~JSDOMGlobalObject();
 
     static constexpr const JSC::ClassInfo* info() { return &s_info; }
@@ -153,6 +155,7 @@ private:
     const UniqueRef<JSBuiltinInternalFunctions> m_builtinInternalFunctions;
     JSC::WeakGCMap<CrossOriginMapKey, JSC::JSFunction> m_crossOriginFunctionMap;
     JSC::WeakGCMap<CrossOriginMapKey, JSC::GetterSetter> m_crossOriginGetterSetterMap;
+    JSC::Weak<JSC::JSObject> m_readableStreamByteStrategySize;
 };
 
 JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext&, DOMWrapperWorld&);

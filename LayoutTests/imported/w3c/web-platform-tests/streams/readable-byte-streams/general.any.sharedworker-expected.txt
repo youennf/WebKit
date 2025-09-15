@@ -1,41 +1,38 @@
 
-Harness Error (TIMEOUT), message = null
+Harness Error (FAIL), message = Error in remote http://localhost:8800/streams/readable-byte-streams/general.any.js: Error
 
 PASS getReader({mode: "byob"}) throws on non-bytes streams
 PASS ReadableStream with byte source can be constructed with no errors
 PASS getReader({mode}) must perform ToString()
 PASS ReadableStream with byte source: Construct and expect start and pull being called
 PASS ReadableStream with byte source: No automatic pull call if start doesn't finish
-PASS ReadableStream with byte source: start() throws an exception
+FAIL ReadableStream with byte source: start() throws an exception assert_throws_js: start() can throw an exception with type: bytes function "() => new ReadableStream({ start() { throw new Error(); }, type:'bytes' })" did not throw
 PASS ReadableStream with byte source: Construct with highWaterMark of 0
 PASS ReadableStream with byte source: desiredSize when closed
 PASS ReadableStream with byte source: desiredSize when errored
 PASS ReadableStream with byte source: getReader(), then releaseLock()
 PASS ReadableStream with byte source: getReader() with mode set to byob, then releaseLock()
-PASS ReadableStream with byte source: Test that closing a stream does not release a reader automatically
-PASS ReadableStream with byte source: Test that closing a stream does not release a BYOB reader automatically
-PASS ReadableStream with byte source: Test that erroring a stream does not release a reader automatically
-PASS ReadableStream with byte source: Test that erroring a stream does not release a BYOB reader automatically
-PASS ReadableStream with byte source: releaseLock() on ReadableStreamDefaultReader must reject pending read()
-FAIL ReadableStream with byte source: releaseLock() on ReadableStreamBYOBReader must reject pending read() promise_test: Unhandled rejection with value: object "TypeError: There are still pending read requests, cannot release the lock"
-PASS ReadableStream with byte source: Automatic pull() after start()
-PASS ReadableStream with byte source: Automatic pull() after start() and read()
-FAIL ReadableStream with byte source: autoAllocateChunkSize assert_equals: pull() must have been invoked twice expected 2 but got 1
-PASS ReadableStream with byte source: Mix of auto allocate and BYOB
-PASS ReadableStream with byte source: Automatic pull() after start() and read(view)
-PASS ReadableStream with byte source: enqueue(), getReader(), then read()
-PASS ReadableStream with byte source: Push source that doesn't understand pull signal
-FAIL ReadableStream with byte source: pull() function is not callable assert_throws_js: constructor should throw function "() => new ReadableStream({
-    pull: 'foo',
-    type: 'bytes'
-  })" did not throw
-PASS ReadableStream with byte source: enqueue() with Uint16Array, getReader(), then read()
-PASS ReadableStream with byte source: enqueue(), read(view) partially, then read()
-PASS ReadableStream with byte source: getReader(), enqueue(), close(), then read()
-PASS ReadableStream with byte source: enqueue(), close(), getReader(), then read()
-FAIL ReadableStream with byte source: Respond to pull() by enqueue() assert_equals: byobRequest must be null expected (object) null but got (undefined) undefined
-FAIL ReadableStream with byte source: Respond to pull() by enqueue() asynchronously assert_equals: byobRequest should be null expected (object) null but got (undefined) undefined
-TIMEOUT ReadableStream with byte source: Respond to multiple pull() by separate enqueue() Test timed out
+TIMEOUT ReadableStream with byte source: Test that closing a stream does not release a reader automatically Test timed out
+NOTRUN ReadableStream with byte source: Test that closing a stream does not release a BYOB reader automatically
+NOTRUN ReadableStream with byte source: Test that erroring a stream does not release a reader automatically
+NOTRUN ReadableStream with byte source: Test that erroring a stream does not release a BYOB reader automatically
+NOTRUN ReadableStream with byte source: releaseLock() on ReadableStreamDefaultReader must reject pending read()
+NOTRUN ReadableStream with byte source: releaseLock() on ReadableStreamBYOBReader must reject pending read()
+NOTRUN ReadableStream with byte source: Automatic pull() after start()
+NOTRUN ReadableStream with byte source: Automatic pull() after start() and read()
+NOTRUN ReadableStream with byte source: autoAllocateChunkSize
+NOTRUN ReadableStream with byte source: Mix of auto allocate and BYOB
+NOTRUN ReadableStream with byte source: Automatic pull() after start() and read(view)
+NOTRUN ReadableStream with byte source: enqueue(), getReader(), then read()
+NOTRUN ReadableStream with byte source: Push source that doesn't understand pull signal
+PASS ReadableStream with byte source: pull() function is not callable
+NOTRUN ReadableStream with byte source: enqueue() with Uint16Array, getReader(), then read()
+NOTRUN ReadableStream with byte source: enqueue(), read(view) partially, then read()
+NOTRUN ReadableStream with byte source: getReader(), enqueue(), close(), then read()
+NOTRUN ReadableStream with byte source: enqueue(), close(), getReader(), then read()
+NOTRUN ReadableStream with byte source: Respond to pull() by enqueue()
+NOTRUN ReadableStream with byte source: Respond to pull() by enqueue() asynchronously
+NOTRUN ReadableStream with byte source: Respond to multiple pull() by separate enqueue()
 NOTRUN ReadableStream with byte source: read(view), then respond()
 NOTRUN ReadableStream with byte source: read(view), then respondWithNewView() with a transferred ArrayBuffer
 NOTRUN ReadableStream with byte source: read(view), then respond() with too big value
@@ -79,12 +76,10 @@ NOTRUN calling respond(0) twice on the same byobRequest should throw even when c
 NOTRUN calling respond() should throw when canceled
 NOTRUN pull() resolving should not resolve read()
 NOTRUN ReadableStream with byte source: default reader + autoAllocateChunkSize + byobRequest interaction
-FAIL ReadableStream with byte source: autoAllocateChunkSize cannot be 0 assert_throws_js: controller cannot be setup with autoAllocateChunkSize = 0 function "() => new ReadableStream({ autoAllocateChunkSize: 0, type: 'bytes' })" threw object "RangeError: autoAllocateChunkSize value is negative or equal to positive or negative infinity" ("RangeError") expected instance of function "function TypeError() {
-    [native code]
-}" ("TypeError")
+FAIL ReadableStream with byte source: autoAllocateChunkSize cannot be 0 assert_throws_js: controller cannot be setup with autoAllocateChunkSize = 0 function "() => new ReadableStream({ autoAllocateChunkSize: 0, type: 'bytes' })" did not throw
 PASS ReadableStreamBYOBReader can be constructed directly
 PASS ReadableStreamBYOBReader constructor requires a ReadableStream argument
-PASS ReadableStreamBYOBReader constructor requires an unlocked ReadableStream
+FAIL ReadableStreamBYOBReader constructor requires an unlocked ReadableStream assert_throws_js: constructor must throw function "() => new ReadableStreamBYOBReader(stream)" did not throw
 PASS ReadableStreamBYOBReader constructor requires a ReadableStream with type "bytes"
 PASS ReadableStream constructor should not accept a strategy with a size defined if type is "bytes"
 NOTRUN ReadableStream with byte source: respondWithNewView() with a smaller view

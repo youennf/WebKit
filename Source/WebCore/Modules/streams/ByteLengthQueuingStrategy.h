@@ -25,29 +25,32 @@
 
 #pragma once
 
-#include "ReadableStreamType.h"
+#include "QueuingStrategySize.h"
+
+namespace JSC {
+class JSValue;
+}
 
 namespace WebCore {
 
-class QueuingStrategySize;
+class JSDOMGlobalObject;
 
 class ByteLengthQueuingStrategy : public RefCounted<ByteLengthQueuingStrategy> {
 public:
     struct Init {
-        std::optional<double> highWaterMark;
+        double highWaterMark;
     };
 
     static Ref<ByteLengthQueuingStrategy> create(Init&&);
     ~ByteLengthQueuingStrategy();
 
     double highWaterMark() const { return m_highWaterMark; }
-    QueuingStrategySize* size() { return m_size.get(); }
+    JSC::JSValue size(JSDOMGlobalObject&);
 
 private:
     explicit ByteLengthQueuingStrategy(Init&&);
 
     double m_highWaterMark;
-    RefPtr<QueuingStrategySize> m_size;
 };
 
 } // namespace WebCore

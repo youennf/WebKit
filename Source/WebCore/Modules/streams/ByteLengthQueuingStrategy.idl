@@ -38,5 +38,5 @@ dictionary QueuingStrategyInit {
     constructor(QueuingStrategyInit init);
 
     readonly attribute unrestricted double highWaterMark;
-    readonly attribute QueuingStrategySize? size;
+    [CallWith=RelevantGlobalObject] readonly attribute any size;
 };

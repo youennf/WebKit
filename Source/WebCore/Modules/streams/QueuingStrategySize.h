@@ -40,7 +40,8 @@ class QueuingStrategySize : public RefCounted<QueuingStrategySize>, public Activ
 public:
     using ActiveDOMCallback::ActiveDOMCallback;
 
-    virtual CallbackResult<double> handleEvent(JSC::JSValue) = 0;
+    virtual CallbackResult<double> invoke(JSC::JSValue) = 0;
+    virtual CallbackResult<double> invokeRethrowingException(JSC::JSValue) = 0;
 
 private:
     virtual bool hasCallback() const = 0;
