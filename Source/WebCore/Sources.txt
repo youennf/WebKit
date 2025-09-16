@@ -643,6 +643,7 @@ bindings/js/IDBBindingUtilities.cpp
 bindings/js/InternalReadableStream.cpp
 bindings/js/InternalReadableStreamDefaultReader.cpp
 bindings/js/InternalWritableStream.cpp
+bindings/js/InternalWritableStreamWriter.cpp
 bindings/js/JSAbortSignalCustom.cpp
 bindings/js/JSAbstractRangeCustom.cpp
 bindings/js/JSAnimationEffectCustom.cpp
@@ -763,7 +764,6 @@ bindings/js/JSShadowRealmGlobalScopeBase.cpp
 bindings/js/JSShadowRootCustom.cpp
 bindings/js/JSSourceBufferCustom.cpp
 bindings/js/JSStaticRangeCustom.cpp
-bindings/js/JSStreamPipeOptions.cpp
 bindings/js/JSStylePropertyMapReadOnlyCustom.cpp
 bindings/js/JSStyleSheetCustom.cpp
 bindings/js/JSSubscriberCustom.cpp
@@ -4848,6 +4848,7 @@ JSStereoPannerOptions.cpp
 JSStorage.cpp
 JSStorageEvent.cpp
 JSStorageManager.cpp
+JSStreamPipeOptions.cpp
 JSStringCallback.cpp
 JSStructuredSerializeOptions.cpp
 JSStyleMedia.cpp

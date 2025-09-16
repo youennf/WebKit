@@ -10556,6 +10556,8 @@
 		4172E46928D90C4000CD5549 /* DOMCacheIdentifier.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DOMCacheIdentifier.h; sourceTree = "<group>"; };
 		41730C992E7950DD0097995B /* StreamPipeOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = StreamPipeOptions.idl; sourceTree = "<group>"; };
 		41730C9A2E7951060097995B /* StreamPipeOptions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StreamPipeOptions.h; sourceTree = "<group>"; };
+		41730CA02E796E750097995B /* InternalWritableStreamWriter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InternalWritableStreamWriter.h; sourceTree = "<group>"; };
+		41730CA12E796E750097995B /* InternalWritableStreamWriter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InternalWritableStreamWriter.cpp; sourceTree = "<group>"; };
 		41733D7D25DFBFC500A136E5 /* JSRTCRtpSFrameTransformCustom.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = JSRTCRtpSFrameTransformCustom.cpp; sourceTree = "<group>"; };
 		4174E91E2535DCD600FE4202 /* MediaStreamTrackAudioSourceProviderCocoa.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaStreamTrackAudioSourceProviderCocoa.h; sourceTree = "<group>"; };
 		4174E9202535DCDD00FE4202 /* MediaStreamTrackAudioSourceProviderCocoa.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MediaStreamTrackAudioSourceProviderCocoa.cpp; sourceTree = "<group>"; };
@@ -35440,6 +35442,8 @@
 				4193216C2CBEB0990049AA57 /* InternalReadableStreamDefaultReader.h */,
 				41418A0325643E1200363417 /* InternalWritableStream.cpp */,
 				41418A0425643E1300363417 /* InternalWritableStream.h */,
+				41730CA12E796E750097995B /* InternalWritableStreamWriter.cpp */,
+				41730CA02E796E750097995B /* InternalWritableStreamWriter.h */,
 				9BD4E9141C462872005065BC /* JSCustomElementInterface.cpp */,
 				9BD4E9151C462872005065BC /* JSCustomElementInterface.h */,
 				7C57BFE61EDE2F5B00534A48 /* JSDOMAbstractOperations.h */,

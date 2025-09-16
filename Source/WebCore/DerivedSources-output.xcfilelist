@@ -1746,10 +1746,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageCapture.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageCapture.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageData.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageData.h
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataSettings.cpp
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataSettings.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataPixelFormat.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataPixelFormat.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataSettings.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageDataSettings.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageResource.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageResource.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSImageSmoothingQuality.cpp
@@ -3020,6 +3020,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorageManager+FileSystem.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorageManager+FileSystem.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorageManager.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorageManager.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStreamPipeOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStreamPipeOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStringCallback.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStringCallback.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStructuredSerializeOptions.cpp
