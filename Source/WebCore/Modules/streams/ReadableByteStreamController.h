@@ -80,8 +80,15 @@ public:
 
     ReadableStreamBYOBRequest* getByobRequest() const;
 
+    bool hasPendingPullIntos() const { return !m_pendingPullIntos.isEmpty(); }
+
     void ref();
     void deref();
+
+    void error(JSDOMGlobalObject&, const Exception&);
+    void error(JSDOMGlobalObject&, JSC::JSValue);
+    void close();
+    ExceptionOr<void> enqueue(JSDOMGlobalObject&, JSC::ArrayBufferView&);
 
 private:
     friend ReadableStream;
@@ -113,10 +120,8 @@ private:
     };
 
     std::optional<double> getDesiredSize() const;
-    ExceptionOr<void> enqueue(JSDOMGlobalObject&, JSC::ArrayBufferView&);
     void didStart(JSDOMGlobalObject&);
 
-    void close();
 
     void invalidateByobRequest();
     void processPullIntoDescriptorsUsingQueue(JSDOMGlobalObject&);
@@ -132,7 +137,6 @@ private:
     void fillHeadPullIntoDescriptor(size_t, PullIntoDescriptor&);
     void commitPulllIntoDescriptor(JSDOMGlobalObject&, PullIntoDescriptor&);
 
-    void error(JSDOMGlobalObject&, JSC::JSValue);
     void clearAlgorithms();
     void clearPendingPullIntos();
 

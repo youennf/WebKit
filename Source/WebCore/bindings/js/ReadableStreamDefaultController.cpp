@@ -70,7 +70,6 @@ void ReadableStreamDefaultController::close()
     invokeReadableStreamDefaultControllerFunction(globalObject(), privateName, arguments);
 }
 
-
 void ReadableStreamDefaultController::error(const Exception& exception)
 {
     JSC::JSGlobalObject& lexicalGlobalObject = this->globalObject();

@@ -35,6 +35,7 @@
 
 namespace WebCore {
 
+class DOMPromise;
 class DeferredPromise;
 class ReadableStream;
 
@@ -48,36 +49,43 @@ public:
     struct ReadOptions {
         size_t min { 1 };
     };
-
+    
     void read(JSDOMGlobalObject&, JSC::ArrayBufferView&, ReadOptions, Ref<DeferredPromise>&&);
     void releaseLock(JSDOMGlobalObject&);
-
-    JSC::JSValue closed();
-
+    
+    DOMPromise& closed();
+    
     void cancel(JSDOMGlobalObject& globalObject, JSC::JSValue, Ref<DeferredPromise>&&);
-
+    
     Ref<DeferredPromise> takeFirstReadIntoRequest() { return m_readIntoRequests.takeFirst(); }
     size_t readIntoRequestsSize() const { return m_readIntoRequests.size(); }
     void addReadIntoRequest(Ref<DeferredPromise>&& promise) { m_readIntoRequests.append(WTFMove(promise)); }
-
+    
     void resolveClosedPromise();
     void rejectClosedPromise(JSC::JSValue);
     void errorReadIntoRequests(JSC::JSValue);
 
-private:
-    explicit ReadableStreamBYOBReader(JSDOMGlobalObject&);
+    using ClosedCallback = Function<void(JSDOMGlobalObject&, JSC::JSValue)>;
+    void onClosedPromiseRejection(ClosedCallback&&);
 
+    void read(JSDOMGlobalObject&, JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
+    
+private:
+    explicit ReadableStreamBYOBReader(Ref<DOMPromise>&&, Ref<DeferredPromise>&&);
+    
     ExceptionOr<void> setupBYOBReader(ReadableStream&);
     void initialize(ReadableStream&);
-    void read(JSDOMGlobalObject&, JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
     void genericRelease(JSDOMGlobalObject&);
     void errorReadIntoRequests(Exception&&);
-
+    
     void genericCancel(JSDOMGlobalObject&, JSC::JSValue, Ref<DeferredPromise>&&);
-
-    Ref<DeferredPromise> m_closedPromise;
+    
+    Ref<DOMPromise> m_closedPromise;
+    Ref<DeferredPromise> m_closedDeferred;
     RefPtr<ReadableStream> m_stream;
     Deque<Ref<DeferredPromise>> m_readIntoRequests;
+
+    ClosedCallback m_closedCallback;
 };
 
 } // namespace WebCore
