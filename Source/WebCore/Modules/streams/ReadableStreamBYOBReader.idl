@@ -38,6 +38,6 @@ dictionary ReadableStreamBYOBReaderReadOptions {
     [CallWith=CurrentGlobalObject] undefined releaseLock();
 
     // ReadableStreamGenericReader
-    readonly attribute any closed;
+    readonly attribute Promise<undefined> closed;
     [CallWith=CurrentGlobalObject] Promise<undefined> cancel(optional any reason);
 };

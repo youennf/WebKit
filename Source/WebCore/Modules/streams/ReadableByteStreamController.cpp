@@ -540,6 +540,21 @@ void ReadableByteStreamController::error(JSDOMGlobalObject& globalObject, JSC::J
     stream->error(globalObject, value);
 }
 
+void ReadableByteStreamController::error(JSDOMGlobalObject& globalObject, const Exception& exception)
+{
+    auto& vm = globalObject.vm();
+    JSC::JSLockHolder lock(vm);
+    auto scope = DECLARE_CATCH_SCOPE(vm);
+    auto value = createDOMException(&globalObject, exception.code(), exception.message());
+
+    if (scope.exception()) [[unlikely]] {
+        ASSERT(vm.hasPendingTerminationException());
+        return;
+    }
+
+    error(globalObject, value);
+}
+
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-clear-pending-pull-intos
 void ReadableByteStreamController::clearPendingPullIntos()
 {
