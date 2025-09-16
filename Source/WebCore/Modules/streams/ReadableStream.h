@@ -39,7 +39,9 @@ class JSDOMGlobalObject;
 class ReadableStreamBYOBReader;
 class ReadableStreamDefaultReader;
 class ReadableStreamSource;
+class WritableStream;
 
+struct StreamPipeOptions;
 struct UnderlyingSource;
 
 class ReadableStream : public RefCounted<ReadableStream>, public CanMakeWeakPtr<ReadableStream> {
@@ -47,6 +49,10 @@ public:
     enum class ReaderMode { Byob };
     struct GetReaderOptions {
         std::optional<ReaderMode> mode;
+    };
+    struct WritablePair {
+        RefPtr<ReadableStream> readable;
+        RefPtr<WritableStream> writable;
     };
 
     static ExceptionOr<Ref<ReadableStream>> create(JSDOMGlobalObject&, std::optional<JSC::Strong<JSC::JSObject>>&&, std::optional<JSC::Strong<JSC::JSObject>>&&);
@@ -95,6 +101,9 @@ public:
 
     size_t getNumReadRequests() const;
     void addReadRequest(Ref<DeferredPromise>&&);
+
+    void pipeTo(JSDOMGlobalObject&, WritableStream&, StreamPipeOptions&&, Ref<DeferredPromise>&&);
+    ExceptionOr<Ref<ReadableStream>> pipeThrough(JSDOMGlobalObject&, WritablePair&&, StreamPipeOptions&&);
 
 protected:
     static ExceptionOr<Ref<ReadableStream>> createFromJSValues(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);

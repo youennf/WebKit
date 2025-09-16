@@ -764,6 +764,7 @@ bindings/js/JSShadowRealmGlobalScopeBase.cpp
 bindings/js/JSShadowRootCustom.cpp
 bindings/js/JSSourceBufferCustom.cpp
 bindings/js/JSStaticRangeCustom.cpp
+bindings/js/JSStreamPipeOptions.cpp
 bindings/js/JSStylePropertyMapReadOnlyCustom.cpp
 bindings/js/JSStyleSheetCustom.cpp
 bindings/js/JSSubscriberCustom.cpp

@@ -723,6 +723,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/streams/ReadableStreamSink.idl
     Modules/streams/ReadableStreamSource.idl
     Modules/streams/ReadableStreamType.idl
+    Modules/streams/StreamPipeOptions.idl
     Modules/streams/TransformStream.idl
     Modules/streams/TransformStreamDefaultController.idl
     Modules/streams/UnderlyingSource.idl

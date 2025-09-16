@@ -645,6 +645,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/streams/ReadableStreamSink.idl \
     $(WebCore)/Modules/streams/ReadableStreamSource.idl \
     $(WebCore)/Modules/streams/ReadableStreamType.idl \
+    $(WebCore)/Modules/streams/StreamPipeOptions.idl \
     $(WebCore)/Modules/streams/TransformStream.idl \
     $(WebCore)/Modules/streams/TransformStreamDefaultController.idl \
     $(WebCore)/Modules/streams/UnderlyingSource.idl \
