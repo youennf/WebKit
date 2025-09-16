@@ -33,6 +33,11 @@ dictionary ReadableStreamGetReaderOptions {
     ReadableStreamReaderMode mode;
 };
 
+dictionary ReadableWritablePair {
+    required ReadableStream readable;
+    required WritableStream writable;
+};
+
 [
     ExportMacro=WEBCORE_EXPORT,
     Exposed=*,
@@ -43,8 +48,8 @@ dictionary ReadableStreamGetReaderOptions {
 
     [Custom, ReturnsOwnPromise] Promise<any> cancel(optional any reason);
     [CallWith=CurrentGlobalObject] object getReader(optional ReadableStreamGetReaderOptions options = { });
-    [Custom, ReturnsOwnPromise] Promise<any> pipeTo(any streams, optional any options);
-    [Custom] Object pipeThrough(any dest, optional any options);
+    [Custom, ReturnsOwnPromise] Promise<undefined> pipeTo(WritableStream destination, optional StreamPipeOptions options = {});
+    [Custom] ReadableStream pipeThrough(ReadableWritablePair transform, optional StreamPipeOptions options = {});
     [CallWith=CurrentGlobalObject] sequence<ReadableStream> tee();
 
     [ImplementedAs=isLocked] readonly attribute boolean locked;
