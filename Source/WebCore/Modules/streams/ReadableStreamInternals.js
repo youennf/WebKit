@@ -280,6 +280,12 @@ function readableStreamDefaultReaderCancelForBindings(reader, reason)
     return @readableStreamReaderGenericCancel(reader, reason);
 }
 
+function readableStreamDefaultReaderClosedPromise(reader)
+{
+    @assert(@isReadableStreamDefaultReader(reader));
+    return @getByIdDirectPrivate(reader, "closedPromiseCapability").promise;
+}
+
 function readableStreamReaderGenericInitialize(reader, stream)
 {
     "use strict";
@@ -1088,4 +1094,16 @@ function readableStreamDefaultControllerCanCloseOrEnqueue(controller)
     "use strict";
 
     return !@getByIdDirectPrivate(controller, "closeRequested") && @getByIdDirectPrivate(@getByIdDirectPrivate(controller, "controlledReadableStream"), "state") === @streamReadable;
+}
+
+function readableStreamState(stream)
+{
+    @assert(@isReadableStream(stream));
+    return @getByIdDirectPrivate(stream, "state");
+}
+
+function readableStreamStoredError(stream)
+{
+    @assert(@isReadableStream(stream));
+    return @getByIdDirectPrivate(stream, "storedError");
 }

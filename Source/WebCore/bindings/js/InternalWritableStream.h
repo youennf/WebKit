@@ -50,6 +50,14 @@ public:
     void closeIfPossible();
     void errorIfPossible(Exception&&);
 
+    JSC::JSValue abort(JSC::JSGlobalObject&, JSC::JSValue);
+    String state(JSC::JSGlobalObject& globalObject) const;
+    bool closeQueuedOrInFlight();
+
+    void test();
+
+    ExceptionOr<JSC::JSValue> storedError() const;
+
 private:
     InternalWritableStream(JSDOMGlobalObject& globalObject, JSC::JSObject& jsObject)
         : DOMGuarded<JSC::JSObject>(globalObject, jsObject)

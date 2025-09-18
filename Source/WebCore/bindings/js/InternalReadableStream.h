@@ -54,14 +54,19 @@ public:
     JSC::JSValue pipeTo(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
     JSC::JSValue pipeThrough(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue);
 
+    enum class Use { Bindings, Private };
+    JSC::JSValue cancel(JSC::JSGlobalObject&, JSC::JSValue, Use);
+
+    enum class State : uint8_t { Readable, Closed, Errored };
+    State state() const;
+    JSC::JSValue storedError(JSDOMGlobalObject&) const;
+
 private:
     InternalReadableStream(JSDOMGlobalObject& globalObject, JSC::JSObject& jsObject)
         : DOMGuarded<JSC::JSObject>(globalObject, jsObject)
     {
     }
 
-    enum class Use { Bindings, Private };
-    JSC::JSValue cancel(JSC::JSGlobalObject&, JSC::JSValue, Use);
     JSC::JSValue tee(JSC::JSGlobalObject&, bool shouldClone);
 };
 

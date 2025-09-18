@@ -39,7 +39,7 @@ ExceptionOr<Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::create(JSDO
 {
     auto [promise, deferred] = createPromiseAndWrapper(globalObject);
     Ref reader = adoptRef(*new ReadableStreamBYOBReader(WTFMove(promise), WTFMove(deferred)));
-    auto result = reader->setupBYOBReader(stream);
+    auto result = reader->setupBYOBReader(globalObject, stream);
     if (result.hasException())
         return result.releaseException();
     return reader;
@@ -102,7 +102,7 @@ void ReadableStreamBYOBReader::cancel(JSDOMGlobalObject& globalObject, JSC::JSVa
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-byob-reader
-ExceptionOr<void> ReadableStreamBYOBReader::setupBYOBReader(ReadableStream& stream)
+ExceptionOr<void> ReadableStreamBYOBReader::setupBYOBReader(JSDOMGlobalObject& globalObject, ReadableStream& stream)
 {
     if (stream.isLocked())
         return Exception { ExceptionCode::TypeError, "stream is locked"_s };
@@ -110,12 +110,12 @@ ExceptionOr<void> ReadableStreamBYOBReader::setupBYOBReader(ReadableStream& stre
     if (!stream.hasByteStreamController())
         return Exception { ExceptionCode::TypeError, "stream is not a byte stream"_s };
     
-    initialize(stream);
+    initialize(globalObject, stream);
     return { };
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-byob-reader
-void ReadableStreamBYOBReader::initialize(ReadableStream& stream)
+void ReadableStreamBYOBReader::initialize(JSDOMGlobalObject& globalObject, ReadableStream& stream)
 {
     m_stream = &stream;
 
@@ -128,7 +128,7 @@ void ReadableStreamBYOBReader::initialize(ReadableStream& stream)
         m_closedDeferred->resolve();
         break;
     case ReadableStream::State::Errored:
-        m_closedDeferred->reject<IDLAny>(stream.storedError());
+        m_closedDeferred->reject<IDLAny>(stream.storedError(globalObject));
         break;
     }
 }
@@ -140,7 +140,7 @@ void ReadableStreamBYOBReader::read(JSDOMGlobalObject& globalObject, JSC::ArrayB
     
     m_stream->setAsDisturbed();
     if (m_stream->state() == ReadableStream::State::Errored) {
-        promise->reject<IDLAny>(m_stream->storedError());
+        promise->reject<IDLAny>(m_stream->storedError(globalObject));
         return;
     }
 

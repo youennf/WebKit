@@ -434,6 +434,12 @@ function writableStreamRejectCloseAndClosedPromiseIfNeeded(stream)
     }
 }
 
+function writableStreamTest(stream)
+{
+    const controller = @getByIdDirectPrivate(stream, "controller");
+    return "test: " + @writableStreamHasOperationMarkedInFlight(stream) + " started: " + @getByIdDirectPrivate(controller, "started");
+}
+
 function writableStreamStartErroring(stream, reason)
 {
     @assert(@getByIdDirectPrivate(stream, "storedError") === @undefined);
@@ -802,4 +808,28 @@ function writableStreamDefaultControllerWrite(controller, chunk, chunkSize)
     } catch (e) {
         @writableStreamDefaultControllerErrorIfNeeded(controller, e);
     }
+}
+
+function writableStreamState(stream)
+{
+    @assert(@isWritableStream(stream));
+    return @getByIdDirectPrivate(stream, "state");
+}
+
+function writableStreamStoredError(stream)
+{
+    @assert(@isWritableStream(stream));
+    return @getByIdDirectPrivate(stream, "storedError");
+}
+
+function writableStreamDefaultWriterClosedPromise(writer)
+{
+    @assert(@isWritableStreamDefaultWriter(writer));
+    return @getByIdDirectPrivate(writer, "closedPromise").promise;
+}
+
+function writableStreamDefaultWriterReadyPromise(writer)
+{
+    @assert(@isWritableStreamDefaultWriter(writer));
+    return @getByIdDirectPrivate(writer, "readyPromise").promise;
 }

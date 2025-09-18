@@ -26,6 +26,7 @@
 #include "config.h"
 #include "InternalReadableStreamDefaultReader.h"
 
+#include "JSDOMPromise.h"
 #include "JSReadableStream.h"
 #include "WebCoreJSClientData.h"
 
@@ -133,6 +134,65 @@ JSC::JSValue InternalReadableStreamDefaultReader::cancelForBindings(JSC::JSGloba
         return { };
 
     return result.returnValue();
+}
+
+void InternalReadableStreamDefaultReader::onClosedPromiseRejection(Function<void(JSDOMGlobalObject&, JSC::JSValue)>&& callback)
+{
+    // FIXME: We should register only one settlement handler for rejection and resolution.
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return;
+    
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& names = clientData->builtinFunctions().readableStreamInternalsBuiltins();
+    auto& privateName = names.readableStreamDefaultReaderClosedPromisePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+
+    auto result = invokeReadableStreamDefaultReaderFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return;
+
+    Ref domPromise = DOMPromise::create(*globalObject, *promise);
+    domPromise->whenSettled([domPromise, callback = WTFMove(callback)] {
+        if (domPromise->status() != DOMPromise::Status::Rejected || !domPromise->globalObject())
+            return;
+        callback(*domPromise->globalObject(), domPromise->result());
+    });
+}
+
+void InternalReadableStreamDefaultReader::onClosedPromiseResolution(Function<void()>&& callback)
+{
+    // FIXME: We should register only one settlement handler for rejection and resolution.
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return;
+    
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& names = clientData->builtinFunctions().readableStreamInternalsBuiltins();
+    auto& privateName = names.readableStreamDefaultReaderClosedPromisePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+
+    auto result = invokeReadableStreamDefaultReaderFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return;
+
+    Ref domPromise = DOMPromise::create(*globalObject, *promise);
+    domPromise->whenSettled([domPromise, callback = WTFMove(callback)] {
+        if (domPromise->status() == DOMPromise::Status::Fulfilled)
+            callback();
+    });
 }
 
 }

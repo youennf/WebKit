@@ -73,8 +73,8 @@ public:
 private:
     explicit ReadableStreamBYOBReader(Ref<DOMPromise>&&, Ref<DeferredPromise>&&);
     
-    ExceptionOr<void> setupBYOBReader(ReadableStream&);
-    void initialize(ReadableStream&);
+    ExceptionOr<void> setupBYOBReader(JSDOMGlobalObject&, ReadableStream&);
+    void initialize(JSDOMGlobalObject&, ReadableStream&);
     void genericRelease(JSDOMGlobalObject&);
     void errorReadIntoRequests(Exception&&);
     

@@ -26,6 +26,7 @@
 #include "config.h"
 #include "ReadableStream.h"
 
+#include "InternalWritableStreamWriter.h"
 #include "JSDOMPromise.h"
 #include "JSDOMPromiseDeferred.h"
 #include "JSReadableStream.h"
@@ -40,6 +41,7 @@
 #include "ReadableStreamBYOBReader.h"
 #include "ReadableStreamBYOBRequest.h"
 #include "ScriptExecutionContext.h"
+#include "StreamPipeToUtilities.h"
 #include "WritableStream.h"
 
 namespace WebCore {
@@ -193,6 +195,14 @@ void ReadableStream::pipeTo(ReadableStreamSink& sink)
     // FIXME: support byte stream.
     if (RefPtr internalReadableStream = m_internalReadableStream)
         internalReadableStream->pipeTo(sink);
+}
+
+ReadableStream::State ReadableStream::state() const
+{
+    if (RefPtr internalReadableStream = m_internalReadableStream)
+        return internalReadableStream->state();
+
+    return m_state;
 }
 
 ExceptionOr<Vector<Ref<ReadableStream>>> ReadableStream::tee(JSDOMGlobalObject& globalObject, bool shouldClone)
@@ -479,7 +489,7 @@ static void pullWithDefaultReader(JSDOMGlobalObject& globalObject, TeeState& sta
             Ref vm = globalObject.vm();
             auto scope = DECLARE_THROW_SCOPE(vm);
             auto resultOrException = convertDictionary<ReadableStreamReadResult>(globalObject, readPromise->result());
-            ASSERT(!resultOrException.hasException());
+            ASSERT(!resultOrException.hasException(scope));
             if (resultOrException.hasException(scope))
                 return;
             auto result = resultOrException.releaseReturnValue();
@@ -658,8 +668,7 @@ static void pullWithBYOBReader(JSDOMGlobalObject& globalObject, TeeState& state,
                 if (chunkResult.hasException(scope)) [[unlikely]]
                     return;
 
-                auto chunk = chunkResult.releaseReturnValue();
-                ASSERT(chunk);
+                Ref chunk = chunkResult.releaseReturnValue();
                 ASSERT(!chunk->byteLength());
                 if (RefPtr branch1 = state->branch1())
                     branch1->protectedController()->respondWithNewView(globalObject, chunk);
@@ -814,13 +823,11 @@ void ReadableStream::close()
 {
     ASSERT(m_state == ReadableStream::State::Readable);
     m_state = ReadableStream::State::Closed;
-
+    
     if (RefPtr defaultReader = m_defaultReader.get()) {
         defaultReader->resolveClosedPromise();
         return;
-    }
-
-    if (RefPtr byobReader = m_byobReader.get())
+    } else if (RefPtr byobReader = m_byobReader.get())
         byobReader->resolveClosedPromise();
 }
 
@@ -917,9 +924,19 @@ void ReadableStream::addReadRequest(Ref<DeferredPromise>&& promise)
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-pipe-to
-static void pipeToInternal(JSDOMGlobalObject&, ReadableStream&, WritableStream&, const StreamPipeOptions&, RefPtr<DeferredPromise>&&)
+static void pipeToInternal(JSDOMGlobalObject& globalObject, ReadableStream& source, WritableStream& destination, StreamPipeOptions&& options, RefPtr<DeferredPromise>&& promise)
 {
-    // FIXME
+    auto readerOrException = ReadableStreamDefaultReader::create(globalObject, source);
+    if (readerOrException.hasException())
+        return;
+    
+    auto writerOrException = acquireWritableStreamDefaultWriter(globalObject, destination);
+    if (writerOrException.hasException())
+        return;
+    
+    source.setAsDisturbed();
+
+    PipeToState::readableStreamPipeTo(globalObject, source, destination, readerOrException.releaseReturnValue(), writerOrException.releaseReturnValue(), WTFMove(options), WTFMove(promise));
 }
 
 void ReadableStream::pipeTo(JSDOMGlobalObject& globalObject, WritableStream& destination, StreamPipeOptions&& options, Ref<DeferredPromise>&& promise)
@@ -934,7 +951,7 @@ void ReadableStream::pipeTo(JSDOMGlobalObject& globalObject, WritableStream& des
         return;
     }
     
-    pipeToInternal(globalObject, *this, destination, options, WTFMove(promise));
+    pipeToInternal(globalObject, *this, destination, WTFMove(options), WTFMove(promise));
 }
 
 ExceptionOr<Ref<ReadableStream>> ReadableStream::pipeThrough(JSDOMGlobalObject& globalObject, WritablePair&& transform, StreamPipeOptions&& options)
@@ -945,15 +962,17 @@ ExceptionOr<Ref<ReadableStream>> ReadableStream::pipeThrough(JSDOMGlobalObject& 
     if (transform.writable->locked())
         return Exception { ExceptionCode::TypeError, "transform writable is locked"_s };
     
-    pipeToInternal(globalObject, *this, *transform.writable, options, nullptr);
+    pipeToInternal(globalObject, *this, *transform.writable, WTFMove(options), nullptr);
     
     return Ref { *transform.readable };
 }
 
-JSC::JSValue ReadableStream::storedError() const
+JSC::JSValue ReadableStream::storedError(JSDOMGlobalObject& globalObject) const
 {
-    ASSERT(m_controller);
-    return m_controller ? m_controller->storedError() : JSC::jsUndefined();
+    if (RefPtr internalReadableStream = m_internalReadableStream)
+        return internalReadableStream->storedError(globalObject);
+
+    return m_controller->storedError();
 }
 
 JSC::JSValue JSReadableStream::cancel(JSC::JSGlobalObject& globalObject, JSC::CallFrame& callFrame)
@@ -974,30 +993,42 @@ JSC::JSValue JSReadableStream::cancel(JSC::JSGlobalObject& globalObject, JSC::Ca
 JSC::JSValue JSReadableStream::pipeTo(JSC::JSGlobalObject& globalObject, JSC::CallFrame& callFrame)
 {
     RefPtr internalReadableStream = wrapped().internalReadableStream();
-    if (!internalReadableStream) {
+//    if (!internalReadableStream) {
+    {
         auto& jsDOMGlobalObject = *JSC::jsCast<JSDOMGlobalObject*>(&globalObject);
 
         Ref vm = globalObject.vm();
         auto throwScope = DECLARE_THROW_SCOPE(vm);
-        if (callFrame.argumentCount() < 1)
-            return throwException(&globalObject, throwScope, createNotEnoughArgumentsError(&globalObject));
+
+        auto* promise = JSC::JSPromise::create(vm.get(), globalObject.promiseStructure());
+        Ref domPromise = DeferredPromise::create(*JSC::jsCast<JSDOMGlobalObject*>(&globalObject), *promise);
+
+        if (callFrame.argumentCount() < 1) {
+            domPromise->rejectWithCallback([](auto& globalObject) {
+                return createNotEnoughArgumentsError(&globalObject);
+            });
+            return promise;
+        }
 
         JSC::EnsureStillAliveScope argument0 = callFrame.uncheckedArgument(0);
         auto destinationConversionResult = convert<IDLInterface<WritableStream>>(globalObject, argument0.value(), [](JSC::JSGlobalObject& lexicalGlobalObject, JSC::ThrowScope& scope) { throwArgumentTypeError(lexicalGlobalObject, scope, 0, "destination"_s, "ReadableStream"_s, "pipeTo"_s, "WritableStream"_s); });
-        if (destinationConversionResult.hasException(throwScope)) [[unlikely]]
-            return { };
+        if (destinationConversionResult.hasException(throwScope)) [[unlikely]] {
+            domPromise->reject(Exception { ExceptionCode::ExistingExceptionError });
+            return promise;
+        }
 
         JSC::EnsureStillAliveScope argument1 = callFrame.argument(1);
         auto optionsConversionResult = convert<IDLDictionary<StreamPipeOptions>>(globalObject, argument1.value());
-        if (optionsConversionResult.hasException(throwScope)) [[unlikely]]
-            return { };
+        if (optionsConversionResult.hasException(throwScope)) [[unlikely]] {
+            domPromise->reject(Exception { ExceptionCode::ExistingExceptionError });
+            return promise;
+        }
 
-        auto* promise = JSC::JSPromise::create(vm.get(), globalObject.promiseStructure());
-        Ref { wrapped() }->pipeTo(jsDOMGlobalObject, *destinationConversionResult.releaseReturnValue(), optionsConversionResult.releaseReturnValue(), DeferredPromise::create(*JSC::jsCast<JSDOMGlobalObject*>(&globalObject), *promise));
+        Ref { wrapped() }->pipeTo(jsDOMGlobalObject, *destinationConversionResult.releaseReturnValue(), optionsConversionResult.releaseReturnValue(), WTFMove(domPromise));
         return promise;
     }
 
-    return internalReadableStream->pipeTo(globalObject, callFrame.argument(0), callFrame.argument(1));
+//    return internalReadableStream->pipeTo(globalObject, callFrame.argument(0), callFrame.argument(1));
 }
 
 JSC::JSValue JSReadableStream::pipeThrough(JSC::JSGlobalObject& globalObject, JSC::CallFrame& callFrame)
