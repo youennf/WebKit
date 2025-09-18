@@ -149,6 +149,7 @@ JSC_DEFINE_HOST_FUNCTION(consoleProtoFuncError, (JSGlobalObject* globalObject, C
 
 JSC_DEFINE_HOST_FUNCTION(consoleProtoFuncLog, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
+    fprintf(stderr, "consoleProtoFuncLog\n");
     return consoleLogWithLevel(globalObject, callFrame, MessageLevel::Log);
 }
 

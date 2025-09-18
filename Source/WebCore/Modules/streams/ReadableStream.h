@@ -62,8 +62,8 @@ public:
 
     virtual ~ReadableStream();
 
-    enum class State : uint8_t { Readable, Closed, Errored };
-    State state() const { return m_state; }
+    using State = InternalReadableStream::State;
+    State state() const;
 
     ExceptionOr<JSC::Strong<JSC::JSObject>> getReader(JSDOMGlobalObject&, const GetReaderOptions&);
 
@@ -94,7 +94,7 @@ public:
     void error(JSDOMGlobalObject&, JSC::JSValue);
     void cancel(JSDOMGlobalObject&, JSC::JSValue, Ref<DeferredPromise>&&);
 
-    JSC::JSValue storedError() const;
+    JSC::JSValue storedError(JSDOMGlobalObject&) const;
 
     size_t getNumReadIntoRequests() const;
     void addReadIntoRequest(Ref<DeferredPromise>&&);

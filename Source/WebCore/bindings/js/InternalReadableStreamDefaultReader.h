@@ -49,6 +49,9 @@ public:
     JSC::JSValue closedForBindings(JSC::JSGlobalObject&);
     JSC::JSValue cancelForBindings(JSC::JSGlobalObject&, JSC::JSValue);
 
+    void onClosedPromiseRejection(Function<void(JSDOMGlobalObject&, JSC::JSValue)>&&);
+    void onClosedPromiseResolution(Function<void()>&&);
+
 private:
     InternalReadableStreamDefaultReader(JSDOMGlobalObject& globalObject, JSC::JSObject& jsObject)
         : DOMGuarded<JSC::JSObject>(globalObject, jsObject)

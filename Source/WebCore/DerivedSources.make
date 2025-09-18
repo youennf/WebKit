@@ -2659,6 +2659,7 @@ WebCore_BUILTINS_SOURCES = \
     $(WebCore)/Modules/compression/CompressionStream.js \
     $(WebCore)/Modules/compression/DecompressionStream.js \
     $(WebCore)/Modules/streams/CountQueuingStrategy.js \
+    $(WebCore)/Modules/streams/ReadableByteStreamInternals.js \
     $(WebCore)/Modules/streams/ReadableStreamDefaultController.js \
     $(WebCore)/Modules/streams/ReadableStreamInternals.js \
     $(WebCore)/Modules/streams/StreamInternals.js \

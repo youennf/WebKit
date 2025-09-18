@@ -166,6 +166,50 @@ JSC::JSValue InternalWritableStream::abortForBindings(JSC::JSGlobalObject& globa
     return result.returnValue();
 }
 
+void InternalWritableStream::test()
+{
+    auto* globalObject = this->globalObject();
+    if (!globalObject) {
+        fprintf(stderr, "InternalWritableStream::testing no object\n");
+        return;
+    }
+
+    auto* clientData = downcast<JSVMClientData>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamTestPrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+    ASSERT(!arguments.hasOverflowed());
+
+    auto result = invokeWritableStreamFunction(*globalObject, privateName, arguments);
+    if (result.hasException()) {
+        fprintf(stderr, "InternalWritableStream::testing failed\n");
+        return;
+    }
+    WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+    fprintf(stderr, "InternalWritableStream::testing '%s'\n", result.releaseReturnValue().toWTFString(globalObject).utf8().data());
+    WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+}
+
+JSC::JSValue InternalWritableStream::abort(JSC::JSGlobalObject& globalObject, JSC::JSValue reason)
+{
+    test();
+
+    auto* clientData = downcast<JSVMClientData>(globalObject.vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamAbortPrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+    arguments.append(reason);
+    ASSERT(!arguments.hasOverflowed());
+
+    auto result = invokeWritableStreamFunction(globalObject, privateName, arguments);
+    if (result.hasException())
+        return { };
+
+    return result.returnValue();
+}
+
 JSC::JSValue InternalWritableStream::closeForBindings(JSC::JSGlobalObject& globalObject)
 {
     auto* clientData = downcast<JSVMClientData>(globalObject.vm().clientData);
@@ -241,6 +285,59 @@ JSC::JSValue InternalWritableStream::getWriter(JSC::JSGlobalObject& globalObject
         return { };
 
     return result.returnValue();
+}
+
+// FIXME: Remove globalObject parameter.
+String InternalWritableStream::state(JSC::JSGlobalObject& globalObject) const
+{
+    auto* clientData = downcast<JSVMClientData>(globalObject.vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamStatePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+    ASSERT(!arguments.hasOverflowed());
+
+    auto result = invokeWritableStreamFunction(globalObject, privateName, arguments);
+    if (result.hasException())
+        return { };
+
+    return result.returnValue().toWTFString(&globalObject);
+}
+
+ExceptionOr<JSC::JSValue> InternalWritableStream::storedError() const
+{
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return Exception { ExceptionCode::InvalidStateError };
+
+    auto* clientData = downcast<JSVMClientData>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamStoredErrorPrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+    ASSERT(!arguments.hasOverflowed());
+
+    return invokeWritableStreamFunction(*globalObject, privateName, arguments);
+}
+
+bool InternalWritableStream::closeQueuedOrInFlight()
+{
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return true;
+
+    auto* clientData = downcast<JSVMClientData>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamCloseQueuedOrInFlightPrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+    ASSERT(!arguments.hasOverflowed());
+
+    auto result = invokeWritableStreamFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return true;
+
+    return result.returnValue().toBoolean(globalObject);
 }
 
 }

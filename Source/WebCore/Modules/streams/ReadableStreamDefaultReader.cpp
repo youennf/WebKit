@@ -79,8 +79,11 @@ ReadableStreamDefaultReader::ReadableStreamDefaultReader(Ref<ReadableStream>&& s
 
 ExceptionOr<void> ReadableStreamDefaultReader::releaseLock(JSDOMGlobalObject& globalObject)
 {
-    if (RefPtr internalDefaultReader = this->internalDefaultReader())
+    fprintf(stderr, "ReadableStreamDefaultReader::releaseLock1\n");
+    if (RefPtr internalDefaultReader = this->internalDefaultReader()) {
+        fprintf(stderr, "ReadableStreamDefaultReader::releaseLock2\n");
         return internalDefaultReader->releaseLock();
+    }
     
     genericRelease(globalObject);
     errorReadRequests(globalObject, Exception { ExceptionCode::TypeError, "lock released"_s });
@@ -105,7 +108,7 @@ void ReadableStreamDefaultReader::read(JSDOMGlobalObject& globalObject, Ref<Defe
         readRequest->resolve<IDLDictionary<ReadableStreamReadResult>>({ JSC::jsUndefined(), true });
         break;
     case ReadableStream::State::Errored:
-        readRequest->reject<IDLAny>(stream->storedError());
+        readRequest->reject<IDLAny>(stream->storedError(globalObject));
         break;
     case ReadableStream::State::Readable:
         RefPtr { stream->controller() }->runPullSteps(globalObject, WTFMove(readRequest));
@@ -172,22 +175,52 @@ void ReadableStreamDefaultReader::errorReadRequests(JSC::JSValue reason)
 
 void ReadableStreamDefaultReader::onClosedPromiseRejection(ClosedCallback&& callback)
 {
-    if (m_closedCallback) {
-        auto oldCallback = std::exchange(m_closedCallback, { });
-        m_closedCallback = [oldCallback = WTFMove(oldCallback), callback = WTFMove(callback)](auto& globalObject, auto value) mutable {
+    if (m_internalDefaultReader) {
+        m_internalDefaultReader->onClosedPromiseRejection(WTFMove(callback));
+        return;
+    }
+    if (m_closedRejectionCallback) {
+        auto oldCallback = std::exchange(m_closedRejectionCallback, { });
+        m_closedRejectionCallback = [oldCallback = WTFMove(oldCallback), callback = WTFMove(callback)](auto& globalObject, auto value) mutable {
             oldCallback(globalObject, value);
             callback(globalObject, value);
         };
         return;
     }
 
-    m_closedCallback = WTFMove(callback);
-    m_closedPromise->whenSettled([weakThis = WeakPtr { *this }]() mutable {
+    m_closedRejectionCallback = WTFMove(callback);
+    m_closedPromise->whenSettled([weakThis = WeakPtr { *this }] {
         RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !protectedThis->m_closedPromise->globalObject() || !protectedThis->m_closedCallback)
+        if (!protectedThis || !protectedThis->m_closedPromise->globalObject() || !protectedThis->m_closedRejectionCallback || protectedThis->m_closedPromise->status() != DOMPromise::Status::Rejected)
             return;
 
-        protectedThis->m_closedCallback(*protectedThis->m_closedPromise->globalObject(), protectedThis->m_closedPromise->result());
+        protectedThis->m_closedRejectionCallback(*protectedThis->m_closedPromise->globalObject(), protectedThis->m_closedPromise->result());
+    });
+}
+
+void ReadableStreamDefaultReader::onClosedPromiseResolution(Function<void()>&& callback)
+{
+    if (m_internalDefaultReader) {
+        m_internalDefaultReader->onClosedPromiseResolution(WTFMove(callback));
+        return;
+    }
+
+    if (m_closedResolutionCallback) {
+        auto oldCallback = std::exchange(m_closedResolutionCallback, { });
+        m_closedResolutionCallback = [oldCallback = WTFMove(oldCallback), callback = WTFMove(callback)]() mutable {
+            oldCallback();
+            callback();
+        };
+        return;
+    }
+
+    m_closedResolutionCallback = WTFMove(callback);
+    m_closedPromise->whenSettled([weakThis = WeakPtr { *this }] {
+        RefPtr protectedThis = weakThis.get();
+        if (!protectedThis || !protectedThis->m_closedPromise->globalObject() || !protectedThis->m_closedResolutionCallback || protectedThis->m_closedPromise->status() != DOMPromise::Status::Fulfilled)
+            return;
+
+        protectedThis->m_closedResolutionCallback();
     });
 }
 

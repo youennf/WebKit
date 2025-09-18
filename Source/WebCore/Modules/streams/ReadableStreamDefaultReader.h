@@ -63,7 +63,8 @@ public:
     
     using ClosedCallback = Function<void(JSDOMGlobalObject&, JSC::JSValue)>;
     void onClosedPromiseRejection(ClosedCallback&&);
-    
+    void onClosedPromiseResolution(Function<void()>&&);
+
 private:
     explicit ReadableStreamDefaultReader(Ref<InternalReadableStreamDefaultReader>&&, Ref<DOMPromise>&&, Ref<DeferredPromise>&&);
     explicit ReadableStreamDefaultReader(Ref<ReadableStream>&&, Ref<DOMPromise>&&, Ref<DeferredPromise>&&);
@@ -76,7 +77,8 @@ private:
     RefPtr<InternalReadableStreamDefaultReader> m_internalDefaultReader;
     RefPtr<ReadableStream> m_stream;
     Deque<Ref<DeferredPromise>> m_readRequests;
-    ClosedCallback m_closedCallback;
+    ClosedCallback m_closedRejectionCallback;
+    Function<void()> m_closedResolutionCallback;
 };
 
 } // namespace WebCore

@@ -26,6 +26,7 @@
 #include "config.h"
 #include "InternalWritableStreamWriter.h"
 
+#include "JSDOMPromise.h"
 #include "WritableStream.h"
 
 namespace WebCore {
@@ -82,11 +83,11 @@ int writableStreamDefaultWriterGetDesiredSize(InternalWritableStreamWriter& writ
     return result.returnValue().toNumber(globalObject);
 }
 
-void writableStreamDefaultWriterCloseWithErrorPropagation(InternalWritableStreamWriter& writer)
+RefPtr<DOMPromise> writableStreamDefaultWriterCloseWithErrorPropagation(InternalWritableStreamWriter& writer)
 {
     auto* globalObject = writer.globalObject();
     if (!globalObject)
-        return;
+        return nullptr;
 
     auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
     auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterCloseWithErrorPropagationPrivateName();
@@ -94,22 +95,152 @@ void writableStreamDefaultWriterCloseWithErrorPropagation(InternalWritableStream
     JSC::MarkedArgumentBuffer arguments;
     arguments.append(writer.guardedObject());
 
-    invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    auto result = invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return nullptr;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return nullptr;
+
+    fprintf(stderr, "writableStreamDefaultWriterCloseWithErrorPropagation final\n");
+    return DOMPromise::create(*globalObject, *promise);
 }
 
 void writableStreamDefaultWriterRelease(InternalWritableStreamWriter& writer)
 {
+    fprintf(stderr, "writableStreamDefaultWriterRelease1\n");
+
     auto* globalObject = writer.globalObject();
+    if (!globalObject || !writer.guardedObject())
+        return;
+
+    fprintf(stderr, "writableStreamDefaultWriterRelease2\n");
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterReleasePrivateName();
+
+    fprintf(stderr, "writableStreamDefaultWriterRelease3\n");
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(writer.guardedObject());
+
+    fprintf(stderr, "writableStreamDefaultWriterRelease4\n");
+    invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    fprintf(stderr, "writableStreamDefaultWriterRelease5\n");
+}
+
+RefPtr<DOMPromise> writableStreamDefaultWriterWrite(InternalWritableStreamWriter& writer, JSC::JSValue value)
+{
+    fprintf(stderr, "writableStreamDefaultWriterWrite1\n");
+
+    auto* globalObject = writer.globalObject();
+    if (!globalObject)
+        return nullptr;
+
+    fprintf(stderr, "writableStreamDefaultWriterWrite2\n");
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterWritePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(writer.guardedObject());
+    arguments.append(value);
+
+    auto result = invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    if (result.hasException()) {
+        fprintf(stderr, "writableStreamDefaultWriterWrite2.5\n");
+        return nullptr;
+    }
+
+    fprintf(stderr, "writableStreamDefaultWriterWrite3\n");
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return nullptr;
+
+    fprintf(stderr, "writableStreamDefaultWriterWrite4\n");
+    return DOMPromise::create(*globalObject, *promise);
+}
+
+void InternalWritableStreamWriter::onClosedPromiseRejection(Function<void(JSDOMGlobalObject&, JSC::JSValue)>&& callback)
+{
+    auto* globalObject = this->globalObject();
     if (!globalObject)
         return;
 
     auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
-    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterReleasePrivateName();
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterClosedPromisePrivateName();
 
     JSC::MarkedArgumentBuffer arguments;
-    arguments.append(writer.guardedObject());
+    arguments.append(guardedObject());
 
-    invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    auto result = invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return;
+
+    Ref domPromise = DOMPromise::create(*globalObject, *promise);
+    domPromise->whenSettled([domPromise, callback = WTFMove(callback)]() mutable {
+        if (domPromise->status() != DOMPromise::Status::Rejected || !domPromise->globalObject())
+            return;
+        callback(*domPromise->globalObject(), domPromise->result());
+    });
+}
+
+void InternalWritableStreamWriter::onClosedPromiseResolution(Function<void()>&& callback)
+{
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return;
+
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterClosedPromisePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+
+    auto result = invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return;
+
+    Ref domPromise = DOMPromise::create(*globalObject, *promise);
+    domPromise->whenSettled([domPromise, callback = WTFMove(callback)]() mutable {
+        if (domPromise->status() != DOMPromise::Status::Fulfilled)
+            return;
+        callback();
+    });
+}
+
+void InternalWritableStreamWriter::whenReady(Function<void ()>&& callback)
+{
+    auto* globalObject = this->globalObject();
+    if (!globalObject)
+        return;
+
+    auto* clientData = static_cast<JSVMClientData*>(globalObject->vm().clientData);
+    auto& privateName = clientData->builtinFunctions().writableStreamInternalsBuiltins().writableStreamDefaultWriterReadyPromisePrivateName();
+
+    JSC::MarkedArgumentBuffer arguments;
+    arguments.append(guardedObject());
+
+    auto result = invokeWritableStreamWriterFunction(*globalObject, privateName, arguments);
+    if (result.hasException())
+        return;
+
+    auto* promise = jsCast<JSC::JSPromise*>(result.returnValue());
+    if (!promise)
+        return;
+
+    Ref domPromise = DOMPromise::create(*globalObject, *promise);
+    domPromise->whenSettled([domPromise, callback = WTFMove(callback)]() mutable {
+        if (domPromise->status() != DOMPromise::Status::Fulfilled)
+            return;
+        callback();
+    });
 }
 
 }
