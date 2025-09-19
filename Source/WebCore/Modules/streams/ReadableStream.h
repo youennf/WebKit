@@ -112,10 +112,10 @@ protected:
     
 private:
     ExceptionOr<void> setupReadableByteStreamControllerFromUnderlyingSource(JSDOMGlobalObject&, JSC::JSValue, UnderlyingSource&&, double);
-    void setupReadableByteStreamController(ReadableByteStreamController::PullAlgorithm&&, ReadableByteStreamController::CancelAlgorithm&&, double);
+    void setupReadableByteStreamController(JSDOMGlobalObject&, ReadableByteStreamController::PullAlgorithm&&, ReadableByteStreamController::CancelAlgorithm&&, double);
     ExceptionOr<Vector<Ref<ReadableStream>>> byteStreamTee(JSDOMGlobalObject&);
 
-    static Ref<ReadableStream> createReadableByteStream(ReadableByteStreamController::PullAlgorithm&&, ReadableByteStreamController::CancelAlgorithm&& );
+    static Ref<ReadableStream> createReadableByteStream(JSDOMGlobalObject&, ReadableByteStreamController::PullAlgorithm&&, ReadableByteStreamController::CancelAlgorithm&& );
 
     const RefPtr<InternalReadableStream> m_internalReadableStream;
 

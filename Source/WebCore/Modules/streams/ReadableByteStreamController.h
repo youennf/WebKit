@@ -69,8 +69,8 @@ public:
     void pullInto(JSDOMGlobalObject&, JSC::ArrayBufferView&, size_t, Ref<DeferredPromise>&&);
 
     void runCancelSteps(JSDOMGlobalObject&, JSC::JSValue, Function<void(std::optional<JSC::JSValue>&&)>&&);
-
     void runPullSteps(JSDOMGlobalObject&, Ref<DeferredPromise>&&);
+    void releaseSteps();
 
     void storeError(JSDOMGlobalObject&, JSC::JSValue);
     JSC::JSValue storedError() const;
@@ -144,10 +144,11 @@ private:
     void respondInClosedState(JSDOMGlobalObject&, PullIntoDescriptor&);
     void respondInReadableState(JSDOMGlobalObject&, size_t, PullIntoDescriptor&);
 
+    void processReadRequestsUsingQueue(JSDOMGlobalObject&);
     void fillReadRequestFromQueue(JSDOMGlobalObject&, Ref<DeferredPromise>&&);
     void handleQueueDrain(JSDOMGlobalObject&);
 
-    void handleSourcePromise(DOMPromise&, Callback&&);
+    static void handleSourcePromise(DOMPromise&, Callback&&);
 
     WeakRef<ReadableStream> m_stream;
     bool m_pullAgain { false };
@@ -166,10 +167,6 @@ private:
     JSValueInWrappedObject m_underlyingSource;
     JSValueInWrappedObject m_storedError;
 
-    RefPtr<DOMPromise> m_callbackPromise;
-    Function<void(std::optional<JSC::JSValue>&&)> m_cancelCallback;
-
-    Callback m_callback;
     PullAlgorithm m_pullAlgorithmWrapper;
     CancelAlgorithm m_cancelAlgorithmWrapper;
 };

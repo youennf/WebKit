@@ -84,7 +84,9 @@
     return pump();
 
     function pump() {
+console.log("pump1");
       return reader.read().then(result => {
+console.log("pump2");
         if (result.done) {
           return chunks;
         }

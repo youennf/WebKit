@@ -94,6 +94,8 @@ void ReadableStreamBYOBReader::releaseLock(JSDOMGlobalObject& globalObject)
 
 void ReadableStreamBYOBReader::cancel(JSDOMGlobalObject& globalObject, JSC::JSValue value, Ref<DeferredPromise>&& promise)
 {
+    fprintf(stderr, "ReadableStreamBYOBReader::cancel\n");
+
     if (!m_stream) {
         promise->reject(Exception { ExceptionCode::TypeError, "no stream"_s });
         return;
@@ -212,7 +214,7 @@ void ReadableStreamBYOBReader::onClosedPromiseRejection(ClosedCallback&& callbac
     m_closedCallback = WTFMove(callback);
     m_closedPromise->whenSettled([weakThis = WeakPtr { *this }]() mutable {
         RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !protectedThis->m_closedPromise->globalObject() || !protectedThis->m_closedCallback)
+        if (!protectedThis || !protectedThis->m_closedPromise->globalObject() || !protectedThis->m_closedCallback || protectedThis->m_closedPromise->status() != DOMPromise::Status::Rejected)
             return;
 
         protectedThis->m_closedCallback(*protectedThis->m_closedPromise->globalObject(), protectedThis->m_closedPromise->result());

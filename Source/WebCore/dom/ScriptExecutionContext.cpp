@@ -504,6 +504,8 @@ void ScriptExecutionContext::reportException(const String& errorMessage, int lin
 
 void ScriptExecutionContext::reportUnhandledPromiseRejection(JSC::JSGlobalObject& state, JSC::JSPromise& promise, RefPtr<Inspector::ScriptCallStack>&& callStack)
 {
+    fprintf(stderr, "ScriptExecutionContext::reportUnhandledPromiseRejection %p\n", &promise);
+
     Page* page = nullptr;
     if (auto* document = dynamicDowncast<Document>(*this))
         page = document->page();

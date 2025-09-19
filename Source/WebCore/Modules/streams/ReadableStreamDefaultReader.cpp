@@ -40,7 +40,9 @@ ExceptionOr<Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::creat
         ASSERT(stream.hasByteStreamController());
 
         auto [promise, deferred] = createPromiseAndWrapper(globalObject);
-        return adoptRef(*new ReadableStreamDefaultReader(stream, WTFMove(promise), WTFMove(deferred)));
+        Ref reader = adoptRef(*new ReadableStreamDefaultReader(stream, WTFMove(promise), WTFMove(deferred)));
+        reader->setup(globalObject);
+        return reader;
     }
 
     return create(globalObject, internalReadableStream.releaseNonNull());
@@ -74,7 +76,23 @@ ReadableStreamDefaultReader::ReadableStreamDefaultReader(Ref<ReadableStream>&& s
     , m_stream(WTFMove(stream))
 {
     ASSERT(m_stream->hasByteStreamController());
+}
+
+// https://streams.spec.whatwg.org/#set-up-readable-stream-default-reader
+void ReadableStreamDefaultReader::setup(JSDOMGlobalObject& globalObject)
+{
     m_stream->setDefaultReader(this);
+    
+    switch (m_stream->state()) {
+    case ReadableStream::State::Readable:
+        break;
+    case ReadableStream::State::Closed:
+        m_closedDeferred->resolve();
+        break;
+    case ReadableStream::State::Errored:
+        m_closedDeferred->reject<IDLAny>(m_stream->storedError(globalObject), RejectAsHandled::Yes);
+        break;
+    }
 }
 
 ExceptionOr<void> ReadableStreamDefaultReader::releaseLock(JSDOMGlobalObject& globalObject)
@@ -127,6 +145,9 @@ void ReadableStreamDefaultReader::genericRelease(JSDOMGlobalObject& globalObject
         m_closedDeferred = DeferredPromise::create(globalObject, DeferredPromise::Mode::RetainPromiseOnResolve).releaseNonNull();
         m_closedDeferred->reject(Exception { ExceptionCode::TypeError, "releasing stream"_s }, RejectAsHandled::Yes);
     }
+
+    if (RefPtr controller = m_stream->controller())
+        controller->releaseSteps();
 
     m_stream->setDefaultReader(nullptr);
     m_stream = nullptr;

@@ -155,7 +155,9 @@ ExceptionOr<void> ReadableByteStreamController::errorForBindings(JSDOMGlobalObje
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollergetbyobrequest
 ReadableStreamBYOBRequest* ReadableByteStreamController::getByobRequest() const
 {
+    fprintf(stderr, "ReadableByteStreamController::getByobRequest1 %p %d\n", this, (int)m_pendingPullIntos.size());
     if (!m_byobRequest && !m_pendingPullIntos.isEmpty()) {
+        fprintf(stderr, "ReadableByteStreamController::getByobRequest2 %p\n", this);
         auto& firstDescriptor = m_pendingPullIntos.first();
         auto view = JSC::Uint8Array::create(firstDescriptor.buffer.ptr(), firstDescriptor.byteOffset + firstDescriptor.bytesFilled, firstDescriptor.byteLength - firstDescriptor.bytesFilled);
         Ref byobRequest = ReadableStreamBYOBRequest::create();
@@ -164,6 +166,8 @@ ReadableStreamBYOBRequest* ReadableByteStreamController::getByobRequest() const
         byobRequest->setView(view.ptr());
 
         m_byobRequest = WTFMove(byobRequest);
+
+        RELEASE_ASSERT(firstDescriptor.bytesFilled + 1);
     }
 
     return m_byobRequest.get();
@@ -239,7 +243,11 @@ void ReadableByteStreamController::close()
     }
     
     if (!m_pendingPullIntos.isEmpty()) {
-        // FIXME: Feed the pending pulls.
+        auto& pullInto = m_pendingPullIntos.first();
+        if (pullInto.bytesFilled % pullInto.elementSize) {
+            // FIXME: We should error.
+            RELEASE_ASSERT_NOT_REACHED();
+        }
     }
 
     clearAlgorithms();
@@ -294,14 +302,22 @@ ExceptionOr<void> ReadableByteStreamController::enqueue(JSDOMGlobalObject& globa
             enqueueDetachedPullIntoToQueue(globalObject, firstPendingPullInto);
     }
 
-    RefPtr byobReader = m_stream->byobReader();
-
-    if (!byobReader && m_stream->isLocked()) {
-        // FIXME: Implement default reader reading.
-        return { };
-    }
-
-    if (byobReader) {
+    if (m_stream->defaultReader()) {
+        processReadRequestsUsingQueue(globalObject);
+        if (!m_stream->getNumReadRequests()) {
+            ASSERT(m_pendingPullIntos.isEmpty());
+            enqueueChunkToQueue(transferredBuffer.releaseNonNull(), byteOffset, byteLength);
+        } else {
+            ASSERT(m_queue.isEmpty());
+            if (!m_pendingPullIntos.isEmpty()) {
+                ASSERT(m_pendingPullIntos.first().readerType == ReaderType::Default);
+                shiftPendingPullInto();
+            }
+            
+            Ref transferredView = Uint8Array::create(transferredBuffer.releaseNonNull(), byteOffset, byteLength);
+            m_stream->fulfillReadRequest(globalObject, WTFMove(transferredView), false);
+        }
+    } else if (RefPtr byobReader = m_stream->byobReader()) {
         enqueueChunkToQueue(transferredBuffer.releaseNonNull(), byteOffset, byteLength);
         processPullIntoDescriptorsUsingQueue(globalObject);
     } else {
@@ -311,6 +327,22 @@ ExceptionOr<void> ReadableByteStreamController::enqueue(JSDOMGlobalObject& globa
 
     callPullIfNeeded(globalObject);
     return { };
+}
+
+// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerprocessreadrequestsusingqueue
+void ReadableByteStreamController::processReadRequestsUsingQueue(JSDOMGlobalObject& globalObject)
+{
+    RefPtr reader = m_stream->defaultReader();
+
+    ASSERT(reader);
+
+    while (reader->getNumReadRequests()) {
+        if (!m_queueTotalSize)
+            return;
+
+        auto readRequest = reader->takeFirstReadRequest();
+        fillReadRequestFromQueue(globalObject, WTFMove(readRequest));
+    }
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-invalidate-byob-request
@@ -328,8 +360,10 @@ void ReadableByteStreamController::processPullIntoDescriptorsUsingQueue(JSDOMGlo
 {
     ASSERT(!m_closeRequested);
     while (!m_pendingPullIntos.isEmpty()) {
-        if (m_queueTotalSize > 0)
+        if (!m_queueTotalSize)
             return;
+        fprintf(stderr, "ReadableByteStreamController::processPullIntoDescriptorsUsingQueue take first %p\n", this);
+
         auto pullInto = m_pendingPullIntos.takeFirst();
         if (fillPullIntoDescriptorFromQueue(pullInto)) {
             commitPullIntoDescriptor(globalObject, pullInto);
@@ -351,6 +385,8 @@ void ReadableByteStreamController::enqueueDetachedPullIntoToQueue(JSDOMGlobalObj
 ReadableByteStreamController::PullIntoDescriptor ReadableByteStreamController::shiftPendingPullInto()
 {
     ASSERT(!m_byobRequest);
+    fprintf(stderr, "ReadableByteStreamController::shiftPendingPullInto %p\n", this);
+
     return m_pendingPullIntos.takeFirst();
 }
 
@@ -505,6 +541,7 @@ void ReadableByteStreamController::commitPullIntoDescriptor(JSDOMGlobalObject& g
     auto filledView = convertPullIntoDescriptor(vm.get(), pullInto);
     if (pullInto.readerType == ReaderType::Default) {
         // FIXME: Add support for default reading.
+        RELEASE_ASSERT_NOT_REACHED();
     } else {
         ASSERT(pullInto.readerType == ReaderType::Byob);
         stream->fulfillReadIntoRequest(globalObject, WTFMove(filledView), done);
@@ -527,6 +564,8 @@ RefPtr<JSC::ArrayBufferView> ReadableByteStreamController::convertPullIntoDescri
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-error
 void ReadableByteStreamController::error(JSDOMGlobalObject& globalObject, JSC::JSValue value)
 {
+    fprintf(stderr, "ReadableByteStreamController::error %p\n", this);
+
     Ref stream = m_stream.get();
     if (stream->state() != ReadableStream::State::Readable)
         return;
@@ -558,6 +597,8 @@ void ReadableByteStreamController::error(JSDOMGlobalObject& globalObject, const 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-clear-pending-pull-intos
 void ReadableByteStreamController::clearPendingPullIntos()
 {
+    fprintf(stderr, "ReadableByteStreamController::clearPendingPullIntos %p %d\n", this, (int)m_pendingPullIntos.size());
+
     invalidateByobRequest();
     m_pendingPullIntos = { };
 }
@@ -572,6 +613,8 @@ void ReadableByteStreamController::clearAlgorithms()
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-pull-into
 void ReadableByteStreamController::pullInto(JSDOMGlobalObject& globalObject, JSC::ArrayBufferView& view, size_t min, Ref<DeferredPromise>&& readIntoRequest)
 {
+    fprintf(stderr, "ReadableByteStreamController::pullInto %p %d\n", this, (int)m_pendingPullIntos.size());
+
     Ref stream = m_stream.get();
     size_t elementSize = 1;
     auto viewType = view.getType();
@@ -598,18 +641,22 @@ void ReadableByteStreamController::pullInto(JSDOMGlobalObject& globalObject, JSC
     }
     
     auto buffer = bufferResult.releaseNonNull();
-    
+
+    fprintf(stderr, "ReadableByteStreamController::pullInto %p buffer = %p\n", this, buffer.ptr());
     auto bufferByteLength = buffer->byteLength();
     PullIntoDescriptor pullIntoDescriptor { WTFMove(buffer), bufferByteLength, byteOffset, byteLength, 0, minimumFill, elementSize, viewType, ReaderType::Byob };
     if (!m_pendingPullIntos.isEmpty()) {
+        fprintf(stderr, "ReadableByteStreamController::pullInto2 appending1 %p\n", this);
         m_pendingPullIntos.append(WTFMove(pullIntoDescriptor));
         stream->addReadIntoRequest(WTFMove(readIntoRequest));
         return;
     }
     
     if (stream->state() == ReadableStream::State::Closed) {
-        // FIXME: Use an empty view.
-        readIntoRequest->resolve<IDLDictionary<ReadableStreamReadResult>>({ JSC::jsUndefined(), true });
+        // FIXME: Use request ctor.
+        Ref emptyView = Uint8Array::create(WTFMove(pullIntoDescriptor.buffer), pullIntoDescriptor.byteOffset, 0);
+        auto chunk = toJS<IDLArrayBufferView>(globalObject, globalObject, WTFMove(emptyView));
+        readIntoRequest->resolve<IDLDictionary<ReadableStreamReadResult>>({ WTFMove(chunk), true });
         return;
     }
     
@@ -630,15 +677,20 @@ void ReadableByteStreamController::pullInto(JSDOMGlobalObject& globalObject, JSC
         }
 
     }
-    
+
+    fprintf(stderr, "ReadableByteStreamController::pullInto2 appending2 %p\n", this);
+
     m_pendingPullIntos.append(WTFMove(pullIntoDescriptor));
     stream->addReadIntoRequest(WTFMove(readIntoRequest));
     callPullIfNeeded(globalObject);
+    fprintf(stderr, "ReadableByteStreamController::pullInto3 %p\n", this);
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-private-cancel
 void ReadableByteStreamController::runCancelSteps(JSDOMGlobalObject& globalObject, JSC::JSValue reason, Function<void(std::optional<JSC::JSValue>&&)>&& callback)
 {
+    fprintf(stderr, "ReadableByteStreamController::runCancelSteps %p\n", this);
+
     clearPendingPullIntos();
 
     m_queue = { };
@@ -664,10 +716,22 @@ void ReadableByteStreamController::runPullSteps(JSDOMGlobalObject& globalObject,
 
     if (auto autoAllocateChunkSize = m_autoAllocateChunkSize) {
         auto buffer = JSC::ArrayBuffer::create(autoAllocateChunkSize, 1);
+        fprintf(stderr, "ReadableByteStreamController::runPullSteps appending1 %p\n", this);
+
         m_pendingPullIntos.append({ WTFMove(buffer), autoAllocateChunkSize, 0, autoAllocateChunkSize, 0, 1, 1, JSC::TypedArrayType::TypeUint8, ReaderType::Default });
     }
     stream->addReadRequest(WTFMove(readRequest));
     callPullIfNeeded(globalObject);
+}
+
+// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontroller-releasesteps
+void ReadableByteStreamController::releaseSteps()
+{
+    if (!m_pendingPullIntos.isEmpty()) {
+        m_pendingPullIntos.first().readerType = ReaderType::None;
+        while (m_pendingPullIntos.size() > 1 )
+            m_pendingPullIntos.removeLast();
+    }
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerfillreadrequestfromqueue
@@ -680,7 +744,8 @@ void ReadableByteStreamController::fillReadRequestFromQueue(JSDOMGlobalObject& g
     handleQueueDrain(globalObject);
 
     Ref view = Uint8Array::create(WTFMove(entry.buffer), entry.byteOffset, entry.byteLength);
-    readRequest->resolve<IDLUint8Array>(WTFMove(view));
+    auto chunk = toJS<IDLArrayBufferView>(globalObject, globalObject, WTFMove(view));
+    readRequest->resolve<IDLDictionary<ReadableStreamReadResult>>(ReadableStreamReadResult { chunk, false });
 }
 
 void ReadableByteStreamController::storeError(JSDOMGlobalObject& globalObject, JSC::JSValue error)
@@ -722,6 +787,8 @@ ExceptionOr<void> ReadableByteStreamController::respond(JSDOMGlobalObject& globa
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond-with-new-view
 ExceptionOr<void> ReadableByteStreamController::respondWithNewView(JSDOMGlobalObject& globalObject, JSC::ArrayBufferView& view)
 {
+    fprintf(stderr, "ReadableByteStreamController::respondWithNewView %p %d\n", this, (int)m_pendingPullIntos.size());
+
     ASSERT(!m_pendingPullIntos.isEmpty());
     ASSERT(!view.isDetached());
 
@@ -739,9 +806,10 @@ ExceptionOr<void> ReadableByteStreamController::respondWithNewView(JSDOMGlobalOb
     if (firstDescriptor.byteOffset + firstDescriptor.bytesFilled != view.byteOffset())
         return Exception { ExceptionCode::RangeError, "Wrong byte offset"_s };
 
-    // FIXME: We should use  view.[[ViewedArrayBuffer]].[[ByteLength]].
-    if (firstDescriptor.bufferByteLength != view.byteLength())
-        return Exception { ExceptionCode::RangeError, "Wrong view byte length"_s };
+    RefPtr viewedArrayBuffer = view.possiblySharedBuffer();
+    auto viewedArrayBufferByteLength = viewedArrayBuffer ? viewedArrayBuffer->byteLength() : 0;
+    if (firstDescriptor.bufferByteLength != viewedArrayBufferByteLength)
+        return Exception { ExceptionCode::RangeError, "Wrong view buffer byte length"_s };
 
     if (firstDescriptor.bytesFilled + view.byteLength() > firstDescriptor.byteLength)
         return Exception { ExceptionCode::RangeError, "Wrong byte length"_s };
@@ -862,22 +930,10 @@ void ReadableByteStreamController::handleQueueDrain(JSDOMGlobalObject& globalObj
 
 void ReadableByteStreamController::handleSourcePromise(DOMPromise& algorithmPromise, Callback&& callback)
 {
-    ASSERT(!m_callback);
-    ASSERT(!m_callbackPromise);
-    m_callbackPromise = &algorithmPromise;
-    m_callback = WTFMove(callback);
-    algorithmPromise.whenSettled([weakThis = WeakPtr { *this }]() mutable {
-        RefPtr protectedThis = weakThis.get();
-        if (!protectedThis || !protectedThis->m_callbackPromise)
-            return;
-
-        auto promise = std::exchange(protectedThis->m_callbackPromise, { });
-        auto callback = std::exchange(protectedThis->m_callback, { });
+    algorithmPromise.whenSettled([promise = Ref { algorithmPromise }, callback = WTFMove(callback)]() mutable {
         auto* globalObject = promise->globalObject();
         if (!globalObject)
             return;
-
-        ASSERT(callback);
 
         switch (promise->status()) {
         case DOMPromise::Status::Fulfilled:
