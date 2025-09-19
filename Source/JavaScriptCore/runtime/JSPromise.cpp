@@ -42,6 +42,7 @@ JSPromise* JSPromise::create(VM& vm, Structure* structure)
 {
     JSPromise* promise = new (NotNull, allocateCell<JSPromise>(vm)) JSPromise(vm, structure);
     promise->finishCreation(vm);
+    fprintf(stderr, "JSPromise::create %p\n", promise);
     return promise;
 }
 
