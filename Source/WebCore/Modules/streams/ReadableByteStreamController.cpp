@@ -166,8 +166,6 @@ ReadableStreamBYOBRequest* ReadableByteStreamController::getByobRequest() const
         byobRequest->setView(view.ptr());
 
         m_byobRequest = WTFMove(byobRequest);
-
-        RELEASE_ASSERT(firstDescriptor.bytesFilled + 1);
     }
 
     return m_byobRequest.get();
