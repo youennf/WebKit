@@ -53,7 +53,7 @@ public:
     ReadableStreamBYOBRequest* byobRequestForBindings() const;
     std::optional<double> desiredSize() const;
 
-    ExceptionOr<void> closeForBindings();
+    ExceptionOr<void> closeForBindings(JSDOMGlobalObject&);
     ExceptionOr<void> enqueueForBindings(JSDOMGlobalObject&, JSC::ArrayBufferView&);
     ExceptionOr<void> errorForBindings(JSDOMGlobalObject&, JSC::JSValue);
 
@@ -87,7 +87,7 @@ public:
 
     void error(JSDOMGlobalObject&, const Exception&);
     void error(JSDOMGlobalObject&, JSC::JSValue);
-    void close();
+    void close(JSDOMGlobalObject&);
     ExceptionOr<void> enqueue(JSDOMGlobalObject&, JSC::ArrayBufferView&);
 
 private:

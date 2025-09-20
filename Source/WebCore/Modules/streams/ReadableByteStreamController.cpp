@@ -116,7 +116,7 @@ std::optional<double> ReadableByteStreamController::desiredSize() const
     return getDesiredSize();
 }
 
-ExceptionOr<void> ReadableByteStreamController::closeForBindings()
+ExceptionOr<void> ReadableByteStreamController::closeForBindings(JSDOMGlobalObject& globalObject)
 {
     if (m_closeRequested)
         return Exception { ExceptionCode::TypeError, "controller is closed"_s };
@@ -124,7 +124,7 @@ ExceptionOr<void> ReadableByteStreamController::closeForBindings()
     if (m_stream->state() != ReadableStream::State::Readable)
         return Exception { ExceptionCode::TypeError, "controller's stream is not readable"_s };
 
-    close();
+    close(globalObject);
     return { };
 }
 
@@ -228,7 +228,7 @@ void ReadableByteStreamController::didStart(JSDOMGlobalObject& globalObject)
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-close
-void ReadableByteStreamController::close()
+void ReadableByteStreamController::close(JSDOMGlobalObject& globalObject)
 {
     Ref stream = m_stream.get();
 
@@ -243,8 +243,15 @@ void ReadableByteStreamController::close()
     if (!m_pendingPullIntos.isEmpty()) {
         auto& pullInto = m_pendingPullIntos.first();
         if (pullInto.bytesFilled % pullInto.elementSize) {
-            // FIXME: We should error.
-            RELEASE_ASSERT_NOT_REACHED();
+            Ref vm = globalObject.vm();
+            auto scope = DECLARE_THROW_SCOPE(vm);
+
+            auto error = createDOMException(&globalObject, ExceptionCode::TypeError, "controller has pending pull intos"_s);
+            scope.assertNoExceptionExceptTermination();
+
+            this->error(globalObject, error);
+            throwException(&globalObject, scope, error);
+            return;
         }
     }
 
@@ -537,10 +544,9 @@ void ReadableByteStreamController::commitPullIntoDescriptor(JSDOMGlobalObject& g
 
     Ref vm = globalObject.vm();
     auto filledView = convertPullIntoDescriptor(vm.get(), pullInto);
-    if (pullInto.readerType == ReaderType::Default) {
-        // FIXME: Add support for default reading.
-        RELEASE_ASSERT_NOT_REACHED();
-    } else {
+    if (pullInto.readerType == ReaderType::Default)
+        stream->fulfillReadRequest(globalObject, WTFMove(filledView), done);
+    else {
         ASSERT(pullInto.readerType == ReaderType::Byob);
         stream->fulfillReadIntoRequest(globalObject, WTFMove(filledView), done);
     }

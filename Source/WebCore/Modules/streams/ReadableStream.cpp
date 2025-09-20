@@ -578,11 +578,11 @@ static void pullWithDefaultReader(JSDOMGlobalObject& globalObject, TeeState& sta
             state->setReading(false);
             if (!state->canceled1()) {
                 if (RefPtr branch1 = state->branch1())
-                    branch1->controller()->close();
+                    branch1->controller()->close(globalObject);
             }
             if (!state->canceled2()) {
                 if (RefPtr branch2 = state->branch2())
-                    branch2->controller()->close();
+                    branch2->controller()->close(globalObject);
             }
             if (RefPtr branch1 = state->branch1(); branch1->protectedController()->hasPendingPullIntos())
                 branch1->protectedController()->respond(globalObject, 0);
@@ -702,11 +702,11 @@ static void pullWithBYOBReader(JSDOMGlobalObject& globalObject, TeeState& state,
             bool otherCanceled = forBranch2 ? state->canceled1() : state->canceled2();
             if (!byobCanceled) {
                 if (RefPtr branch1 = state->branch1())
-                    branch1->controller()->close();
+                    branch1->controller()->close(globalObject);
             }
             if (!otherCanceled) {
                 if (RefPtr branch2 = state->branch2())
-                    branch2->controller()->close();
+                    branch2->controller()->close(globalObject);
             }
 
             if (result.value) {

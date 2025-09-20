@@ -34,7 +34,7 @@
     [ImplementedAs=byobRequestForBindings] readonly attribute ReadableStreamBYOBRequest? byobRequest;
     readonly attribute unrestricted double? desiredSize;
 
-    [ImplementedAs=closeForBindings] undefined close();
+    [ImplementedAs=closeForBindings, CallWith=CurrentGlobalObject] undefined close();
     [CallWith=CurrentGlobalObject, ImplementedAs=enqueueForBindings] undefined enqueue(ArrayBufferView chunk);
     [CallWith=CurrentGlobalObject, ImplementedAs=errorForBindings] undefined error(optional any error);
 };
