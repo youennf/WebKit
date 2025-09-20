@@ -1,5 +1,5 @@
 
-FAIL ReadableStream with byte source: read()ing from a closed stream still transfers the buffer assert_true: The value read must be a Uint8Array expected true got false
+PASS ReadableStream with byte source: read()ing from a closed stream still transfers the buffer
 PASS ReadableStream with byte source: read()ing from a stream with queued chunks still transfers the buffer
 PASS ReadableStream with byte source: enqueuing an already-detached buffer throws
 PASS ReadableStream with byte source: enqueuing a zero-length buffer throws
@@ -14,7 +14,7 @@ PASS ReadableStream with byte source: respondWithNewView() throws if the supplie
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view is zero-length on a non-zero-length buffer (in the readable state)
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view has a different offset (in the readable state)
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view has a different offset (in the closed state)
-FAIL ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has a different length (in the readable state) assert_throws_js: function "() => c.byobRequest.respondWithNewView(view)" did not throw
+PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has a different length (in the readable state)
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has a different length (autoAllocateChunkSize)
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view has a larger length (in the readable state)
 PASS ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has been detached (in the closed state)
