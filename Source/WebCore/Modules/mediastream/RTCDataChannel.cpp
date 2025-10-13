@@ -116,6 +116,8 @@ void RTCDataChannel::setBinaryType(BinaryType binaryType)
 
 ExceptionOr<void> RTCDataChannel::send(const String& data)
 {
+    WTFLogAlways(" RTCDataChannel::send %p '%s'", this, data.utf8().data());
+
     if (m_readyState != RTCDataChannelState::Open)
         return Exception { ExceptionCode::InvalidStateError };
 
@@ -211,11 +213,20 @@ void RTCDataChannel::didChangeReadyState(RTCDataChannelState newState)
 
 void RTCDataChannel::didReceiveStringData(const String& text)
 {
+    WTFLogAlways(" RTCDataChannel::didReceiveStringData %p '%s'", this, text.utf8().data());
+
     scheduleDispatchEvent(MessageEvent::create(text));
 }
 
 void RTCDataChannel::didReceiveRawData(std::span<const uint8_t> data)
 {
+    Vector<uint8_t> copy = data;
+    for (int i = 0; i < (int)copy.size(); i++) {
+        if (!copy[i] || copy[i] < 10)
+            copy[i] = ' ';
+    }
+ //   WTFLogAlways("RTCDataChannel::didReceiveRawData %p %d header=%d \n %s\n\n", this, (int)data.size(), (int)data[0], String::fromUTF8(copy.span()).utf8().data());
+
     switch (m_binaryType) {
     case BinaryType::Blob:
         scheduleDispatchEvent(MessageEvent::create(Blob::create(protectedScriptExecutionContext().get(), Vector(data), emptyString()), { }));

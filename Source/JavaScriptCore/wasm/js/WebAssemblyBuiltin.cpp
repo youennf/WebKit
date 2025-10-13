@@ -87,6 +87,7 @@ namespace JSC {
 
 JSFunction* WebAssemblyBuiltin::jsWrapper(JSGlobalObject* globalObject) const
 {
+    WTFLogAlways("WebAssemblyBuiltin::jsWrapper %s", m_name.characters());
     return JSFunction::create(globalObject->vm(), globalObject, 0, m_name, m_jsHostFunction, ImplementationVisibility::Public, JSC::NoIntrinsic);
 }
 

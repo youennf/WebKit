@@ -141,6 +141,7 @@ private:
 
     bool m_dispatchedErrorEvent { false };
     RefPtr<PendingActivity<WebSocket>> m_pendingActivity;
+    bool m_shouldLog { false };
 };
 
 } // namespace WebCore

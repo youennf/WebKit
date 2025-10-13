@@ -337,6 +337,9 @@ CachedResourceHandle<CachedCSSStyleSheet> CachedResourceLoader::requestUserCSSSt
 
 ResourceErrorOr<CachedResourceHandle<CachedScript>> CachedResourceLoader::requestScript(CachedResourceRequest&& request)
 {
+    if (request.resourceRequest().url().string().contains("3avio"_s))
+        WTFLogAlways("CachedResourceLoader::requestScript '%s'", request.resourceRequest().url().string().utf8().data());
+
     return castCachedResourceTo<CachedScript>(requestResource(
         request.options().destination == FetchOptionsDestination::Json ? CachedResource::Type::JSON : CachedResource::Type::Script, WTFMove(request)));
 }
@@ -391,6 +394,9 @@ ResourceErrorOr<CachedResourceHandle<CachedRawResource>> CachedResourceLoader::r
 
 ResourceErrorOr<CachedResourceHandle<CachedRawResource>> CachedResourceLoader::requestRawResource(CachedResourceRequest&& request)
 {
+    if (request.resourceRequest().url().string().contains("3avio"_s))
+        WTFLogAlways("CachedResourceLoader::requestRawResource '%s'", request.resourceRequest().url().string().utf8().data());
+
     return castCachedResourceTo<CachedRawResource>(requestResource(CachedResource::Type::RawResource, WTFMove(request)));
 }
 

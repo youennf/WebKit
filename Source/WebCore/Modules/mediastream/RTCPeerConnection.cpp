@@ -418,6 +418,7 @@ void RTCPeerConnection::setLocalDescription(std::optional<RTCLocalSessionDescrip
 
 void RTCPeerConnection::setRemoteDescription(RTCSessionDescriptionInit&& remoteDescription, Ref<DeferredPromise>&& promise)
 {
+  //  WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n%s\n", this, remoteDescription.sdp.utf8().data());
     if (isClosed()) {
         promise->reject(ExceptionCode::InvalidStateError);
         return;

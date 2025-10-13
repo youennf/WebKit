@@ -65,6 +65,7 @@ JSC_DEFINE_HOST_FUNCTION(callWebAssemblyFunction, (JSGlobalObject* globalObject,
 {
     VM& vm = globalObject->vm();
     WebAssemblyFunction* wasmFunction = jsCast<WebAssemblyFunction*>(callFrame->jsCallee());
+    //WTFLogAlways("callWebAssemblyFunction  %s argsCount=%d", const_cast<char*>(wasmFunction->name(vm).utf8().data()), (int)callFrame->argumentCount());
 
     if (wasmFunction->instance()->taintedness() >= SourceTaintedOrigin::IndirectlyTainted)
         vm.setMightBeExecutingTaintedCode();
@@ -78,11 +79,16 @@ JSC_DEFINE_HOST_FUNCTION(callWebAssemblyFunction, (JSGlobalObject* globalObject,
     protoCallFrame.init(nullptr, globalObject, wasmFunction, JSValue(), nullptr, callFrame->argumentCountIncludingThis(), std::bit_cast<EncodedJSValue*>(callFrame->addressOfArgumentsStart()));
     protoCallFrame.setWasmInstance(wasmFunction->instance());
 
-    return vmEntryToWasm(wasmFunction->jsToWasm(ArityCheckMode::MustCheckArity).taggedPtr(), &vm, &protoCallFrame);
+    auto result = vmEntryToWasm(wasmFunction->jsToWasm(ArityCheckMode::MustCheckArity).taggedPtr(), &vm, &protoCallFrame);
+    auto v = JSValue::decode(result);
+    if (v.isNumber())
+        WTFLogAlways("result is %d", (int)v.asNumber());
+    return result;
 }
 
 WebAssemblyFunction* WebAssemblyFunction::create(VM& vm, JSGlobalObject* globalObject, Structure* structure, unsigned length, const String& name, JSWebAssemblyInstance* instance, Wasm::JSToWasmCallee& jsToWasm, Wasm::IPIntCallee& wasmCallee, Wasm::WasmToWasmImportableFunction::LoadLocation wasmToWasmEntrypointLoadLocation, Wasm::TypeIndex typeIndex, Ref<const Wasm::RTT>&& rtt)
 {
+    //WTFLogAlways("WebAssemblyFunction::create %s", const_cast<char*>(name.utf8().data()));
     NativeExecutable* base = vm.getHostFunction(callWebAssemblyFunction, ImplementationVisibility::Public, WasmFunctionIntrinsic, callHostFunctionAsConstructor, nullptr, String());
     // Since ClosureCall uses this executable as an identity for Wasm CallIC thunk, we need to make it diversified.
     NativeExecutable* executable = NativeExecutable::create(vm, base->generatedJITCodeForCall(), callWebAssemblyFunction, base->generatedJITCodeForConstruct(), callHostFunctionAsConstructor, ImplementationVisibility::Public, name);

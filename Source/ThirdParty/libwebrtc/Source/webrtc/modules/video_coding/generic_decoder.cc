@@ -120,7 +120,9 @@ VCMDecodedFrameCallback::FindFrameInfo(uint32_t rtp_timestamp) {
 void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                                       std::optional<int32_t> decode_time_ms,
                                       std::optional<uint8_t> qp) {
-  RTC_DCHECK(_receiveCallback) << "Callback must not be null at this point";
+    fprintf(stderr, "VCMDecodedFrameCallback::Decoded\n");
+
+RTC_DCHECK(_receiveCallback) << "Callback must not be null at this point";
   TRACE_EVENT(
       "webrtc", "VCMDecodedFrameCallback::Decoded",
       perfetto::TerminatingFlow::ProcessScoped(decodedImage.rtp_timestamp()));

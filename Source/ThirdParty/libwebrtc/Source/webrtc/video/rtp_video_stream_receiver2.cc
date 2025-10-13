@@ -1050,10 +1050,14 @@ void RtpVideoStreamReceiver2::OnAssembledFrame(
     OnCompleteFrames(reference_finder_->ManageFrame(std::move(frame)));
   }
 }
+static int i2 = 0;
 
 void RtpVideoStreamReceiver2::OnCompleteFrames(
     RtpFrameReferenceFinder::ReturnVector frames) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
+    if (!(i2++ % 30))
+        fprintf(stderr, "RtpVideoStreamReceiver2::OnCompleteFrames %d\n", (int)frames.size());
+
   for (auto& frame : frames) {
     last_seq_num_for_pic_id_[frame->Id()] = frame->last_seq_num();
 

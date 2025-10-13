@@ -349,6 +349,8 @@ ExceptionOr<void> WebSocket::connect(const String& url, const Vector<String>& pr
 
 ExceptionOr<void> WebSocket::send(const String& message)
 {
+    WTFLogAlways("WebSocket::send text %p '%s'\n", this, message.utf8().data());
+
     LOG(Network, "WebSocket %p send() Sending String '%s'", this, message.utf8().data());
     if (m_state == CONNECTING)
         return Exception { ExceptionCode::InvalidStateError };
@@ -369,6 +371,17 @@ ExceptionOr<void> WebSocket::send(const String& message)
 
 ExceptionOr<void> WebSocket::send(ArrayBuffer& binaryData)
 {
+    if (m_shouldLog) {
+        Vector<uint8_t> copy { binaryData.span() };
+        for (size_t i = 0; i < copy.size(); i++) {
+            uint8_t byte = copy[i];
+            if (byte < 31 || byte > 126)
+                copy[i] = ' ';
+        }
+        auto text = String::fromUTF8(copy.span());
+        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
+    }
+
     LOG(Network, "WebSocket %p send() Sending ArrayBuffer %p", this, &binaryData);
     if (m_state == CONNECTING)
         return Exception { ExceptionCode::InvalidStateError };
@@ -386,6 +399,9 @@ ExceptionOr<void> WebSocket::send(ArrayBuffer& binaryData)
 
 ExceptionOr<void> WebSocket::send(ArrayBufferView& arrayBufferView)
 {
+    if (m_shouldLog)
+        WTFLogAlways("WebSocket::send binary view %p %d\n", this, (int)arrayBufferView.byteLength());
+
     LOG(Network, "WebSocket %p send() Sending ArrayBufferView %p", this, &arrayBufferView);
 
     if (m_state == CONNECTING)
@@ -552,6 +568,9 @@ void WebSocket::didConnect()
 
 void WebSocket::didReceiveMessage(String&& message)
 {
+    if (m_shouldLog)
+        WTFLogAlways("WebSocket::didReceiveMessage %d\n", (int)message.length());
+
     LOG(Network, "WebSocket %p didReceiveMessage() Text message '%s'", this, message.utf8().data());
     queueTaskKeepingObjectAlive(*this, TaskSource::WebSocket, [message = WTFMove(message)](auto& socket) mutable {
         if (socket.m_state != OPEN)
@@ -580,6 +599,22 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
                 inspector->didReceiveWebSocketFrame(WebSocketChannelInspector::createFrame(binaryData.span(), WebSocketFrame::OpCode::OpCodeBinary));
         }
 
+        if (socket.url().string().contains("edge")) {
+            auto copy = binaryData;
+            for (int i = 0; i < (int)copy.size(); i++) {
+                if (copy[i] < 31 || copy[i] > 126)
+                    copy[i] = ' ';
+            }
+            auto text = String::fromUTF8(copy.span());
+            if (text.contains("t_rtc_multi"_s)) {
+                socket.m_shouldLog = true;
+            }
+            if (socket.m_shouldLog) {
+                auto ctxt = text.utf8();
+                WTFLogAlways("WebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
+            }
+        }
+
         switch (socket.m_binaryType) {
         case BinaryType::Blob:
             // FIXME: We just received the data from NetworkProcess, and are sending it back. This is inefficient.
@@ -589,6 +624,8 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
             socket.dispatchEvent(MessageEvent::create(ArrayBuffer::create(binaryData), SecurityOrigin::create(socket.m_url)->toString()));
             break;
         }
+        if (socket.m_shouldLog)
+            WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n", &socket, (int)binaryData.size(), (int)binaryData[0]);
     });
 }
 

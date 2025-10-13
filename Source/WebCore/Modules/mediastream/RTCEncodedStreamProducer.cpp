@@ -41,7 +41,7 @@ WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(RTCEncodedStreamProducer);
 
 RTCEncodedStreamProducer::~RTCEncodedStreamProducer() = default;
 
-ExceptionOr<Ref<RTCEncodedStreamProducer>> RTCEncodedStreamProducer::create(ScriptExecutionContext& context, Ref<RTCRtpTransformBackend>&& transformBackend, bool isVideo)
+ExceptionOr<Ref<RTCEncodedStreamProducer>> RTCEncodedStreamProducer::create(ScriptExecutionContext& context, Ref<RTCRtpTransformBackend>&& transformBackend, bool isVideo, bool isReceiver)
 {
     auto* globalObject = JSC::jsCast<JSDOMGlobalObject*>(context.globalObject());
     if (!globalObject)
@@ -52,7 +52,7 @@ ExceptionOr<Ref<RTCEncodedStreamProducer>> RTCEncodedStreamProducer::create(Scri
     if (readable.hasException())
         return readable.releaseException();
 
-    Ref producer = adoptRef(*new RTCEncodedStreamProducer(context, readable.releaseReturnValue(), WTFMove(readableSource), WTFMove(transformBackend), isVideo));
+    Ref producer = adoptRef(*new RTCEncodedStreamProducer(context, readable.releaseReturnValue(), WTFMove(readableSource), WTFMove(transformBackend), isVideo, isReceiver));
 
     if (auto exception = producer->initialize(*globalObject))
         return { WTFMove(*exception) };
@@ -60,12 +60,13 @@ ExceptionOr<Ref<RTCEncodedStreamProducer>> RTCEncodedStreamProducer::create(Scri
     return producer;
 }
 
-RTCEncodedStreamProducer::RTCEncodedStreamProducer(ScriptExecutionContext& context, Ref<ReadableStream>&& readable, Ref<SimpleReadableStreamSource>&& readableSource, Ref<RTCRtpTransformBackend>&& transformBackend, bool isVideo)
+RTCEncodedStreamProducer::RTCEncodedStreamProducer(ScriptExecutionContext& context, Ref<ReadableStream>&& readable, Ref<SimpleReadableStreamSource>&& readableSource, Ref<RTCRtpTransformBackend>&& transformBackend, bool isVideo, bool isReceiver)
     : m_context({ context })
     , m_readable(WTFMove(readable))
     , m_readableSource(WTFMove(readableSource))
     , m_transformBackend(WTFMove(transformBackend))
-    , m_isVideo(isVideo)
+, m_isVideo(isVideo)
+, m_isReceiver(isReceiver)
 {
 }
 
@@ -89,8 +90,14 @@ std::optional<Exception> RTCEncodedStreamProducer::initialize(JSDOMGlobalObject&
     return { };
 }
 
+extern void setLoggingEnabled(bool);
+
+static int cptr = 0;
 void RTCEncodedStreamProducer::enqueueFrame(Ref<RTCRtpTransformableFrame>&& frame)
 {
+   // if (m_isReceiver && m_isVideo && !((++cptr) % 30))
+     //   WTFLogAlways("RTCEncodedStreamProducer::enqueueFrame video");
+
     RefPtr context = m_context.get();
     if (!context)
         return;
@@ -102,10 +109,17 @@ void RTCEncodedStreamProducer::enqueueFrame(Ref<RTCRtpTransformableFrame>&& fram
     Ref vm = globalObject->vm();
     JSC::JSLockHolder lock(vm);
 
+    setLoggingEnabled(true);
+/*
+ callOnMainThread([] {
+ setLoggingEnabled(false);
+ });
+ */
     auto value = m_isVideo ? toJS(globalObject, globalObject, RTCEncodedVideoFrame::create(WTFMove(frame))) : toJS(globalObject, globalObject, RTCEncodedAudioFrame::create(WTFMove(frame)));
 
     m_readableSource->enqueue(value);
 }
+
 
 ExceptionOr<void> RTCEncodedStreamProducer::writeFrame(ScriptExecutionContext& context, JSC::JSValue value)
 {
@@ -124,6 +138,8 @@ ExceptionOr<void> RTCEncodedStreamProducer::writeFrame(ScriptExecutionContext& c
     auto rtcFrame = WTF::switchOn(frame, [&](RefPtr<RTCEncodedAudioFrame>& value) {
         return value->rtcFrame(vm);
     }, [&](RefPtr<RTCEncodedVideoFrame>& value) {
+       // if (!((cptr) % 30))
+            //WTFLogAlways("RTCEncodedStreamProducer::writeFrame video hasData=%d isKeyFrame=%d isReceiver=%d", value->data() && value->data()->byteLength(), value->type() == RTCEncodedVideoFrame::Type::Key, m_isReceiver);
         return value->rtcFrame(vm);
     });
 

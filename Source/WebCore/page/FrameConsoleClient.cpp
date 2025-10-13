@@ -204,6 +204,12 @@ void FrameConsoleClient::addMessage(MessageSource source, MessageLevel level, co
     addMessage(WTFMove(message));
 }
 
+static bool shouldLog = true;
+void setLoggingEnabled(bool v)
+{
+    shouldLog = v;
+}
+
 void FrameConsoleClient::messageWithTypeAndLevel(MessageType type, MessageLevel level, JSC::JSGlobalObject* lexicalGlobalObject, Ref<Inspector::ScriptArguments>&& arguments)
 {
     String messageText;
@@ -213,6 +219,9 @@ void FrameConsoleClient::messageWithTypeAndLevel(MessageType type, MessageLevel 
         messageText = messageArgumentsVector.first();
         additionalArguments = messageArgumentsVector.subspan(1);
     }
+
+    //if (shouldLog)
+    WTFLogAlways("console log: '%s'", messageText.utf8().data());
 
     auto message = makeUnique<Inspector::ConsoleMessage>(MessageSource::ConsoleAPI, type, level, messageText, arguments.copyRef(), lexicalGlobalObject);
 

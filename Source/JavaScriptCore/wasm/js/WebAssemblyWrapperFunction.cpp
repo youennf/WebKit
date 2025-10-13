@@ -46,6 +46,7 @@ WebAssemblyWrapperFunction::WebAssemblyWrapperFunction(VM& vm, NativeExecutable*
 
 WebAssemblyWrapperFunction* WebAssemblyWrapperFunction::create(VM& vm, JSGlobalObject* globalObject, Structure* structure, JSObject* function, unsigned importIndex, JSWebAssemblyInstance* instance, Wasm::TypeIndex typeIndex, Ref<const Wasm::RTT>&& rtt)
 {
+    //WTFLogAlways("WebAssemblyWrapperFunction::create");
     ASSERT_WITH_MESSAGE(!function->inherits<WebAssemblyWrapperFunction>(), "We should never double wrap a wrapper function.");
 
     String name = emptyString();
@@ -97,6 +98,8 @@ DEFINE_VISIT_CHILDREN(WebAssemblyWrapperFunction);
 
 JSC_DEFINE_HOST_FUNCTION(callWebAssemblyWrapperFunction, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
+   // WTFLogAlways("callWebAssemblyWrapperFunction");
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     WebAssemblyWrapperFunction* wasmFunction = jsCast<WebAssemblyWrapperFunction*>(callFrame->jsCallee());
@@ -108,6 +111,8 @@ JSC_DEFINE_HOST_FUNCTION(callWebAssemblyWrapperFunction, (JSGlobalObject* global
 
 JSC_DEFINE_HOST_FUNCTION(callWebAssemblyWrapperFunctionIncludingInvalidValues, (JSGlobalObject* globalObject, CallFrame*))
 {
+    //WTFLogAlways("callWebAssemblyWrapperFunctionIncludingInvalidValues");
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     return throwVMTypeError(globalObject, scope, Wasm::errorMessageForExceptionType(Wasm::ExceptionType::TypeErrorInvalidValueUse));

@@ -153,8 +153,13 @@ void VideoStreamBufferController::Clear() {
   frame_decode_scheduler_->CancelOutstanding();
 }
 
+static int test33 = 0;
 std::optional<int64_t> VideoStreamBufferController::InsertFrame(
     std::unique_ptr<EncodedFrame> frame) {
+    
+    if (!(test33++ % 30))
+        fprintf(stderr, "VideoStreamBufferController::InsertFrame(\n");
+
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
   FrameMetadata metadata(*frame);
   int complete_units = buffer_->GetTotalNumberOfContinuousTemporalUnits();
@@ -205,12 +210,16 @@ int VideoStreamBufferController::Size() {
   return buffer_->CurrentSize();
 }
 
+static int test3 = 0;
 void VideoStreamBufferController::OnFrameReady(
     absl::InlinedVector<std::unique_ptr<EncodedFrame>, 4> frames,
     Timestamp render_time) {
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
   RTC_CHECK(!frames.empty())
       << "Callers must ensure there is at least one frame to decode.";
+
+    if (!(test3++ % 30))
+        fprintf(stderr, "VideoStreamBufferController::OnFrameReady\n");
 
   timeout_tracker_.OnEncodedFrameReleased();
 
@@ -290,8 +299,12 @@ void VideoStreamBufferController::OnTimeout(TimeDelta delay) {
   receiver_->OnDecodableFrameTimeout(delay);
 }
 
+static int test30 = 0;
 void VideoStreamBufferController::FrameReadyForDecode(uint32_t rtp_timestamp,
                                                       Timestamp render_time) {
+
+    if (!(test30++ % 30))
+        fprintf(stderr, "VideoStreamBufferController::FrameReadyForDecode(\n");
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
   // Check that the frame to decode is still valid before passing the frame for
   // decoding.
@@ -381,6 +394,9 @@ void VideoStreamBufferController::ForceKeyFrameReleaseImmediately()
     }
     // Found keyframe - decode right away.
     if (next_frame.front()->is_keyframe()) {
+        
+        fprintf(stderr, "VideoStreamBufferController::ForceKeyFrameReleaseImmediately\n");
+
       auto render_time = timing_->RenderTime(next_frame.front()->RtpTimestamp(),
                                              clock_->CurrentTime());
       OnFrameReady(std::move(next_frame), render_time);
@@ -389,20 +405,26 @@ void VideoStreamBufferController::ForceKeyFrameReleaseImmediately()
   }
 }
 
+static int testB = 0;
 void VideoStreamBufferController::MaybeScheduleFrameForRelease()
     RTC_RUN_ON(&worker_sequence_checker_) {
   auto decodable_tu_info = buffer_->DecodableTemporalUnitsInfo();
+    if (!(testB++ % 30))
+     ..   fprintf(stderr, "VideoStreamBufferController::MaybeScheduleFrameForRelease\n");
   if (!decoder_ready_for_new_frame_ || !decodable_tu_info) {
+//      fprintf(stderr, "VideoStreamBufferController::MaybeScheduleFrameForRelease failed 1\n");
     return;
   }
 
   if (keyframe_required_) {
+..      fprintf(stderr, "VideoStreamBufferController::MaybeScheduleFrameForRelease failed 2?\n");
     return ForceKeyFrameReleaseImmediately();
   }
 
   // If already scheduled then abort.
   if (frame_decode_scheduler_->ScheduledRtpTimestamp() ==
       decodable_tu_info->next_rtp_timestamp) {
+   //   fprintf(stderr, "VideoStreamBufferController::MaybeScheduleFrameForRelease failed 3\n");
     return;
   }
 

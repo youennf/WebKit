@@ -84,12 +84,17 @@ DecodeSynchronizer::SynchronizedFrameDecodeScheduler::LatestDecodeTime() {
   return next_frame_->LatestDecodeTime();
 }
 
+static int testDDD = 0;
 void DecodeSynchronizer::SynchronizedFrameDecodeScheduler::ScheduleFrame(
     uint32_t rtp,
     FrameDecodeTiming::FrameSchedule schedule,
     FrameReleaseCallback cb) {
   RTC_DCHECK(!stopped_);
   RTC_DCHECK(!next_frame_) << "Can not schedule two frames at once.";
+
+    if (!(testDDD++ % 30))
+        fprintf(stderr, "DecodeSynchronizer::SynchronizedFrameDecodeScheduler::ScheduleFrame\n");
+
   next_frame_ = ScheduledFrame(rtp, std::move(schedule), std::move(cb));
   sync_->OnFrameScheduled(this);
 }

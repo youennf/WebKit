@@ -75,6 +75,7 @@ static constexpr bool verbose = false;
 JSC_DEFINE_JIT_OPERATION(operationJSToWasmEntryWrapperBuildFrame, JSToWasmCallee*, (void* sp, CallFrame* callFrame, WebAssemblyFunction* function))
 {
     dataLogLnIf(WasmOperationsInternal::verbose, "operationJSToWasmEntryWrapperBuildFrame sp: ", RawPointer(sp), " fp: ", RawPointer(callFrame));
+   // WTFLogAlways("operationJSToWasmEntryWrapperBuildFrame");
 
     auto* globalObject = function->globalObject();
     VM& vm = globalObject->vm();
@@ -147,6 +148,8 @@ JSC_DEFINE_JIT_OPERATION(operationJSToWasmEntryWrapperBuildFrame, JSToWasmCallee
 // We don't actually return anything, but we can't compile with a ExceptionOperationResult<void> as the return type.
 JSC_DEFINE_JIT_OPERATION(operationJSToWasmEntryWrapperBuildReturnFrame, EncodedJSValue, (void* sp, CallFrame* callFrame))
 {
+   // WTFLogAlways("operationJSToWasmEntryWrapperBuildReturnFrame");
+
     dataLogLnIf(WasmOperationsInternal::verbose, "operationJSToWasmEntryWrapperBuildReturnFrame sp: ", RawPointer(sp), " fp: ", RawPointer(callFrame));
 
     auto* instance = callFrame->wasmInstance();
@@ -277,6 +280,8 @@ JSC_DEFINE_JIT_OPERATION(operationJSToWasmEntryWrapperBuildReturnFrame, EncodedJ
 
 JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationGetWasmCalleeStackSize, UCPUStrictInt32, (JSWebAssemblyInstance*, WasmCallableFunction* functionInfo))
 {
+  //  WTFLogAlways("operationGetWasmCalleeStackSize");
+
     auto typeIndex = static_cast<WasmOrJSImportableFunctionCallLinkInfo*>(functionInfo)->typeIndex;
     const TypeDefinition& typeDefinition = TypeInformation::get(typeIndex).expand();
     const auto& signature = *typeDefinition.as<FunctionSignature>();
@@ -297,6 +302,8 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationGetWasmCalleeStackSize, UCPUStrictInt
 
 JSC_DEFINE_JIT_OPERATION(operationWasmToJSExitMarshalArguments, bool, (void* sp, CallFrame* cfr, void* argumentRegisters, JSWebAssemblyInstance* instance))
 {
+   // WTFLogAlways("operationWasmToJSExitMarshalArguments");
+
     auto access = []<typename V>(auto* arr, int i) -> V* {
         return &reinterpret_cast<V*>(arr)[i / sizeof(V)];
     };
@@ -452,6 +459,7 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationWasmToJSExitNeedToUnpack, const TypeD
 
 JSC_DEFINE_JIT_OPERATION(operationWasmToJSExitMarshalReturnValues, void, (void* sp, CallFrame* cfr, JSWebAssemblyInstance* instance))
 {
+    //WTFLogAlways("operationWasmToJSExitMarshalReturnValues");
     auto access = []<typename V>(auto* arr, int i) -> V* {
         return &reinterpret_cast<V*>(arr)[i / sizeof(V)];
     };

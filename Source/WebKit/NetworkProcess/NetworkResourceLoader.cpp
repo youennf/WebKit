@@ -230,6 +230,10 @@ bool NetworkResourceLoader::isSynchronous() const
 
 void NetworkResourceLoader::start()
 {
+    if (originalRequest().url().string().contains("7aVfuIm_Bmhf1yYtiJLnIN-qve3AoHQAKk3zmkUjX21D84BFRh_Dpo2c4KbPJPtt.js"_s)) {
+// didRetrieveCacheEntry
+        return;
+    }
     startRequest(originalRequest());
 }
 

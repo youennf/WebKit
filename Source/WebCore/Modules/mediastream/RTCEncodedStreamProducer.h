@@ -45,13 +45,13 @@ class RTCEncodedStreamProducer final : public RefCounted<RTCEncodedStreamProduce
     , public CanMakeWeakPtr<RTCEncodedStreamProducer> {
     WTF_MAKE_TZONE_OR_ISO_ALLOCATED(RTCEncodedStreamProducer);
 public:
-    static ExceptionOr<Ref<RTCEncodedStreamProducer>> create(ScriptExecutionContext&, Ref<RTCRtpTransformBackend>&&, bool isVideo);
+    static ExceptionOr<Ref<RTCEncodedStreamProducer>> create(ScriptExecutionContext&, Ref<RTCRtpTransformBackend>&&, bool isVideo, bool = false);
     ~RTCEncodedStreamProducer();
 
     RTCEncodedStreams streams() { return { m_readable.get(), m_writable.get() }; }
 
 private:
-    RTCEncodedStreamProducer(ScriptExecutionContext&, Ref<ReadableStream>&&, Ref<SimpleReadableStreamSource>&&, Ref<RTCRtpTransformBackend>&&, bool isVideo);
+    RTCEncodedStreamProducer(ScriptExecutionContext&, Ref<ReadableStream>&&, Ref<SimpleReadableStreamSource>&&, Ref<RTCRtpTransformBackend>&&, bool isVideo, bool);
 
     void enqueueFrame(Ref<RTCRtpTransformableFrame>&&);
     ExceptionOr<void> writeFrame(ScriptExecutionContext&, JSC::JSValue);
@@ -63,7 +63,8 @@ private:
     const Ref<SimpleReadableStreamSource> m_readableSource;
     const RefPtr<WritableStream> m_writable;
     const Ref<RTCRtpTransformBackend> m_transformBackend;
-    const bool m_isVideo { false };
+        const bool m_isVideo { false };
+        const bool m_isReceiver { false };
 };
 
 } // namespace WebCore

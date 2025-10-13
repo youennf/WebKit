@@ -43,6 +43,8 @@ CachedScript::CachedScript(CachedResourceRequest&& request, PAL::SessionID sessi
     , m_requiresPrivacyProtections(requiresPrivacyProtections == ScriptTrackingPrivacyProtectionsEnabled::Yes)
     , m_decoder(TextResourceDecoder::create("text/javascript"_s, request.charset()))
 {
+    if (url().string().contains("3avio"_s))
+        WTFLogAlways("CachedScript::CachedScript '%s'", url().string().utf8().data());
 }
 
 CachedScript::~CachedScript() = default;
@@ -88,8 +90,125 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
         m_scriptHash = StringHasher::computeHashAndMaskTop8Bits(contiguousData->span());
     }
 
-    if (m_decodingState == DataAndDecodedStringHaveSameBytes)
+    if (m_decodingState == DataAndDecodedStringHaveSameBytes) {
+        if (url().string().contains("3avio"_s) || url().string().contains("dsWalqj"_s)) {
+            //WTFLogAlways("CachedScript1 for '%s'", url().string().utf8().data());
+
+            if (!m_script.isEmpty())
+                return m_script;
+            String script = { byteCast<Latin1Character>(contiguousData->span()) };
+            if (script.contains("var _frameDecryptor_decrypt"_s) || script.contains("if(b.type!==\"dataMessageReceived\")"_s)) {
+                WTFLogAlways("found script");
+                auto index1 = script.find("function createExportWrapper("_s);
+                script = makeString(script.substring(0, index1),
+                                    "\n"
+                                    "let counter = 0;\n"
+                                    "const namesWithLog = new Set();\n"
+                                    "namesWithLog.add('encryptionKeysManager_processE2eeMessage');\n"
+                                    "function toString(g, buffer)"
+                                    "{"
+                                    "  var d = '';"
+                                    "  for (var e = 0; e < 32; ++e)"
+                                    "    d += String.fromCharCode(g.getValue(e + buffer, \"i8\"));"
+                                    "  return d;"
+                                    "}"
+                                    "function createExportWrapperWithLog(name) {\n"
+                                    "  return function() {\n"
+                                    "    assert(runtimeInitialized, \"native function `\" + name + \"` called before runtime initialization\");\n"
+                                    "    var f = wasmExports[name];\n"
+                                    "    assert(f, \"exported native function `\" + name + \"` not found\");\n"
+                                    "    let toLog = 'createExportWrapperWithLog for ' + name;"
+                                    "    for (let a of arguments) toLog += ', ' + a \n"
+                                    "    if (name == 'frameDecryptor_setSupportedFrameDataHandlerTypes') {\n"
+                                    "      let a = arguments[1];\n"
+                                    "      toLog += ' values:' + this.getValue(a, 'i8') + ',' + this.getValue(4 + a, 'i8') + ',' + this.getValue(8 + a, 'i8')\n"
+                                    "    }\n"
+                                    "    let result = f.apply(null, arguments);\n"
+                                    "    if (namesWithLog.has(name)) {\n"
+                                    "      toLog += ' -> ' + result;\n"
+                                    "      if (name === 'frameDecryptorDeps_setE2eeId') {\n"
+                                    "        let a = arguments[1];\n"
+                                    "        toLog += ' , input id is: ' + toString(this, a);  "
+                                    "      }\n"
+                                    "      console.log(toLog);\n"
+                                    "    }\n"
+                                    "    else if (name === 'frameDecryptor_decrypt' && this.getValue(arguments[2], 'i32') > 150 && ++counter < 20) {\n"
+                                    "      toLog += ' output length: ' + this.getValue(arguments[7], 'i32');\n"
+                                    "      let a = arguments[1];\n"
+                                    "      let length = this.getValue(arguments[2], 'i32') - 12;\n"
+                                    "      toLog += ' values:' + this.getValue(a, 'i8') + ', ' + this.getValue(a + 1, 'i8') + ', ' + this.getValue(a + 2, 'i8') + ', ' + this.getValue(a + 3, 'i8') + ', ' + this.getValue(a + 4, 'i8') + ', ' + this.getValue(a + 5, 'i8') + ', ' + this.getValue(a + 6, 'i8') + ', ' + this.getValue(a + 7, 'i8') + ', ' + this.getValue(a + 8, 'i8') + ', ' + this.getValue(a + 9, 'i8') + ', ' + this.getValue(a + 10, 'i8') + ', ' + this.getValue(a + 11, 'i8')\n"
+                                    "      toLog += ' -> ' + result;\n"
+                                    "      console.log(toLog);\n"
+                                    "      toLog = this.getValue(a + length, 'i8') + ', ' + this.getValue(a + length + 1, 'i8') + ', ' + this.getValue(a + length + 2, 'i8') + ', ' + this.getValue(a + length + 3, 'i8') + ', ' + this.getValue(a + length + 4, 'i8') + ', ' + this.getValue(a + length + 5, 'i8') + ', ' + this.getValue(a + length + 6, 'i8') + ', ' + this.getValue(a + length + 7, 'i8') + ', ' + this.getValue(a + length + 8, 'i8') + ', ' + this.getValue(a + length + 9, 'i8') + ', ' + this.getValue(a + length + 10, 'i8') + ', ' + this.getValue(a + length + 11, 'i8')\n"
+                                    "      console.log(toLog);\n"
+                                    "    }\n"
+                                    "    return result;\n"
+                                    "   }\n"
+                                    ";\n"
+                                    "}\n"_s
+                                    , script.substring(index1)
+                                    );
+                auto values = script.split("=createExportWrapper("_s);
+                WTFLogAlways("found createExportWrapperWithLog chunks %d\n", (int)values.size());
+
+                script = makeStringByJoining(values.span(), "=createExportWrapperWithLog("_s);
+
+                values = script.split("g.decodeMessage=j;"_s);
+                WTFLogAlways("found decodeMessage chunks %d\n", (int)values.size());
+
+                script = makeStringByJoining(values.span(), ""
+                                             "function j1(a, b) {"
+                                                "const result = j(a,b);"
+                                                //"console.log('decodeMessage:' + JSON.stringify(result));"
+                                                "return result;"
+                                             "};"
+                                             "g.decodeMessage=j1;"_s);
+
+                values = script.split("g.decodeByteMessages=a;"_s);
+                WTFLogAlways("found decodeByteMessages chunks %d\n", (int)values.size());
+
+                script = makeStringByJoining(values.span(), ""
+                                            "function a1(a) {"
+                                            "    var b = []"
+                                            "      , c = 0;"
+                                            "    while (c < a.length) {"
+                                            "        var d = j1(a, c)"
+                                            "          , e = d.wireMessage;"
+                                            "        c = d.position;"
+                                            "        if (e)"
+                                            "            b.push(e);"
+                                            "        else"
+                                            "            break"
+                                            "    }"
+                                            "    d = null;"
+                                            "    c < a.length && (d = a.subarray(c));"
+                                            "console.log('decodeByteMessages:' + JSON.stringify(b));"
+                                            "    return {"
+                                            "        messages: b,"
+                                            "        remaining: d"
+                                            "    }"
+                                            "}"
+                                            "g.decodeByteMessages=a1;"_s);
+//
+                values = script.split("if(b.type!==\"dataMessageReceived\")"_s);
+                WTFLogAlways("found if b type chunks %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), ""
+                                             "console.log('dataMessageReceived dispatcher:' + JSON.stringify(b));"
+                                             "if(b.type!==\"dataMessageReceived\")"_s);
+
+                values = script.split("onGenericDataMessageReceived:function(a,c){"_s);
+                WTFLogAlways("found onGenericDataMessageReceived %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "onGenericDataMessageReceived:function(a,c){"
+                                             "console.log('onGenericDataMessageReceived with ' + JSON.stringify(c));"
+                                             ""_s);
+
+                
+                m_script = WTFMove(script);
+                return m_script;
+            }
+        }
         return { byteCast<Latin1Character>(contiguousData->span()) };
+    }
 
     bool shouldForceRedecoding = m_wasForceDecodedAsUTF8 != (shouldDecodeAsUTF8Only == ShouldDecodeAsUTF8Only::Yes);
     if (!m_script || shouldForceRedecoding) {
@@ -117,6 +236,34 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
     }
 
     restartDecodedDataDeletionTimer();
+
+    if (url().string().contains("3avio"_s))
+        WTFLogAlways("CachedScript2 for '%s'", url().string().utf8().data());
+
+    if (m_script.contains("var _frameDecryptor_decrypt"_s)) {
+        WTFLogAlways("found script");
+        auto index = m_script.find("var _frameDecryptor_decrypt=Module[\"_frameDecryptor_decrypt\"]=createExportWrapper(\"frameDecryptor_decrypt\");"_s);
+        if (index != notFound) {
+            WTFLogAlways("updating script");
+            auto length = sizeof("var _frameDecryptor_decrypt=Module[\"_frameDecryptor_decrypt\"]=createExportWrapper(\"frameDecryptor_decrypt\");");
+            m_script = makeString(
+              "function createExportWrapperWithLog(name) {"
+              "  return function() {"
+              "    assert(runtimeInitialized, \"native function `\" + name + \"` called before runtime initialization\");"
+              "    var f = wasmExports[name];"
+              "    assert(f, \"exported native function `\" + name + \"` not found\");"
+              "    console.log(\"createExportWrapperWithLog for \" + name)"
+              "    for (let a of arguments) console.log(a);"
+              "    return f.apply(null, arguments);"
+              "   }"
+              ";"
+              "}"
+              ""_s,
+              m_script.substring(0, index),
+              "var _frameDecryptor_decrypt=Module[\"_frameDecryptor_decrypt\"]=createExportWrapperWithLog(\"frameDecryptor_decrypt\");"_s,
+              m_script.substring(index + length));
+        }
+    }
     return m_script;
 }
 

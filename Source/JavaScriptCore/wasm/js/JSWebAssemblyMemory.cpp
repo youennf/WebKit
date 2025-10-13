@@ -42,6 +42,8 @@ const ClassInfo JSWebAssemblyMemory::s_info = { "WebAssembly.Memory"_s, &Base::s
 
 JSWebAssemblyMemory* JSWebAssemblyMemory::create(VM& vm, Structure* structure)
 {
+    //WTFLogAlways("JSWebAssemblyMemory::create");
+
     auto* memory = new (NotNull, allocateCell<JSWebAssemblyMemory>(vm)) JSWebAssemblyMemory(vm, structure);
     memory->finishCreation(vm);
     return memory;
