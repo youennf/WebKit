@@ -42,6 +42,7 @@
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTargetInterfaces.h"
+#include "FrameConsoleClient.h"
 #include "FrameDestructionObserverInlines.h"
 #include "FrameLoader.h"
 #include "InspectorInstrumentation.h"
@@ -606,12 +607,14 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
                     copy[i] = ' ';
             }
             auto text = String::fromUTF8(copy.span());
+            bool shouldLog = text.contains("E2eeKey"_s);
             if (text.contains("t_rtc_multi"_s)) {
                 socket.m_shouldLog = true;
             }
-            if (socket.m_shouldLog) {
+            if (shouldLog) {
+                FrameConsoleClient::setLoggingEnabled(true);
                 auto ctxt = text.utf8();
-                WTFLogAlways("WebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
+                WTFLogAlways("\nWebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
             }
         }
 
@@ -624,8 +627,9 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
             socket.dispatchEvent(MessageEvent::create(ArrayBuffer::create(binaryData), SecurityOrigin::create(socket.m_url)->toString()));
             break;
         }
-        if (socket.m_shouldLog)
-            WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n", &socket, (int)binaryData.size(), (int)binaryData[0]);
+        FrameConsoleClient::setLoggingEnabled(false);
+        if (shouldLog)
+           WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n\n", &socket, (int)binaryData.size(), (int)binaryData[0]);
     });
 }
 

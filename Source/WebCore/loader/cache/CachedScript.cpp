@@ -202,7 +202,32 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                                              "console.log('onGenericDataMessageReceived with ' + JSON.stringify(c));"
                                              ""_s);
 
+                values = script.split("defer:function(a,b){"_s);
+                WTFLogAlways("found defer:function %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "defer:function(a,b){"
+                                             "console.log('defer:function with ' + JSON.stringify(b));"
+                                             ""_s);
+
+                values = script.split("onDeferTimeout:function(a){"_s);
+                WTFLogAlways("found onDeferTimeout %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "onDeferTimeout:function(a){"
+                                             "console.log('onDeferTimeout with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.processEvent=function(a){"_s);
+                WTFLogAlways("found processEvent %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.processEvent=function(a){"
+                                             "console.log('processEvent with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("f.sm.onTransition(function(a){"_s);
+                WTFLogAlways("found f.sm.onTransition %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "f.sm.onTransition(function(a){"
+                                             "console.log('f.sm.onTransition with ' + JSON.stringify({actions:a.actions, activities:a.activities, event:a.event}));"
+                                             ""_s);
+
                 
+
                 m_script = WTFMove(script);
                 return m_script;
             }
