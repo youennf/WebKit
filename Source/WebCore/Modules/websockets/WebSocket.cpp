@@ -350,7 +350,7 @@ ExceptionOr<void> WebSocket::connect(const String& url, const Vector<String>& pr
 
 ExceptionOr<void> WebSocket::send(const String& message)
 {
-    WTFLogAlways("WebSocket::send text %p '%s'\n", this, message.utf8().data());
+//    WTFLogAlways("WebSocket::send text %p '%s'\n", this, message.utf8().data());
 
     LOG(Network, "WebSocket %p send() Sending String '%s'", this, message.utf8().data());
     if (m_state == CONNECTING)
@@ -380,7 +380,7 @@ ExceptionOr<void> WebSocket::send(ArrayBuffer& binaryData)
                 copy[i] = ' ';
         }
         auto text = String::fromUTF8(copy.span());
-        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
+//        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
     }
 
     LOG(Network, "WebSocket %p send() Sending ArrayBuffer %p", this, &binaryData);
@@ -569,8 +569,8 @@ void WebSocket::didConnect()
 
 void WebSocket::didReceiveMessage(String&& message)
 {
-    if (m_shouldLog)
-        WTFLogAlways("WebSocket::didReceiveMessage %d\n", (int)message.length());
+ //   if (m_shouldLog)
+   //     WTFLogAlways("WebSocket::didReceiveMessage %d\n", (int)message.length());
 
     LOG(Network, "WebSocket %p didReceiveMessage() Text message '%s'", this, message.utf8().data());
     queueTaskKeepingObjectAlive(*this, TaskSource::WebSocket, [message = WTFMove(message)](auto& socket) mutable {
@@ -600,6 +600,7 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
                 inspector->didReceiveWebSocketFrame(WebSocketChannelInspector::createFrame(binaryData.span(), WebSocketFrame::OpCode::OpCodeBinary));
         }
 
+        bool shouldLog = false;
         if (socket.url().string().contains("edge")) {
             auto copy = binaryData;
             for (int i = 0; i < (int)copy.size(); i++) {
@@ -607,14 +608,14 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
                     copy[i] = ' ';
             }
             auto text = String::fromUTF8(copy.span());
-            bool shouldLog = text.contains("E2eeKey"_s);
+            shouldLog = text.contains("E2eeKey"_s);
             if (text.contains("t_rtc_multi"_s)) {
                 socket.m_shouldLog = true;
             }
             if (shouldLog) {
-                FrameConsoleClient::setLoggingEnabled(true);
+                setLoggingEnabled(true);
                 auto ctxt = text.utf8();
-                WTFLogAlways("\nWebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
+                WTFLogAlways("\nWebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
             }
         }
 
@@ -627,7 +628,7 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
             socket.dispatchEvent(MessageEvent::create(ArrayBuffer::create(binaryData), SecurityOrigin::create(socket.m_url)->toString()));
             break;
         }
-        FrameConsoleClient::setLoggingEnabled(false);
+        setLoggingEnabled(false);
         if (shouldLog)
            WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n\n", &socket, (int)binaryData.size(), (int)binaryData[0]);
     });
