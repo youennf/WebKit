@@ -203,6 +203,7 @@ bool MediaSession::virtualHasPendingActivity() const
 
 void MediaSession::setMetadata(RefPtr<MediaMetadata>&& metadata)
 {
+    WTFLogAlways("MediaSession::setMetadata %p", this);
     ALWAYS_LOG(LOGIDENTIFIER);
     if (m_metadata)
         m_metadata->resetMediaSession();
@@ -262,6 +263,8 @@ void MediaSession::setPlaybackState(MediaSessionPlaybackState state)
 
 ExceptionOr<void> MediaSession::setActionHandler(MediaSessionAction action, RefPtr<MediaSessionActionHandler>&& handler)
 {
+    WTFLogAlways("MediaSession::setActionHandler %p %d", this, (int)action);
+
 #if ENABLE(MEDIA_STREAM)
     RefPtr document = this->document();
     if (document && !document->settings().mediaSessionCaptureToggleAPIEnabled() && (action == MediaSessionAction::Togglecamera || action == MediaSessionAction::Togglemicrophone || action == MediaSessionAction::Togglescreenshare || action == MediaSessionAction::Voiceactivity))

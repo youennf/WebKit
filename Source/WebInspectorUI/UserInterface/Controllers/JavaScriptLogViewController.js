@@ -304,6 +304,8 @@ WI.JavaScriptLogViewController = class JavaScriptLogViewController extends WI.Ob
         this._repeatCountWasInterrupted = repeatCountWasInterrupted || false;
 
         let message = messageView.message;
+        if (!message)
+            return;
 
         if (!repeatCountWasInterrupted) {
             this._previousMessageView = messageView;

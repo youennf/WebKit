@@ -132,7 +132,7 @@ bool MediaStreamPrivate::computeActiveState()
 
 void MediaStreamPrivate::updateActiveState()
 {
-    WTFLogAlways("MediaStreamPrivate::updateActiveState %p", this);
+   // WTFLogAlways("MediaStreamPrivate::updateActiveState %p", this);
 
     bool newActiveState = computeActiveState();
 
@@ -151,7 +151,7 @@ void MediaStreamPrivate::updateActiveState()
 
 void MediaStreamPrivate::addTrack(Ref<MediaStreamTrackPrivate>&& track)
 {
-    WTFLogAlways("MediaStreamPrivate::addTrack %p", this);
+  //  WTFLogAlways("MediaStreamPrivate::addTrack %p", this);
 
     if (m_trackSet.contains(track->id()))
         return;
@@ -172,7 +172,7 @@ void MediaStreamPrivate::addTrack(Ref<MediaStreamTrackPrivate>&& track)
 
 void MediaStreamPrivate::removeTrack(MediaStreamTrackPrivate& track)
 {
-    WTFLogAlways("MediaStreamPrivate::removeTrack %p", this);
+ //   WTFLogAlways("MediaStreamPrivate::removeTrack %p", this);
 
     if (!m_trackSet.remove(track.id()))
         return;
@@ -307,7 +307,7 @@ void MediaStreamPrivate::trackStarted(MediaStreamTrackPrivate& track)
 
 void MediaStreamPrivate::trackEnded(MediaStreamTrackPrivate& track)
 {
-    WTFLogAlways("MediaStreamPrivate::trackEnded %p", this);
+    //WTFLogAlways("MediaStreamPrivate::trackEnded %p", this);
 
 #if RELEASE_LOG_DISABLED
     UNUSED_PARAM(track);

@@ -3150,6 +3150,8 @@ void Page::mediaEngineChanged(HTMLMediaElement& mediaElement)
 
 void Page::setMuted(MediaProducerMutedStateFlags mutedState)
 {
+    RELEASE_LOG_ERROR(WebRTC, "Page::setMuted");
+
 #if ENABLE(MEDIA_STREAM) && ENABLE(MEDIA_SESSION)
     bool cameraCaptureStateDidChange = mutedState.contains(MediaProducerMutedState::VideoCaptureIsMuted) != m_mutedState.contains(MediaProducerMutedState::VideoCaptureIsMuted);
     bool microphoneCaptureStateDidChange = mutedState.contains(MediaProducerMutedState::AudioCaptureIsMuted) != m_mutedState.contains(MediaProducerMutedState::AudioCaptureIsMuted);
@@ -3210,6 +3212,8 @@ static inline MediaProducerMutedStateFlags computeCaptureMutedState(MediaProduce
 
 void Page::updateCaptureState(bool isActive, MediaProducerMediaCaptureKind kind)
 {
+    RELEASE_LOG_ERROR(WebRTC, "Page::updateCaptureState");
+
     m_mutedState = computeCaptureMutedState(m_mutedState, isActive, kind);
     forEachDocument([&] (Document& document) {
         document.pageMutedStateDidChange();

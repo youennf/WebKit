@@ -497,6 +497,8 @@ void MediaSessionManagerCocoa::updateNowPlayingInfo()
     if (session)
         nowPlayingInfo = session->nowPlayingInfo();
 
+    WTFLogAlways("MediaSessionManagerCocoa::updateNowPlayingInfo has playing info %d", !!nowPlayingInfo);
+
     if (!nowPlayingInfo) {
         if (m_registeredAsNowPlayingApplication) {
             ALWAYS_LOG(LOGIDENTIFIER, "clearing now playing info");

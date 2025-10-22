@@ -6129,6 +6129,8 @@ void Document::voiceActivityDetected()
 
 void Document::pageMutedStateDidChange()
 {
+    RELEASE_LOG_ERROR(WebRTC, "Document::pageMutedStateDidChange");
+
     for (auto& audioProducer : m_audioProducers)
         audioProducer.pageMutedStateDidChange();
 
@@ -6140,6 +6142,8 @@ void Document::pageMutedStateDidChange()
 #if ENABLE(MEDIA_STREAM)
 static void updateCaptureSourceToPageMutedState(Document& document, Page& page, RealtimeMediaSource& source)
 {
+    RELEASE_LOG_ERROR(WebRTC, "updateCaptureSourceToPageMutedState %d %d", page.mutedState().contains(MediaProducerMutedState::AudioCaptureIsMuted), page.mutedState().contains(MediaProducerMutedState::VideoCaptureIsMuted));
+
     ASSERT(source.isCaptureSource());
     switch (source.deviceType()) {
     case CaptureDevice::DeviceType::Microphone:
@@ -10567,7 +10571,7 @@ void Document::mediaStreamCaptureStateChanged()
 
 void Document::updateVideoCaptureStateForMicrophoneInterruption(bool isMicrophoneInterrupted)
 {
-    RELEASE_LOG_INFO(WebRTC, "Document::updateVideoCaptureStateForMicrophoneInterruption %d", isMicrophoneInterrupted);
+    RELEASE_LOG_ERROR(WebRTC, "Document::updateVideoCaptureStateForMicrophoneInterruption %d", isMicrophoneInterrupted);
 
     RefPtr page = this->page();
     if (!page)

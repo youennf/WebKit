@@ -968,7 +968,8 @@ bool Quirks::shouldDisableImageCaptureQuirk() const
 #if ENABLE(MEDIA_STREAM)
 bool Quirks::shouldEnableCameraAndMicrophonePermissionStateQuirk() const
 {
-    return needsQuirks() && m_quirksData.shouldEnableCameraAndMicrophonePermissionStateQuirk;
+    return true;
+//    return needsQuirks() && m_quirksData.shouldEnableCameraAndMicrophonePermissionStateQuirk;
 }
 #endif
 
@@ -986,7 +987,8 @@ bool Quirks::shouldEnableEnumerateDeviceQuirk() const
 #if ENABLE(WEB_RTC)
 bool Quirks::shouldEnableRTCEncodedStreamsQuirk() const
 {
-    return needsQuirks() && m_quirksData.shouldEnableRTCEncodedStreamsQuirk && protectedDocument() && protectedDocument()->settings().rtcEncodedStreamsQuirkEnabled();
+    return true;
+//    return needsQuirks() && m_quirksData.shouldEnableRTCEncodedStreamsQuirk && protectedDocument() && protectedDocument()->settings().rtcEncodedStreamsQuirkEnabled();
 }
 #endif
 

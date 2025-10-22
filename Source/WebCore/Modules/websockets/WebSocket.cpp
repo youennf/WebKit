@@ -232,6 +232,8 @@ ExceptionOr<void> WebSocket::connect(const String& url, const Vector<String>& pr
     LOG(Network, "WebSocket %p connect() url='%s'", this, url.utf8().data());
     m_url = URL { url };
 
+    m_shouldLog = m_url.string().contains("edge"_s);
+
     Ref context = *scriptExecutionContext();
 
     if (!m_url.isValid()) {
@@ -380,7 +382,7 @@ ExceptionOr<void> WebSocket::send(ArrayBuffer& binaryData)
                 copy[i] = ' ';
         }
         auto text = String::fromUTF8(copy.span());
-//        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
+        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
     }
 
     LOG(Network, "WebSocket %p send() Sending ArrayBuffer %p", this, &binaryData);

@@ -1042,7 +1042,10 @@ void RTCPeerConnection::scheduleEvent(Ref<Event>&& event)
 
 void RTCPeerConnection::dispatchEvent(Event& event)
 {
-    if (event.type() != "icecandidate"_s)
+    if (event.type() == "icecandidate"_s) {
+    } else if (event.type() == "connectionstatechange"_s) {
+        WTFLogAlways("RTCPeerConnection::dispatchEvent %p connectionstatechange %d", this, (int)m_connectionState);
+    } else
         WTFLogAlways("RTCPeerConnection::dispatchEvent %p %s", this, event.type().string().utf8().data());
     INFO_LOG(LOGIDENTIFIER, "dispatching '", event.type(), "'");
     EventTarget::dispatchEvent(event);

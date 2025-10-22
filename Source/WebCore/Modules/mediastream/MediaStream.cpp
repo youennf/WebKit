@@ -192,7 +192,7 @@ MediaStreamTrack* MediaStream::getFirstVideoTrack() const
 
 MediaStreamTrackVector MediaStream::getAudioTracks() const
 {
-    WTFLogAlways("MediaStream::getAudioTracks %p", m_private.ptr());
+    //WTFLogAlways("MediaStream::getAudioTracks %p", m_private.ptr());
     return filteredTracks([] (auto& track) mutable {
         return track.isAudio();
     });

@@ -9556,6 +9556,8 @@ static void updateMutedCaptureKindsDesiredByWebApp(OptionSet<WebCore::MediaProdu
 
 void WebPageProxy::setMuted(WebCore::MediaProducerMutedStateFlags state, FromApplication fromApplication, CompletionHandler<void()>&& completionHandler)
 {
+    RELEASE_LOG_ERROR(WebRTC, "WebPageProxy::setMuted");
+
 #if ENABLE(MEDIA_STREAM)
     if (fromApplication == FromApplication::Yes)
         updateMutedCaptureKindsDesiredByWebApp(m_mutedCaptureKindsDesiredByWebApp, state);

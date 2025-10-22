@@ -222,7 +222,8 @@ void FrameConsoleClient::messageWithTypeAndLevel(MessageType type, MessageLevel 
 
     int a = 1;
     if (shouldLog || !!a) {
-        WTFLogAlways("console log: '%s'", messageText.utf8().data());
+        if (messageText.contains("encryptionKeysManager_processE2eeMessage"_s))
+            WTFLogAlways("console log: '%s'", messageText.utf8().data());
         return;
     }
 
