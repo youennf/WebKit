@@ -805,7 +805,11 @@ Vector<Ref<MediaStream>> LibWebRTCMediaEndpoint::mediaStreamsFromRTCStreamIds(co
     Ref document = downcast<Document>(*protectedPeerConnectionBackend()->protectedConnection()->scriptExecutionContext());
     return WTF::map(receiverStreamIds, [this, &document](auto& id) -> Ref<MediaStream> {
         auto addResult = m_remoteStreamsById.ensure(id, [id, &document]() {
-            return MediaStream::create(document, MediaStreamPrivate::create(document->logger(), { }, String(id)), MediaStream::AllowEventTracks::Yes);
+            String streamId = id;
+            //auto values = streamId.split(":"_s);
+            //if (values.size() > 1)
+              //  streamId = values.last();
+            return MediaStream::create(document, MediaStreamPrivate::create(document->logger(), { }, WTFMove(streamId)), MediaStream::AllowEventTracks::Yes);
         });
         return *addResult.iterator->value;
     });

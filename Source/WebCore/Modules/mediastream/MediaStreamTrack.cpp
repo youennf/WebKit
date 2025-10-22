@@ -226,6 +226,8 @@ bool MediaStreamTrack::ended() const
 
 RefPtr<MediaStreamTrack> MediaStreamTrack::clone()
 {
+    WTFLogAlways("MediaStreamTrack::clone %p", this);
+
     if (!scriptExecutionContext())
         return nullptr;
 
@@ -314,6 +316,8 @@ MediaStreamTrack::TrackSettings MediaStreamTrack::getSettings() const
 
 MediaStreamTrack::TrackCapabilities MediaStreamTrack::getCapabilities() const
 {
+    WTFLogAlways("MediaStreamTrack::getCapabilities %p %s", this, id().utf8().data());
+
     auto result = toMediaTrackCapabilities(m_private->capabilities());
 
     auto settings = m_private->settings();

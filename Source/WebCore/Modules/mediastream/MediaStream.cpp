@@ -89,6 +89,7 @@ MediaStream::MediaStream(Document& document, const Vector<Ref<MediaStreamTrack>>
         track->setMediaStreamId(id());
         m_trackMap.add(track->id(), track);
     }
+    //WTFLogAlways("MediaStream::MediaStream1 %p", this);
 
     setIsActive(m_private->active());
     m_private->addObserver(*this);
@@ -106,6 +107,7 @@ MediaStream::MediaStream(Document& document, Ref<MediaStreamPrivate>&& streamPri
         track->setMediaStreamId(id());
         m_trackMap.add(trackPrivate->id(), WTFMove(track));
     }
+    //WTFLogAlways("MediaStream::MediaStream2 %p", this);
 
     setIsActive(m_private->active());
     m_private->addObserver(*this);
@@ -125,6 +127,8 @@ MediaStream::~MediaStream()
 
 RefPtr<MediaStream> MediaStream::clone()
 {
+    WTFLogAlways("MediaStream::clone %p", this);
+
     ALWAYS_LOG(LOGIDENTIFIER);
 
     RefPtr document = this->document();
@@ -188,6 +192,7 @@ MediaStreamTrack* MediaStream::getFirstVideoTrack() const
 
 MediaStreamTrackVector MediaStream::getAudioTracks() const
 {
+    WTFLogAlways("MediaStream::getAudioTracks %p", m_private.ptr());
     return filteredTracks([] (auto& track) mutable {
         return track.isAudio();
     });
@@ -207,6 +212,8 @@ MediaStreamTrackVector MediaStream::getTracks() const
 
 void MediaStream::activeStatusChanged()
 {
+//    WTFLogAlways("MediaStream::activeStatusChanged %p", this);
+
     updateActiveState();
 }
 
@@ -246,6 +253,8 @@ void MediaStream::addTrackFromPlatform(Ref<MediaStreamTrack>&& track)
 
 void MediaStream::internalAddTrack(Ref<MediaStreamTrack>&& trackToAdd)
 {
+   // WTFLogAlways("MediaStream::internalAddTrack %p", this);
+
     ASSERT(!m_trackMap.contains(trackToAdd->id()));
     m_trackMap.add(trackToAdd->id(), WTFMove(trackToAdd));
     updateActiveState();
@@ -253,6 +262,8 @@ void MediaStream::internalAddTrack(Ref<MediaStreamTrack>&& trackToAdd)
 
 RefPtr<MediaStreamTrack> MediaStream::internalTakeTrack(const String& trackId)
 {
+    WTFLogAlways("MediaStream::internalTakeTrack %p", this);
+
     auto track = m_trackMap.take(trackId);
     if (track)
         updateActiveState();
@@ -264,6 +275,8 @@ void MediaStream::setIsActive(bool active)
 {
     if (m_isActive == active)
         return;
+
+    //WTFLogAlways("MediaStream::setIsActive %p %d", this, active);
 
     ALWAYS_LOG(LOGIDENTIFIER, active);
 
@@ -357,6 +370,8 @@ void MediaStream::characteristicsChanged()
 
 void MediaStream::updateActiveState()
 {
+    //WTFLogAlways("MediaStream::updateActiveState %p", this);
+
     bool active = false;
     for (auto& track : m_trackMap.values()) {
         if (!track->ended()) {
@@ -389,7 +404,14 @@ Document* MediaStream::document() const
 
 void MediaStream::inactivate()
 {
+    //WTFLogAlways("MediaStream::inactivate %p", this);
     m_isActive = false;
+}
+
+bool MediaStream::active() const
+{
+    //WTFLogAlways("MediaStream::active %p %d", this, m_isActive);
+    return m_isActive;
 }
 
 bool MediaStream::virtualHasPendingActivity() const

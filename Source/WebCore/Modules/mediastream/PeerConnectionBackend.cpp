@@ -381,9 +381,9 @@ void PeerConnectionBackend::setLocalDescriptionSucceeded(std::optional<Descripti
                 return;
         }
 
-        peerConnection.processIceTransportChanges();
-        if (peerConnection.isClosed())
-            return;
+       // peerConnection.processIceTransportChanges();
+        //if (peerConnection.isClosed())
+           // return;
 
         if (m_isProcessingLocalDescriptionAnswer && transceiverStates) {
             // Compute track related events.
@@ -421,6 +421,10 @@ void PeerConnectionBackend::setLocalDescriptionSucceeded(std::optional<Descripti
                     return;
             }
         }
+
+        peerConnection.processIceTransportChanges();
+        if (peerConnection.isClosed())
+            return;
 
         callback({ });
     });
@@ -485,12 +489,6 @@ void PeerConnectionBackend::setRemoteDescriptionSucceeded(std::optional<Descript
             }
         }
 
-        peerConnection.processIceTransportChanges();
-        if (peerConnection.isClosed()) {
-            DEBUG_LOG(LOGIDENTIFIER, "PeerConnection closed after ICE transport changes");
-            return;
-        }
-
         if (transceiverStates) {
             // Compute track related events.
             Vector<Ref<MediaStreamTrack>> muteTrackList;
@@ -540,6 +538,9 @@ void PeerConnectionBackend::setRemoteDescriptionSucceeded(std::optional<Descript
             DEBUG_LOG(LOGIDENTIFIER, "Dispatching ", trackEventList.size(), " track events");
             for (auto& event : trackEventList) {
                 RefPtr track = event->track();
+                RefPtr stream = ! event->streams().isEmpty() ? event->streams()[0].ptr() : nullptr;
+                WTFLogAlways("Dispatching track event for track %s %p stream %s %p", track->id().utf8().data(), track.get(), stream ? stream->id().utf8().data() : "none"_s, &stream->privateStream());
+
                 ALWAYS_LOG(LOGIDENTIFIER, "Dispatching track event for track ", track->id());
                 peerConnection.dispatchEvent(event);
                 if (peerConnection.isClosed()) {
@@ -549,6 +550,12 @@ void PeerConnectionBackend::setRemoteDescriptionSucceeded(std::optional<Descript
 
                 track->source().setMuted(false);
             }
+        }
+
+        peerConnection.processIceTransportChanges();
+        if (peerConnection.isClosed()) {
+            DEBUG_LOG(LOGIDENTIFIER, "PeerConnection closed after ICE transport changes");
+            return;
         }
 
         callback({ });

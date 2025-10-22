@@ -124,9 +124,12 @@ RTCPeerConnection::RTCPeerConnection(Document& document)
     , m_logger(document.logger())
     , m_logIdentifier(LoggerHelper::uniqueLogIdentifier())
 #endif
+    , m_closeTimer([this] { this->doWhatIWant(); })
 {
     ALWAYS_LOG(LOGIDENTIFIER);
     relaxAdoptionRequirement();
+
+    WTFLogAlways("RTCPeerConnection::RTCPeerConnection %p", this);
 }
 
 RTCPeerConnection::~RTCPeerConnection()
@@ -384,6 +387,7 @@ static RTCSdpType typeForSetLocalDescription(const std::optional<RTCLocalSession
 
 void RTCPeerConnection::setLocalDescription(std::optional<RTCLocalSessionDescriptionInit>&& localDescription, Ref<DeferredPromise>&& promise)
 {
+    WTFLogAlways("RTCPeerConnection::setLocalDescription %p", this);
     if (isClosed()) {
         promise->reject(ExceptionCode::InvalidStateError);
         return;
@@ -412,12 +416,15 @@ void RTCPeerConnection::setLocalDescription(std::optional<RTCLocalSessionDescrip
             if (protectedThis->isClosed())
                 return;
             promise.settle(WTFMove(result));
+            WTFLogAlways("RTCPeerConnection::setLocalDescription finished %p", protectedThis.ptr());
         });
     });
 }
 
 void RTCPeerConnection::setRemoteDescription(RTCSessionDescriptionInit&& remoteDescription, Ref<DeferredPromise>&& promise)
 {
+    WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n %s\n", this, remoteDescription.sdp.utf8().data());
+
   //  WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n%s\n", this, remoteDescription.sdp.utf8().data());
     if (isClosed()) {
         promise->reject(ExceptionCode::InvalidStateError);
@@ -444,7 +451,9 @@ void RTCPeerConnection::setRemoteDescription(RTCSessionDescriptionInit&& remoteD
             });
             return;
         }
-        protectedBackend()->setRemoteDescription(description.get(), [promise = DOMPromiseDeferred<void>(WTFMove(promise))](auto&& result) mutable {
+        protectedBackend()->setRemoteDescription(description.get(), [ptr = this, promise = DOMPromiseDeferred<void>(WTFMove(promise))](auto&& result) mutable {
+            WTFLogAlways("RTCPeerConnection::setRemoteDescription finished %p", ptr);
+
             promise.settle(WTFMove(result));
         });
     });
@@ -469,6 +478,8 @@ void RTCPeerConnection::addIceCandidate(Candidate&& rtcCandidate, Ref<DeferredPr
             return WTFMove(iceCandidate);
         });
     }
+
+    WTFLogAlways("RTCPeerConnection::addIceCandidate %p %s", this, candidate ? candidate->candidate().utf8().data() : "null");
 
     ALWAYS_LOG(LOGIDENTIFIER, "Received ice candidate:\n", candidate ? candidate->candidate() : "null"_s);
 
@@ -698,6 +709,8 @@ bool RTCPeerConnection::doClose()
     if (isClosed())
         return false;
 
+    WTFLogAlways("RTCPeerConnection::doClose %p", this);
+
 #if USE(GSTREAMER_WEBRTC)
     if (auto backend = protectedBackend())
         backend->prepareForClose();
@@ -723,6 +736,13 @@ bool RTCPeerConnection::doClose()
 
 void RTCPeerConnection::close()
 {
+    WTFLogAlways("RTCPeerConnection::close %p", this);
+/*
+    if (!isClosed()) {
+        m_closeTimer.startOneShot(1_s);
+        return;
+    }
+*/
     if (!doClose())
         return;
 
@@ -804,12 +824,17 @@ void RTCPeerConnection::addInternalTransceiver(Ref<RTCRtpTransceiver>&& transcei
 
 void RTCPeerConnection::setSignalingState(RTCSignalingState newState)
 {
-    if (m_signalingState == newState)
-        return;
-
+    WTFLogAlways("RTCPeerConnection::setSignalingState1 %p", this);
     ALWAYS_LOG(LOGIDENTIFIER, newState);
-    m_signalingState = newState;
-    dispatchEvent(Event::create(eventNames().signalingstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
+    auto& connection = *this;
+//    queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [newState](auto& connection) {
+        WTFLogAlways("RTCPeerConnection::setSignalingState2 %p", &connection);
+        if (connection.isClosed() || connection.m_signalingState == newState)
+            return;
+        
+        connection.m_signalingState = newState;
+        connection.dispatchEvent(Event::create(eventNames().signalingstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
+  //  });
 }
 
 void RTCPeerConnection::updateIceGatheringState(RTCIceGatheringState newState)
@@ -891,13 +916,17 @@ void RTCPeerConnection::updateConnectionState()
 {
     auto state = computeConnectionState();
 
-    if (state == m_connectionState)
-        return;
+   // if (state == m_connectionState || (state == RTCPeerConnectionState::Connecting && m_connectionState == RTCPeerConnectionState::Connected))
+       // return;
 
     INFO_LOG(LOGIDENTIFIER, "state changed from: " , m_connectionState, " to ", state);
 
     m_connectionState = state;
+    WTFLogAlways("RTCPeerConnection::updateConnectionState %p connection state %d", this, (int)m_connectionState);
+
     scheduleEvent(Event::create(eventNames().connectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
+   // if (m_connectionState == RTCPeerConnectionState::Connecting)
+     //   m_closeTimer.startOneShot(10_ms);
 }
 
 // https://w3c.github.io/webrtc-pc/#dom-rtciceconnectionstate
@@ -938,14 +967,33 @@ void RTCPeerConnection::processIceTransportStateChange(RTCIceTransport& iceTrans
     m_iceConnectionState = newIceConnectionState;
 
     auto newConnectionState = computeConnectionState();
+//    if (newConnectionState == m_connectionState || (newConnectionState == RTCPeerConnectionState::Connecting && m_connectionState == RTCPeerConnectionState::Connected))
+    //    return;
+
     bool connectionStateChanged = m_connectionState != newConnectionState;
     m_connectionState = newConnectionState;
 
     iceTransport.dispatchEvent(Event::create(eventNames().statechangeEvent, Event::CanBubble::Yes, Event::IsCancelable::No));
     if (iceConnectionStateChanged && !isClosed())
         dispatchEvent(Event::create(eventNames().iceconnectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
-    if (connectionStateChanged && !isClosed())
+    if (connectionStateChanged && !isClosed()) {
+        WTFLogAlways("RTCPeerConnection::processIceTransportStateChange %p connection state %d", this, (int)m_connectionState);
+
         dispatchEvent(Event::create(eventNames().connectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
+      //  if (m_connectionState == RTCPeerConnectionState::Connecting)
+        //    m_closeTimer.startOneShot(10_ms);
+    }
+}
+
+void RTCPeerConnection::doWhatIWant()
+{
+    WTFLogAlways("RTCPeerConnection not Simulating connected state %p", this);
+    if (m_connectionState != RTCPeerConnectionState::Connecting)
+        return;
+
+    WTFLogAlways("RTCPeerConnection Simulating connected state %p", this);
+    m_connectionState = RTCPeerConnectionState::Connected;
+    dispatchEvent(Event::create(eventNames().connectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
 }
 
 void RTCPeerConnection::processIceTransportChanges()
@@ -994,6 +1042,8 @@ void RTCPeerConnection::scheduleEvent(Ref<Event>&& event)
 
 void RTCPeerConnection::dispatchEvent(Event& event)
 {
+    if (event.type() != "icecandidate"_s)
+        WTFLogAlways("RTCPeerConnection::dispatchEvent %p %s", this, event.type().string().utf8().data());
     INFO_LOG(LOGIDENTIFIER, "dispatching '", event.type(), "'");
     EventTarget::dispatchEvent(event);
 }

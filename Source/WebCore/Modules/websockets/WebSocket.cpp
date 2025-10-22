@@ -629,8 +629,8 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
             break;
         }
         setLoggingEnabled(false);
-        if (shouldLog)
-           WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n\n", &socket, (int)binaryData.size(), (int)binaryData[0]);
+       // if (shouldLog)
+         //  WTFLogAlways("WebSocket::didReceiveBinaryData finished %p size=%d header=%d \n\n", &socket, (int)binaryData.size(), (int)binaryData[0]);
     });
 }
 

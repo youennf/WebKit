@@ -68,7 +68,6 @@ bool IsLastFrameInTemporalUnit(const FrameIteratorT& it) {
 }
 }  // namespace
 
-static int testA = 0;
 FrameBuffer::FrameBuffer(int max_size,
                          int max_decode_history,
                          const FieldTrialsView& field_trials)
@@ -81,7 +80,6 @@ bool FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
   if (!ValidReferences(*frame)) {
     RTC_DLOG(LS_WARNING) << "Frame " << frame->Id()
                          << " has invalid references, dropping frame.";
-      fprintf(stderr, "FrameBuffer::InsertFrame 1\n");
     return false;
   }
 
@@ -95,7 +93,6 @@ bool FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
       Clear();
     } else {
       // Already decoded past this frame.
-        fprintf(stderr, "FrameBuffer::InsertFrame 2\n");
       return false;
     }
   }
@@ -107,7 +104,6 @@ bool FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
       Clear();
     } else {
       // No space for this frame.
-        fprintf(stderr, "FrameBuffer::InsertFrame 3\n");
       return false;
     }
   }
@@ -116,7 +112,6 @@ bool FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
   auto insert_res = frames_.emplace(frame_id, FrameInfo{std::move(frame)});
   if (!insert_res.second) {
     // Frame has already been inserted.
-      fprintf(stderr, "FrameBuffer::InsertFrame 4\n");
     return false;
   }
 
@@ -124,9 +119,6 @@ bool FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
     RTC_DLOG(LS_WARNING) << "Frame " << frame_id
                          << " inserted, buffer is now full.";
   }
-
-if (!(testA++ % 30))
-    fprintf(stderr, "FrameBuffer::InsertFrame 5\n");
 
   PropagateContinuity(insert_res.first);
   FindNextAndLastDecodableTemporalUnit();

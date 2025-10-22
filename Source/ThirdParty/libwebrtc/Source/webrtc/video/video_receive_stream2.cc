@@ -750,7 +750,6 @@ void VideoReceiveStream2::RequestKeyFrame(Timestamp now) {
   last_keyframe_request_ = now;
 }
 
-static int test2 = 0;
 void VideoReceiveStream2::OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) {
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
 
@@ -760,9 +759,6 @@ void VideoReceiveStream2::OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) {
     frame_maximum_playout_delay_ = playout_delay->max();
     UpdatePlayoutDelays();
   }
-
-    if (!(++test2 % 30))
-        fprintf(stderr, "VideoReceiveStream2::OnCompleteFrame\n");
 
   auto last_continuous_pid = buffer_->InsertFrame(std::move(frame));
   if (last_continuous_pid.has_value()) {
@@ -956,11 +952,9 @@ VideoReceiveStream2::HandleEncodedFrameOnDecodeQueue(
   };
 }
 
-static int test4 = 0;
 int VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame(
     std::unique_ptr<EncodedFrame> frame) {
   RTC_DCHECK_RUN_ON(&decode_sequence_checker_);
-
 
   // If `buffered_encoded_frames_` grows out of control (=60 queued frames),
   // maybe due to a stuck decoder, we just halt the process here and log the
@@ -989,11 +983,7 @@ int VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame(
   }
 
   int decode_result = video_receiver_.Decode(frame_ptr);
-
-    if (!(test4++ % 30))
-        fprintf(stderr, "VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame result = %d\n", (int)decode_result);
-
-    if (decode_result < WEBRTC_VIDEO_CODEC_OK) {
+  if (decode_result < WEBRTC_VIDEO_CODEC_OK) {
     // Asynchronous decoders may delay error reporting, potentially resulting in
     // error reports reflecting issues that occurred several frames back.
     RTC_LOG(LS_WARNING)

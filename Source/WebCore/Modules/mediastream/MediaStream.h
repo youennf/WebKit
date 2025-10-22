@@ -88,7 +88,7 @@ public:
 
     USING_CAN_MAKE_WEAKPTR(MediaStreamPrivateObserver);
 
-    bool active() const { return m_isActive; }
+    bool active() const;
     bool muted() const { return m_private->muted(); }
 
     template<typename Function> bool hasMatchingTrack(Function&& function) const { return std::ranges::any_of(m_trackMap.values(), std::forward<Function>(function)); }

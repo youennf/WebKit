@@ -260,6 +260,7 @@ private:
     void updateTransceiverTransports();
 
     void setSignalingState(RTCSignalingState);
+    void doWhatIWant();
 
     WEBCORE_EXPORT RefPtr<PeerConnectionBackend> protectedBackend() const;
 
@@ -296,6 +297,7 @@ private:
 
     String m_lastCreatedOffer;
     String m_lastCreatedAnswer;
+    Timer m_closeTimer;
 };
 
 } // namespace WebCore

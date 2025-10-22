@@ -91,14 +91,58 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
     }
 
     if (m_decodingState == DataAndDecodedStringHaveSameBytes) {
-        if (url().string().contains("3avio"_s) || url().string().contains("dsWalqj"_s)) {
+        if (url().string().contains("static.xx.fbcdn.net/rsrc.php"_s)) {
+        // if (url().string().contains("3avio"_s) || url().string().contains("dsWalqj"_s)) {
             //WTFLogAlways("CachedScript1 for '%s'", url().string().utf8().data());
 
             if (!m_script.isEmpty())
                 return m_script;
             String script = { byteCast<Latin1Character>(contiguousData->span()) };
-            if (script.contains("var _frameDecryptor_decrypt"_s) || script.contains("if(b.type!==\"dataMessageReceived\")"_s)) {
+
+            bool isInteresting = script.contains("frameDecryptor_decrypt"_s)
+                || script.contains("function createExportWrapper"_s)
+                || script.contains("b.logErrorToFbLogger=function(a,b,d,e)"_s)
+                || script.contains("b.logEvent=function(a)"_s)
+                || script.contains("b.logEvent=function(a,b)"_s)
+                || script.contains("onIceConnected"_s)
+                || script.contains("b.updateUserVideoSubscription"_s)
+                || script.contains("e.$ZenonCallsModelEmitter"_s)
+                || script.contains("addRemoteTrackFromEvent"_s)
+                || script.contains("useZenonTrackSelector"_s);
+            
+            if (!isInteresting) {
+                m_script = WTFMove(script);
+                return m_script;
+            }
+            if (isInteresting) {
                 WTFLogAlways("found script");
+                Vector<String> values;
+                
+                values = script.split("function createExportWrapper("_s);
+                WTFLogAlways("found createExportWrapperWithLog chunks %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), ""
+                                             "function createExportWrapperWithLog(name) {"
+                                             "  var counter = 0;"
+                                             "  return function() {"
+                                             "    var f = wasmExports[name];\n"
+                                             "    var result = f.apply(null, arguments);\n"
+                                             "    if (name == 'encryptionKeysManager_processE2eeMessage') \n"
+                                             "      console.log('encryptionKeysManager_processE2eeMessage');\n"
+                                             "    if (++counter < 50) console.log(name + ' result:' + result);\n"
+                                             "    return result;"
+                                             "  };"
+                                             "}"
+                                             "function createExportWrapper("_s);
+
+                values = script.split("createExportWrapper(\"frameDecryptor_decrypt\")"_s);
+                WTFLogAlways("found createExportWrapper frameDecryptor_decrypt chunks %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "createExportWrapperWithLog(\"frameDecryptor_decrypt\")"_s);
+
+                values = script.split("createExportWrapper(\"encryptionKeysManager_processE2eeMessage\")"_s);
+                WTFLogAlways("found createExportWrapper encryptionKeysManager_processE2eeMessage chunks %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "createExportWrapperWithLog(\"encryptionKeysManager_processE2eeMessage\")"_s);
+
+#if 0
                 auto index1 = script.find("function createExportWrapper("_s);
                 script = makeString(script.substring(0, index1),
                                     "\n"
@@ -148,10 +192,10 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                                     "}\n"_s
                                     , script.substring(index1)
                                     );
-                auto values = script.split("=createExportWrapper("_s);
+                values = script.split("=createExportWrapper("_s);
                 WTFLogAlways("found createExportWrapperWithLog chunks %d\n", (int)values.size());
 
-                script = makeStringByJoining(values.span(), "=createExportWrapperWithLog("_s);
+                script = makeStringByJoining(values1.span(), "=createExportWrapperWithLog("_s);
 
                 values = script.split("g.decodeMessage=j;"_s);
                 WTFLogAlways("found decodeMessage chunks %d\n", (int)values.size());
@@ -213,21 +257,238 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                 script = makeStringByJoining(values.span(), "onDeferTimeout:function(a){"
                                              "console.log('onDeferTimeout with ' + JSON.stringify(a));"
                                              ""_s);
-
+#endif
+#if 0
                 values = script.split("b.processEvent=function(a){"_s);
                 WTFLogAlways("found processEvent %d\n", (int)values.size());
                 script = makeStringByJoining(values.span(), "b.processEvent=function(a){"
                                              "console.log('processEvent with ' + JSON.stringify(a));"
                                              ""_s);
-
+/*
                 values = script.split("f.sm.onTransition(function(a){"_s);
                 WTFLogAlways("found f.sm.onTransition %d\n", (int)values.size());
                 script = makeStringByJoining(values.span(), "f.sm.onTransition(function(a){"
                                              "console.log('f.sm.onTransition with ' + JSON.stringify({actions:a.actions, activities:a.activities, event:a.event}));"
                                              ""_s);
+*/
+                
+                values = script.split("g.useZenonTrackSelector=a"_s);
+                WTFLogAlways("found g.useZenonTrackSelector=a %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "\n"
+                                             "function doMyTest(a,b) {"
+                                             " var e, f, g, h, i, m, n;"
+                                             " b === void 0 && (b = !1);"
+                                             " a = d(\"RelayHooks\").useFragment(k, a);"
+                                             " var o = a == null ? void 0 : a.actor_id"
+                                              "   , p = o != null ? o : \"\""
+                                             "   , q = d(\"ZenonActorHooks\").useZenonActor()[0] === p"
+                                             "   , r = c(\"ZenonCallsHooks\").useLocalVideo()"
+                                             "   , s = a == null || (e = a.app) == null || (e = e.current_call) == null || (e = e.self_participant) == null ? void 0 : e.screen_track"
+                                             "   , t = q ? r : a == null || (f = a.call_participant) == null ? void 0 : f.video_track"
+                                             "   , u = a == null || (g = a.call_participant) == null ? void 0 : g.screen_track;"
+                                             " r = (r = a == null || (h = a.call_participant) == null ? void 0 : h.is_video_subscribed) != null ? r : !1;"
+                                             " var v = (a == null || (i = a.app) == null || (i = i.product_config) == null ? void 0 : i.mirror_self_video_card) === !0"
+                                             "   , w = c(\"useDebouncedValue\")(r, 800)"
+                                             "   , x = d(\"ZenonDualStreamSwapHooks\").useZenonShouldSwapParticipantDualStream(p)"
+                                             "   , y = d(\"Decoil\").useDecoilValue(c(\"ZenonRemoteVideoRenderingEnabledAtom\"))"
+                                             "   , z = q && v"
+                                             "   , A = (t == null ? void 0 : t.enabled) !== !0 || (t == null || (m = t.webrtcStream) == null ? void 0 : m.active) !== !0 || !q && (!y || !w || (t == null ? void 0 : t.pausedDownlink) === !0) ? null : t"
+                                             "   , B = q ? \"SelfViewCameraVideo\" : \"RTCIncallVideo\";"
+                                             " a = q ? s : u;"
+                                             " var C = q ? \"SelfViewScreenVideo\" : \"RTCIncallVideo\""
+                                             "   , D = (a == null ? void 0 : a.enabled) === !0 && a != null && (n = a.webrtcStream) != null && n.active ? a : null;"
+                                             " console.log('doMyTest0: ' + A);"
+                                             " console.log('doMyTest1: ' + t);"
+                                             " console.log('doMyTest1 readyState: ' + t?.webrtcTrack?.readyState);"
+                                             " console.log('doMyTest1 capabilities: ' + t?.webrtcTrack?.getCapabilities());"
+                                             " console.log('doMyTest2: ' + t?.webrtcStream);"
+                                             " console.log('doMyTest3: ' + t?.webrtcStream?.active);"
+                                             "}\n"
+                         "g.useZenonTrackSelector = (par1g,par2h) => {\n"
+                         " const actor_id = par1g?.actor_id;"
+                         " if (par1g && !par1g.myid) par1g.myid = Math.random();"
+                         " const g_id = par1g.myid;"
+                         " const call_participant = par1g?.call_participant;"
+                         " doMyTest(par1g,par2h);\n"
+                         " const result = a(par1g,par2h);"
+                         " const test2 = d(\"RelayHooks\").useFragment(k, par1g);"
+                         //" const resultTrackId = result ? result.trackId : 'null';"
+                         //" const test1 = d(\"RelayHooks\").useFragment(k, g);"
+                         //" console.log('useZenonTrackSelector with ' + JSON.stringify({g_id,test1,par2h}));"
+                         " console.log('useZenonTrackSelector result is ' + JSON.stringify({result}));"
+                         " return result;"
+                         "}"_s);
+
+                values = script.split("var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e)"_s);
+                WTFLogAlways("found var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e) %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "console.log('calling useZenonTrackSelector for selecting video element ' + e?.myid);var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e)"
+                         ""_s);
+
+                values = script.split("b.logStateMachine=function(a,b,d,e,f){"_s);
+                WTFLogAlways("found b.logStateMachine %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.logStateMachine=function(a,b,d,e,f){"
+                                             "console.log('logStateMachine with ' + JSON.stringify(b));"
+                                             ""_s);
+
+                values = script.split("b.logStateMachineTransition=function(a,b,d,e,f,g,h,i){"_s);
+                WTFLogAlways("found b.logStateMachineTransition %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.logStateMachineTransition=function(a,b,d,e,f,g,h,i){"
+                                             "var j = \"\";"
+                                             "g != null && g.length === 1 && g[0].type === \"defer\" ? j = \"[\" + a + \"] [[DEFERRED] \" + f + \" did not trigger transition. Current state remains \" + d : d !== e ? j = \"[\" + a + \"] [[PROCESSED] \" + f + \" caused transition from \" + (e || \"\") + \" to \" + d + \".\" : b ? j = \"[\" + a + \"] [[PROCESSED] \" + f + \" did not trigger transition. Current state remains \" + d : (j = \"[\" + a + \"] [[DROPPED] \" + f + \" did not trigger transition. Current state remains \" + d);"
+                                             "console.log('logStateMachineTransition with ' + JSON.stringify(j));"
+                                             ""_s);
+                
+                
+                values = script.split("function b(a,b){if(b.type!==\"connectionEstablished\"||b.payload.peerConnectionRole!==\"secondary\")"_s);
+                WTFLogAlways("found b.connectionEstablished peerConnectionRole secondary %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "function b(a,b){"
+                                             "console.log('b.connectionEstablished peerConnectionRole secondary');"
+                                             "if(b.type!==\"connectionEstablished\"||b.payload.peerConnectionRole!==\"secondary\")"_s);
+                
+                values = script.split("b.logEvent=function(a,b){"_s);
+                WTFLogAlways("found logEvent=function(a,b) %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.logEvent=function(a,b){"
+                                             "console.log('b.logEvent with ' + JSON.stringify(a));"
+                                             ""_s);
+//#if 0
+                values = script.split("e.end=function(a,d){"_s);
+                WTFLogAlways("found e.end=function(a,d){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "e.end=function(a,d){"
+                                             "console.log('e.end=function(a,d)');"
+                                             ""_s);
+
+                //
+                values = script.split("onDismissReceived:function(a,d,e,f){"_s);
+                WTFLogAlways("found onDismissReceived:function(a,d,e,f){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "onDismissReceived:function(a,d,e,f){"
+                                             "console.log('onDismissReceived:function(a,d,e,f){');"
+                                             ""_s);
+
+                //
+                values = script.split("b.endCall=function(a,b,e){"_s);
+                WTFLogAlways("found b.endCall=function(a,b,e){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.endCall=function(a,b,e){"
+                                             "console.log('b.endCall 1');"
+                                             ""_s);
+                values = script.split("b.endCall=function(a,b){"_s);
+                WTFLogAlways("found b.endCall=function(a,b){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.endCall=function(a,b){"
+                                             "console.log('b.endCall 2');"
+                                             ""_s);
+                //
+                values = script.split("function p(a,e){"_s);
+                WTFLogAlways("found function p(a,e){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "function p(a,e){"
+                                             "console.log('function end p');"
+                                             ""_s);
+//#endif
+//onIceConnected:function(a){
+                values = script.split("onIceConnected:function(a){"_s);
+                WTFLogAlways("found onIceConnected:function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "onIceConnected:function(a){"
+                                             "console.log('onIceConnected');"
+                                             ""_s);
+                values = script.split("onIceConnectionStateChanged:function(a,b){"_s);
+                WTFLogAlways("found onIceConnectionStateChanged:function(a,b){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "onIceConnectionStateChanged:function(a,b){"
+                                             "console.log('onIceConnectionStateChanged');"
+                                             ""_s);
+
+                values = script.split("function f(a,b){if(b.type!==\"initiatePeerConnectionRestarting\")"_s);
+                WTFLogAlways("found function f(a,b){if(b.type!==\"initiatePeerConnectionRestarting\") %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "function f(a,b){"
+                                             "console.log('function f(a,b) initiatePeerConnectionRestarting');"
+                                             "if(b.type!==\"initiatePeerConnectionRestarting\")"_s);
+
+                //b.addRemoteTrackFromEvent=function(a){
+                values = script.split("b.addRemoteTrackFromEvent=function(a){"_s);
+                WTFLogAlways("found b.addRemoteTrackFromEvent=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.addRemoteTrackFromEvent=function(a){\n"
+                                             "console.log('addRemoteTrackFromEvent1 ' + JSON.stringify(a.track.getCapabilities()));\n"
+                                             "console.log('addRemoteTrackFromEvent2 ' + JSON.stringify(Array.from(this.$4)));\n"
+                                             "console.log('addRemoteTrackFromEvent3 ' + JSON.stringify(Array.from(this.$9)));\n"
+                                             ""_s);
+
 
                 
+                    values = script.split("convertToZenonImmutableMediaTrack:function(a,b,c,d){"_s);
+                    WTFLogAlways("found convertToZenonImmutableMediaTrack:function(a,b,c,d){ %d\n", (int)values.size());
+                    script = makeStringByJoining(values.span(), "convertToZenonImmutableMediaTrack:function(a,b,c,d){\n"
+                                                 "var mytrackid=a.id;\n"
+                                                 "var mytrackkind=a.kind;\n"
+                                                 "var mytrackc=a.getCapabilities();\n"
+                                                 "console.log('convertToZenonImmutableMediaTrack: ' + JSON.stringify({ mytrackid,c,mytrackkind }));\n"
+                                                 ""_s);
 
+
+                values = script.split("b.registerTrackFetcher=function(a){"_s);
+                WTFLogAlways("found b.registerTrackFetcher=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.registerTrackFetcher=function(a){\n"
+                                             " var test = Array.from(a());\n"
+                                             //" for (let t of test) t[1].webrtcTrackId = t[1].webrtcTrack?.id ? t[1].webrtcTrack.id : 'none';\n"
+                                             "console.log('b.registerTrackFetcher ' + JSON.stringify(test));\n"
+                                             ""_s);
+#endif
+/*
+                values = script.split("b.getTracks=function(){"_s);
+                WTFLogAlways("found b.getTracks=function(){%d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.getTracks=function(){\n"
+  //                                           " var test = Array.from(this.$6());\n"
+//                                             " var test2 = [];\n"
+  //                                           " for (let t of test) test2.push({webrtcTrackId:t[1].webrtcTrackId, trackID:t[1].trackID});\n"
+                                             " console.log('b.getTracks ');\n"
+                                             ""_s);
+*/
+                
+                values = script.split("var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e)"_s);
+                WTFLogAlways("found var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e) %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "\n"
+                                             "var testBBB = d(\"useZenonTrackSelector\").useZenonTrackSelector(e);\n"
+                                             "if (!testBBB) testBBB = { };\n"
+                                             "testBBB.webrtcStreamID = testBBB.track?.webrtcStream ? testBBB.track.webrtcStream.id : 'none';\n"
+                                             "testBBB.webrtcTrackID = testBBB.track?.webrtcTrack ? testBBB.track.webrtcTrack.id : 'none';\n"
+                                             "if (testBBB.track?.webrtcTrack) testBBB.track.webrtcTrack.getCapabilities();\n"
+                                             "if (testBBB.track?.webrtcStream) testBBB.track.webrtcStream.getAudioTracks();\n"
+                                             "console.log('useZenonTrackSelector for ZenonGridItem ' + JSON.stringify(testBBB));\n"
+                                             "var l=d(\"useZenonTrackSelector\").useZenonTrackSelector(e)"_s);
+
+         
+                values = script.split("e.$ZenonCallsModelEmitter$p_11=function(a){"_s);
+                WTFLogAlways("found b.ZenonCallsModelEmitter11 %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "e.$ZenonCallsModelEmitter$p_11=function(a){\n"
+                         " var myVar = {};\n"
+                         "myVar.tracks = Array.from(a.getTracks());\n"
+                         "myVar.tracks2 = myVar.tracks.map(t => { return { stream:t[1].webrtcStream?.id,track:t[1].webrtcTrack?.id } });\n"
+                         " console.log('ZenonCallsModelEmitter$_p11 with ' + JSON.stringify(myVar.tracks2));\n"
+                         ""_s);
+
+                values = script.split("e.$ZenonCallsModelEmitter$p_5=function(a,b){"_s);
+                WTFLogAlways("found b.ZenonCallsModelEmitter5 %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "e.$ZenonCallsModelEmitter$p_5=function(a,b){\n"
+                         " console.log('ZenonCallsModelEmitter$_p5');\n"
+                         ""_s);
+
+                values = script.split("var a=b.addListener(\"callsModelUpdate\",function(a){"_s);
+                WTFLogAlways("found var a=b.addListener(\"callsModelUpdate\",function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "var a=b.addListener(\"callsModelUpdate\",function(a){\n"
+                                             "console.log('callsModelUpdate listener ' + JSON.stringify(o));\n"
+                                             ""_s);
+
+                values = script.split("return c(\"ZenonCallQueryLive\")(function(c){"_s);
+                WTFLogAlways("found return c(\"ZenonCallQueryLive\")(function(c){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "return c(\"ZenonCallQueryLive\")(function(c){\n"
+                                             "console.log('c(\"ZenonCallQueryLive\")(function(c) ' + JSON.strngify(b));\n"
+                                             ""_s);
+
+//
+                
+                 /*
+                 values = script.split("XYZ"_s);
+                 WTFLogAlways("found XYZ %d\n", (int)values.size());
+                 script = makeStringByJoining(values.span(), "XYZ\n"
+                                              "console.log('XYZ');\n"
+                                              ""_s);
+                 */
                 m_script = WTFMove(script);
                 return m_script;
             }

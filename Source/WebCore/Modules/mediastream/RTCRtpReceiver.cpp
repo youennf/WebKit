@@ -77,6 +77,7 @@ void RTCRtpReceiver::stop()
         m_transform->detachFromReceiver(*this);
 
     m_backend = nullptr;
+    WTFLogAlways("RTCRtpReceiver::stop MediaStreamTrack %p", m_track.ptr());
     m_track->stopTrack(MediaStreamTrack::StopMode::PostEvent);
 }
 

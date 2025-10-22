@@ -220,8 +220,11 @@ void FrameConsoleClient::messageWithTypeAndLevel(MessageType type, MessageLevel 
         additionalArguments = messageArgumentsVector.subspan(1);
     }
 
-    if (shouldLog)
+    int a = 1;
+    if (shouldLog || !!a) {
         WTFLogAlways("console log: '%s'", messageText.utf8().data());
+        return;
+    }
 
     auto message = makeUnique<Inspector::ConsoleMessage>(MessageSource::ConsoleAPI, type, level, messageText, arguments.copyRef(), lexicalGlobalObject);
 
