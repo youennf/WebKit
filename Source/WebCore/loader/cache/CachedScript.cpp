@@ -142,6 +142,10 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                 WTFLogAlways("found createExportWrapper encryptionKeysManager_processE2eeMessage chunks %d\n", (int)values.size());
                 script = makeStringByJoining(values.span(), "createExportWrapperWithLog(\"encryptionKeysManager_processE2eeMessage\")"_s);
 
+                values = script.split("createExportWrapper(\"encryptionKeysManager_processE2eeServerUpdate\")"_s);
+                WTFLogAlways("found createExportWrapper encryptionKeysManager_processE2eeServerUpdate chunks %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "createExportWrapperWithLog(\"encryptionKeysManager_processE2eeServerUpdate\")"_s);
+
 #if 0
                 auto index1 = script.find("function createExportWrapper("_s);
                 script = makeString(script.substring(0, index1),
@@ -345,11 +349,6 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                                              "console.log('b.connectionEstablished peerConnectionRole secondary');"
                                              "if(b.type!==\"connectionEstablished\"||b.payload.peerConnectionRole!==\"secondary\")"_s);
                 
-                values = script.split("b.logEvent=function(a,b){"_s);
-                WTFLogAlways("found logEvent=function(a,b) %d\n", (int)values.size());
-                script = makeStringByJoining(values.span(), "b.logEvent=function(a,b){"
-                                             "console.log('b.logEvent with ' + JSON.stringify(a));"
-                                             ""_s);
 //#if 0
                 values = script.split("e.end=function(a,d){"_s);
                 WTFLogAlways("found e.end=function(a,d){ %d\n", (int)values.size());
@@ -480,7 +479,60 @@ StringView CachedScript::script(ShouldDecodeAsUTF8Only shouldDecodeAsUTF8Only)
                                              "console.log('c(\"ZenonCallQueryLive\")(function(c) ' + JSON.strngify(b));\n"
                                              ""_s);
 
-//
+                values = script.split("b.logEvent=function(a,b){"_s);
+                WTFLogAlways("found logEvent=function(a,b) %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.logEvent=function(a,b){"
+                                             "console.log('b.logEvent with ' + JSON.stringify(a));"
+                                             ""_s);
+                values = script.split("logEvent=function(a){"_s);
+                WTFLogAlways("found logEvent=function(a) %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "logEvent=function(a){"
+                                             "console.log('logEvent(a) with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.mustfix=function(a){"_s);
+                WTFLogAlways("found b.mustfix=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.mustfix=function(a){\n"
+                                             "console.log('b.mustfix with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.warn=function(a){"_s);
+                WTFLogAlways("found b.warn=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.warn=function(a){\n"
+                                             "console.log('b.warn with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.warn=function(a){"_s);
+                WTFLogAlways("found b.warn=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.warn=function(a){\n"
+                                             "console.log('b.warn with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.fatal=function(a){"_s);
+                WTFLogAlways("found b.fatal=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.fatal=function(a){\n"
+                                             "console.log('b.fatal with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.info=function(a){"_s);
+                WTFLogAlways("found b.info=function(a){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.info=function(a){\n"
+                                             "console.log('b.info with ' + JSON.stringify(a));"
+                                             ""_s);
+
+                values = script.split("b.logStateMachineTransition=function(a,b,d,e,f,g,h,i){"_s);
+                WTFLogAlways("found b.logStateMachineTransition=function(a,b,d,e,f,g,h,i){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "b.logStateMachineTransition=function(a,b,d,e,f,g,h,i){\n"
+                                             "console.log('b.logStateMachineTransition with ' + JSON.stringify(c) + ' ' + JSON.stringify(d));"
+                                             ""_s);
+
+                values = script.split("shouldUseSFUOnly:function(){"_s);
+                WTFLogAlways("found shouldUseSFUOnly:function(){ %d\n", (int)values.size());
+                script = makeStringByJoining(values.span(), "shouldUseSFUOnly:function(){\n"
+                                             "const a = 1; if (a) return true;"
+                                             ""_s);
+
+//shouldUseSFUOnly:function(){
                 
                  /*
                  values = script.split("XYZ"_s);

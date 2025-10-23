@@ -1316,7 +1316,7 @@ static bool isDocumentPlayingSeveralMediaStreamsAndCapturing(Document& document)
 
 static bool processRemoteControlCommandIfPlayingMediaStreams(Document& document, PlatformMediaSession::RemoteControlCommandType commandType)
 {
-    WTFLogAlways("processRemoteControlCommandIfPlayingMediaStreams %d", (int)commandType);
+ //   WTFLogAlways("processRemoteControlCommandIfPlayingMediaStreams %d", (int)commandType);
     RefPtr page = document.page();
     if (!page)
         return false;
@@ -1436,7 +1436,7 @@ bool MediaElementSession::hasNowPlayingInfo() const
 
 #if ENABLE(MEDIA_STREAM)
     RefPtr session = mediaSession();
-    WTFLogAlways("MediaElementSession::hasNowPlayingInfo %p '%s' %d %d %d %d",this, element->currentSrc().string().utf8().data(), element->hasMediaStreamSrcObject(), !!session, session && session->hasActiveActionHandlers(), session && session->metadata());
+   // WTFLogAlways("MediaElementSession::hasNowPlayingInfo %p '%s' %d %d %d %d",this, element->currentSrc().string().utf8().data(), element->hasMediaStreamSrcObject(), !!session, session && session->hasActiveActionHandlers(), session && session->metadata());
     if (element->hasMediaStreamSrcObject() && (!session || (!session->hasActiveActionHandlers() && !session->metadata())))
         return false;
 #endif // ENABLE(MEDIA_STREAM)
@@ -1450,7 +1450,7 @@ std::optional<NowPlayingInfo> MediaElementSession::computeNowPlayingInfo() const
     if (!hasNowPlayingInfo())
         return { };
 
-    WTFLogAlways("MediaElementSession::computeNowPlayingInfo probably have playing info %p", this);
+ //   WTFLogAlways("MediaElementSession::computeNowPlayingInfo probably have playing info %p", this);
 
     RefPtr element = m_element.get();
     if (!element)

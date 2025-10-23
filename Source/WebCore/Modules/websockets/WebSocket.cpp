@@ -381,8 +381,8 @@ ExceptionOr<void> WebSocket::send(ArrayBuffer& binaryData)
             if (byte < 31 || byte > 126)
                 copy[i] = ' ';
         }
-        auto text = String::fromUTF8(copy.span());
-        WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
+     //   auto text = String::fromUTF8(copy.span());
+    //    WTFLogAlways("WebSocket::send binary %p %d '%s'\n", this, (int)binaryData.byteLength(), text.utf8().data());
     }
 
     LOG(Network, "WebSocket %p send() Sending ArrayBuffer %p", this, &binaryData);
@@ -617,7 +617,7 @@ void WebSocket::didReceiveBinaryData(Vector<uint8_t>&& binaryData)
             if (shouldLog) {
                 setLoggingEnabled(true);
                 auto ctxt = text.utf8();
-                WTFLogAlways("\nWebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
+        //        WTFLogAlways("\nWebSocket::didReceiveBinaryData %p size=%d header=%d \n '%s'\n", &socket, (int)binaryData.size(), (int)binaryData[0], text.utf8().data());
             }
         }
 

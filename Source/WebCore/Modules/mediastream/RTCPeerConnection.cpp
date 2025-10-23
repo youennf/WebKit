@@ -387,7 +387,7 @@ static RTCSdpType typeForSetLocalDescription(const std::optional<RTCLocalSession
 
 void RTCPeerConnection::setLocalDescription(std::optional<RTCLocalSessionDescriptionInit>&& localDescription, Ref<DeferredPromise>&& promise)
 {
-    WTFLogAlways("RTCPeerConnection::setLocalDescription %p", this);
+ //   WTFLogAlways("RTCPeerConnection::setLocalDescription %p", this);
     if (isClosed()) {
         promise->reject(ExceptionCode::InvalidStateError);
         return;
@@ -423,7 +423,7 @@ void RTCPeerConnection::setLocalDescription(std::optional<RTCLocalSessionDescrip
 
 void RTCPeerConnection::setRemoteDescription(RTCSessionDescriptionInit&& remoteDescription, Ref<DeferredPromise>&& promise)
 {
-    WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n %s\n", this, remoteDescription.sdp.utf8().data());
+  //  WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n %s\n", this, remoteDescription.sdp.utf8().data());
 
   //  WTFLogAlways("RTCPeerConnection::setRemoteDescription %p\n%s\n", this, remoteDescription.sdp.utf8().data());
     if (isClosed()) {
@@ -451,8 +451,8 @@ void RTCPeerConnection::setRemoteDescription(RTCSessionDescriptionInit&& remoteD
             });
             return;
         }
-        protectedBackend()->setRemoteDescription(description.get(), [ptr = this, promise = DOMPromiseDeferred<void>(WTFMove(promise))](auto&& result) mutable {
-            WTFLogAlways("RTCPeerConnection::setRemoteDescription finished %p", ptr);
+        protectedBackend()->setRemoteDescription(description.get(), [promise = DOMPromiseDeferred<void>(WTFMove(promise))](auto&& result) mutable {
+        //    WTFLogAlways("RTCPeerConnection::setRemoteDescription finished %p", ptr);
 
             promise.settle(WTFMove(result));
         });
@@ -479,7 +479,7 @@ void RTCPeerConnection::addIceCandidate(Candidate&& rtcCandidate, Ref<DeferredPr
         });
     }
 
-    WTFLogAlways("RTCPeerConnection::addIceCandidate %p %s", this, candidate ? candidate->candidate().utf8().data() : "null");
+ //   WTFLogAlways("RTCPeerConnection::addIceCandidate %p %s", this, candidate ? candidate->candidate().utf8().data() : "null");
 
     ALWAYS_LOG(LOGIDENTIFIER, "Received ice candidate:\n", candidate ? candidate->candidate() : "null"_s);
 
@@ -824,7 +824,7 @@ void RTCPeerConnection::addInternalTransceiver(Ref<RTCRtpTransceiver>&& transcei
 
 void RTCPeerConnection::setSignalingState(RTCSignalingState newState)
 {
-    WTFLogAlways("RTCPeerConnection::setSignalingState1 %p", this);
+ //   WTFLogAlways("RTCPeerConnection::setSignalingState1 %p", this);
     ALWAYS_LOG(LOGIDENTIFIER, newState);
     auto& connection = *this;
 //    queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [newState](auto& connection) {
@@ -922,7 +922,7 @@ void RTCPeerConnection::updateConnectionState()
     INFO_LOG(LOGIDENTIFIER, "state changed from: " , m_connectionState, " to ", state);
 
     m_connectionState = state;
-    WTFLogAlways("RTCPeerConnection::updateConnectionState %p connection state %d", this, (int)m_connectionState);
+//    WTFLogAlways("RTCPeerConnection::updateConnectionState %p connection state %d", this, (int)m_connectionState);
 
     scheduleEvent(Event::create(eventNames().connectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
    // if (m_connectionState == RTCPeerConnectionState::Connecting)
@@ -977,7 +977,7 @@ void RTCPeerConnection::processIceTransportStateChange(RTCIceTransport& iceTrans
     if (iceConnectionStateChanged && !isClosed())
         dispatchEvent(Event::create(eventNames().iceconnectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
     if (connectionStateChanged && !isClosed()) {
-        WTFLogAlways("RTCPeerConnection::processIceTransportStateChange %p connection state %d", this, (int)m_connectionState);
+//        WTFLogAlways("RTCPeerConnection::processIceTransportStateChange %p connection state %d", this, (int)m_connectionState);
 
         dispatchEvent(Event::create(eventNames().connectionstatechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
       //  if (m_connectionState == RTCPeerConnectionState::Connecting)
@@ -987,7 +987,7 @@ void RTCPeerConnection::processIceTransportStateChange(RTCIceTransport& iceTrans
 
 void RTCPeerConnection::doWhatIWant()
 {
-    WTFLogAlways("RTCPeerConnection not Simulating connected state %p", this);
+  //  WTFLogAlways("RTCPeerConnection not Simulating connected state %p", this);
     if (m_connectionState != RTCPeerConnectionState::Connecting)
         return;
 
@@ -1044,9 +1044,9 @@ void RTCPeerConnection::dispatchEvent(Event& event)
 {
     if (event.type() == "icecandidate"_s) {
     } else if (event.type() == "connectionstatechange"_s) {
-        WTFLogAlways("RTCPeerConnection::dispatchEvent %p connectionstatechange %d", this, (int)m_connectionState);
+ //       WTFLogAlways("RTCPeerConnection::dispatchEvent %p connectionstatechange %d", this, (int)m_connectionState);
     } else
-        WTFLogAlways("RTCPeerConnection::dispatchEvent %p %s", this, event.type().string().utf8().data());
+   //     WTFLogAlways("RTCPeerConnection::dispatchEvent %p %s", this, event.type().string().utf8().data());
     INFO_LOG(LOGIDENTIFIER, "dispatching '", event.type(), "'");
     EventTarget::dispatchEvent(event);
 }

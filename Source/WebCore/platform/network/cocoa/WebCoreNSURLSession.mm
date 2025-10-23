@@ -680,6 +680,7 @@ void WebCoreNSURLSessionDataTaskClient::dataSent(PlatformMediaResource& resource
 
 void WebCoreNSURLSessionDataTaskClient::responseReceived(PlatformMediaResource& resource, const ResourceResponse& response, CompletionHandler<void(ShouldContinuePolicyCheck)>&& completionHandler)
 {
+    WTFLogAlways("youni WebCoreNSURLSessionDataTaskClient::responseReceived code=%d mimeType=%s", response.httpStatusCode(), response.mimeType().utf8().data());
     assertIsCurrent(m_targetDispatcher.get());
     Ref protectedThis { *this };
     RetainPtr task = m_task.get();
@@ -701,6 +702,8 @@ bool WebCoreNSURLSessionDataTaskClient::shouldCacheResponse(PlatformMediaResourc
 
 void WebCoreNSURLSessionDataTaskClient::dataReceived(PlatformMediaResource& resource, const SharedBuffer& buffer)
 {
+    WTFLogAlways("youni WebCoreNSURLSessionDataTaskClient::dataReceived %d data=(%d,%d)", (int)buffer.size(), (int)buffer[0], (int)buffer[1]);
+
     assertIsCurrent(m_targetDispatcher.get());
     if (RetainPtr task = m_task.get())
         [task resource:&resource receivedData:buffer.createNSData()];
@@ -729,6 +732,8 @@ void WebCoreNSURLSessionDataTaskClient::loadFailed(PlatformMediaResource& resour
 
 void WebCoreNSURLSessionDataTaskClient::loadFinished(PlatformMediaResource& resource, const NetworkLoadMetrics& metrics)
 {
+    WTFLogAlways("youni WebCoreNSURLSessionDataTaskClient::loadFinished");
+
     assertIsCurrent(m_targetDispatcher.get());
     if (RetainPtr task = m_task.get())
         [task resourceFinished:&resource metrics:metrics];

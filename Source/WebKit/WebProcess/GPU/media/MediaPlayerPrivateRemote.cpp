@@ -1655,6 +1655,8 @@ void MediaPlayerPrivateRemote::requestResource(RemoteMediaResourceIdentifier rem
 {
     assertIsMainRunLoop();
 
+    WTFLogAlways("MediaPlayerPrivateRemote::requestResource");
+
     ASSERT(!m_mediaResources.contains(remoteMediaResourceIdentifier));
 
     RefPtr player = m_player.get();

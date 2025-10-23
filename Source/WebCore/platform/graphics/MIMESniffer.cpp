@@ -329,7 +329,6 @@ String getMIMETypeFromContent(std::span<const uint8_t> sequence)
 {
     // 6.2. Matching an audio or video type pattern
     // To determine which audio or video MIME type byte pattern a byte sequence input matches, if any, use the following audio or video type pattern matching algorithm:
-
     if (auto mimeType = mimeTypeFromSnifferEntries(sequence); !mimeType.isNull())
         return mimeType;
 
