@@ -5290,7 +5290,8 @@ struct WebCore::RouterSourceDict {
 enum class WebCore::RouterSourceEnum : uint8_t {
     Cache,
     FetchEvent,
-    Network
+    Network,
+    RaceNetworkAndFetchHandler
 };
 
 enum class WebCore::RunningStatus : bool

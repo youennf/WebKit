@@ -73,7 +73,7 @@ class ServiceWorkerFetchTask : public RefCountedAndCanMakeWeakPtr<ServiceWorkerF
 public:
     static RefPtr<ServiceWorkerFetchTask> fromNavigationPreloader(WebSWServerConnection&, NetworkResourceLoader&, const WebCore::ResourceRequest&, NetworkSession*);
     static Ref<ServiceWorkerFetchTask> fromCache(NetworkResourceLoader&, NetworkStorageManager&, WebCore::ResourceRequest&&, String&&);
-    static Ref<ServiceWorkerFetchTask> create(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady);
+    static Ref<ServiceWorkerFetchTask> create(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady, bool shouldRaceNetworkAndFetchHandler);
 
     ~ServiceWorkerFetchTask();
 
@@ -99,7 +99,7 @@ public:
     std::optional<SharedPreferencesForWebProcess> sharedPreferencesForWebProcess() const;
 
 private:
-    ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady);
+    ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady, bool shouldRaceNetworkAndFetchHandler);
     ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, RefPtr<ServiceWorkerNavigationPreloader>&&);
     ServiceWorkerFetchTask(NetworkResourceLoader&, WebCore::ResourceRequest&&);
 
@@ -157,6 +157,7 @@ private:
     bool m_shouldSoftUpdate { false };
     bool m_isLoadingFromPreloader { false };
     bool m_isLoadingFromCache { false };
+    bool m_shouldRaceNetworkAndFetchHandler { false };
     std::optional<WebCore::DOMCacheEngine::Record> m_cacheRecord;
 };
 

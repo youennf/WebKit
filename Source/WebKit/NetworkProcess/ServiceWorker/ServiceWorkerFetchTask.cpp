@@ -56,9 +56,9 @@ using namespace WebCore;
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(ServiceWorkerFetchTask);
 
-Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::create(WebSWServerConnection& connection, NetworkResourceLoader& loader, WebCore::ResourceRequest&& request, WebCore::SWServerConnectionIdentifier connectionIdentifier, WebCore::ServiceWorkerIdentifier workerIdentifier, WebCore::SWServerRegistration& registration, NetworkSession* session, bool isWorkerReady)
+Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::create(WebSWServerConnection& connection, NetworkResourceLoader& loader, WebCore::ResourceRequest&& request, WebCore::SWServerConnectionIdentifier connectionIdentifier, WebCore::ServiceWorkerIdentifier workerIdentifier, WebCore::SWServerRegistration& registration, NetworkSession* session, bool isWorkerReady, bool shouldRaceNetworkAndFetchHandler)
 {
-    return adoptRef(*new ServiceWorkerFetchTask(connection, loader, WTF::move(request), connectionIdentifier, workerIdentifier, registration, session, isWorkerReady));
+    return adoptRef(*new ServiceWorkerFetchTask(connection, loader, WTF::move(request), connectionIdentifier, workerIdentifier, registration, session, isWorkerReady, shouldRaceNetworkAndFetchHandler));
 }
 
 RefPtr<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromNavigationPreloader(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, const WebCore::ResourceRequest& request, NetworkSession* session)
@@ -116,7 +116,7 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(NetworkResourceLoader& loader, Re
 {
 }
 
-ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, ResourceRequest&& request, SWServerConnectionIdentifier serverConnectionIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, SWServerRegistration& registration, NetworkSession* session, bool isWorkerReady)
+ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, ResourceRequest&& request, SWServerConnectionIdentifier serverConnectionIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, SWServerRegistration& registration, NetworkSession* session, bool isWorkerReady, bool shouldRaceNetworkAndFetchHandler)
     : m_swServerConnection(swServerConnection)
     , m_loader(loader)
     , m_fetchIdentifier(WebCore::FetchIdentifier::generate())
@@ -125,6 +125,7 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
     , m_currentRequest(WTF::move(request))
     , m_serviceWorkerRegistrationIdentifier(registration.identifier())
     , m_shouldSoftUpdate(registration.shouldSoftUpdate(loader.parameters().options))
+    , m_shouldRaceNetworkAndFetchHandler(shouldRaceNetworkAndFetchHandler)
 {
     SWFETCH_RELEASE_LOG("ServiceWorkerFetchTask: (serverConnectionIdentifier=%" PRIu64 ", serviceWorkerRegistrationIdentifier=%" PRIu64 ", serviceWorkerIdentifier=%" PRIu64 ", %d)", m_serverConnectionIdentifier->toUInt64(), m_serviceWorkerRegistrationIdentifier->toUInt64(), m_serviceWorkerIdentifier->toUInt64(), isWorkerReady);
 
@@ -136,7 +137,7 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
 
     bool shouldDoNavigationPreload = session && isNavigationRequest(loader.parameters().options.destination) && m_currentRequest.httpMethod() == "GET"_s;
 
-    if (shouldDoNavigationPreload && (!isWorkerReady || registration.navigationPreloadState().enabled)) {
+    if (shouldDoNavigationPreload && (m_shouldRaceNetworkAndFetchHandler || !isWorkerReady || registration.navigationPreloadState().enabled)) {
         NetworkLoadParameters parameters = loader.parameters().networkLoadParameters();
         parameters.request = m_currentRequest;
         m_preloader = ServiceWorkerNavigationPreloader::create(*session, WTF::move(parameters), registration.navigationPreloadState(), loader.shouldCaptureExtraNetworkLoadMetrics());
@@ -207,7 +208,12 @@ void ServiceWorkerFetchTask::contextClosed()
 
 void ServiceWorkerFetchTask::startFetch()
 {
-    SWFETCH_RELEASE_LOG("startFetch");
+    bool shouldStart = !m_shouldRaceNetworkAndFetchHandler || !m_isLoadingFromPreloader;
+    SWFETCH_RELEASE_LOG("startFetch, shouldStart=%d", shouldStart);
+
+    if (!shouldStart)
+        return;
+
     Ref loader = *m_loader;
     loader->consumeSandboxExtensionsIfNeeded();
     auto& options = loader->parameters().options;
@@ -515,6 +521,17 @@ void ServiceWorkerFetchTask::loadResponseFromPreloader()
 
 void ServiceWorkerFetchTask::preloadResponseIsReady()
 {
+    if (m_shouldRaceNetworkAndFetchHandler && !m_wasHandled) {
+        ASSERT(m_preloader);
+        // Let's stop listening to fetch event handler.
+        if (RefPtr serviceWorkerConnection = m_serviceWorkerConnection.get())
+            serviceWorkerConnection->unregisterFetch(*this);
+        m_serviceWorkerConnection = nullptr;
+
+        didNotHandle();
+        ASSERT(m_isLoadingFromPreloader);
+    }
+
     if (!m_isLoadingFromPreloader) {
         if (m_preloader && m_preloader->isServiceWorkerNavigationPreloadEnabled() && m_serviceWorkerConnection)
             sendNavigationPreloadUpdate();
