@@ -282,11 +282,15 @@ RefPtr<ServiceWorkerFetchTask> WebSWServerConnection::createFetchTask(NetworkRes
         return nullptr;
     }
 
-    // FIXME: Add support for cache route w/o cacheName, for now we go to fetch event.
+    String cacheName;
     auto routerSource = worker->getRouterSource(loader.parameters().options, request);
     if (std::holds_alternative<RouterSourceEnum>(routerSource)) {
         switch (std::get<RouterSourceEnum>(routerSource)) {
         case RouterSourceEnum::Cache:
+            cacheName = ""_s;
+            if (registration->shouldSoftUpdate(loader.parameters().options))
+                registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
+            break;
         case RouterSourceEnum::FetchEvent:
             break;
         case RouterSourceEnum::Network:
@@ -294,7 +298,11 @@ RefPtr<ServiceWorkerFetchTask> WebSWServerConnection::createFetchTask(NetworkRes
                 registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
             return nullptr;
         }
-    }
+    } else
+        cacheName = std::get<RouterSourceDict>(routerSource).cacheName;
+
+    if (!cacheName.isNull())
+        return ServiceWorkerFetchTask::fromCache(loader, checkedSession()->storageManager(), ResourceRequest { request }, WTFMove(cacheName));
 
     if (worker->hasTimedOutAnyFetchTasks()) {
         SWSERVERCONNECTION_RELEASE_LOG_ERROR("startFetch: DidNotHandle because worker %" PRIu64 " has some timeouts", worker->identifier().toUInt64());

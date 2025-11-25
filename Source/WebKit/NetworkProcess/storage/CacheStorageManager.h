@@ -77,6 +77,8 @@ public:
     void sizeDecreased(uint64_t amount);
     void reset();
 
+    void query(WebCore::RetrieveRecordsOptions&&, String&&, CompletionHandler<void(std::optional<WebCore::DOMCacheEngine::CrossThreadRecord>&&)>&&);
+
 private:
     CacheStorageManager(const String& path, CacheStorageRegistry&, const std::optional<WebCore::ClientOrigin>&, QuotaCheckFunction&&, Ref<WorkQueue>&&);
     void makeDirty();
