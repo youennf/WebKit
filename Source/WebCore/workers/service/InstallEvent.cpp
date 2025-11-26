@@ -187,7 +187,7 @@ void InstallEvent::addRoutes(JSC::JSGlobalObject& globalObject, Variant<RouterRu
             return;
         }
 
-        if (!serviceWorkerGlobalScope->hasFetchEventHandler() && std::get<RouterSourceEnum>(rule.source) == RouterSourceEnum::FetchEvent) {
+        if (!serviceWorkerGlobalScope->hasFetchEventHandler() && (std::get<RouterSourceEnum>(rule.source) == RouterSourceEnum::FetchEvent || std::get<RouterSourceEnum>(rule.source) == RouterSourceEnum::RaceNetworkAndFetchHandler)) {
             promise->reject(Exception { ExceptionCode::TypeError, "Rule source is fetch event but no fetch event handler is registered"_s });
             return;
         }
