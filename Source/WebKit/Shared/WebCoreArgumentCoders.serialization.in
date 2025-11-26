@@ -6118,6 +6118,7 @@ struct WebCore::ServiceWorkerContextData {
     MemoryCompactRobinHoodHashMap<URL, WebCore::ServiceWorkerImportedScript> scriptResourceMap;
     std::optional<WebCore::ScriptExecutionContextIdentifier> serviceWorkerPageIdentifier;
     WebCore::NavigationPreloadState navigationPreloadState;
+    Vector<WebCore::ServiceWorkerRoute> routes;
 };
 
 #if HAVE(SCREEN_CAPTURE_KIT)

@@ -33,6 +33,7 @@ struct RouterSourceDict {
     String cacheName;
 
     RouterSourceDict isolatedCopy() && { return { WTFMove(cacheName).isolatedCopy() }; }
+    RouterSourceDict isolatedCopy() const & { return { cacheName.isolatedCopy() }; }
 };
 
 } // namespace WebCore

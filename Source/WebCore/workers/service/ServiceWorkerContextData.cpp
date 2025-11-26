@@ -47,6 +47,7 @@ ServiceWorkerContextData ServiceWorkerContextData::isolatedCopy() const &
         crossThreadCopy(scriptResourceMap),
         serviceWorkerPageIdentifier,
         crossThreadCopy(navigationPreloadState),
+        crossThreadCopy(routes)
     };
 }
 
@@ -67,7 +68,30 @@ ServiceWorkerContextData ServiceWorkerContextData::isolatedCopy() &&
         lastNavigationWasAppInitiated,
         crossThreadCopy(WTFMove(scriptResourceMap)),
         serviceWorkerPageIdentifier,
-        crossThreadCopy(WTFMove(navigationPreloadState))
+        crossThreadCopy(WTFMove(navigationPreloadState)),
+        crossThreadCopy(WTFMove(routes))
+    };
+}
+
+ServiceWorkerContextData ServiceWorkerContextData::copy() const
+{
+    return {
+        jobDataIdentifier,
+        WTFMove(registration).isolatedCopy(),
+        serviceWorkerIdentifier,
+        WTFMove(script).isolatedCopy(),
+        WTFMove(certificateInfo).isolatedCopy(),
+        WTFMove(contentSecurityPolicy).isolatedCopy(),
+        WTFMove(crossOriginEmbedderPolicy).isolatedCopy(),
+        WTFMove(referrerPolicy).isolatedCopy(),
+        WTFMove(scriptURL).isolatedCopy(),
+        workerType,
+        loadedFromDisk,
+        lastNavigationWasAppInitiated,
+        crossThreadCopy(WTFMove(scriptResourceMap)),
+        serviceWorkerPageIdentifier,
+        crossThreadCopy(WTFMove(navigationPreloadState)),
+        map(routes, [](auto& route) { return route.copy(); })
     };
 }
 
