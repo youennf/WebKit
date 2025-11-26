@@ -34,6 +34,7 @@
 #include "NetworkProcess.h"
 #include "NetworkResourceLoader.h"
 #include "NetworkSession.h"
+#include "NetworkStorageManager.h"
 #include "PrivateRelayed.h"
 #include "ServiceWorkerNavigationPreloader.h"
 #include "SharedBufferReference.h"
@@ -42,6 +43,7 @@
 #include "WebSWServerConnection.h"
 #include "WebSWServerToContextConnection.h"
 #include <WebCore/CrossOriginAccessControl.h>
+#include <WebCore/RetrieveRecordsOptions.h>
 #include <WebCore/SWServerRegistration.h>
 #include <wtf/TZoneMallocInlines.h>
 
@@ -59,11 +61,6 @@ Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::create(WebSWServerConnection
     return adoptRef(*new ServiceWorkerFetchTask(connection, loader, WTFMove(request), connectionIdentifier, workerIdentifier, registration, session, isWorkerReady));
 }
 
-Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::create(WebSWServerConnection& connection, NetworkResourceLoader& loader, RefPtr<ServiceWorkerNavigationPreloader>&& preloader)
-{
-    return adoptRef(*new ServiceWorkerFetchTask(connection, loader, WTFMove(preloader)));
-}
-
 RefPtr<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromNavigationPreloader(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, const WebCore::ResourceRequest& request, NetworkSession* session)
 {
     if (!loader.parameters().navigationPreloadIdentifier)
@@ -75,8 +72,28 @@ RefPtr<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromNavigationPreloader(W
         return nullptr;
     }
 
-    auto preload = std::exchange(task->m_preloader, { });
-    return ServiceWorkerFetchTask::create(swServerConnection, loader, WTFMove(preload));
+    return adoptRef(*new ServiceWorkerFetchTask(swServerConnection, loader, std::exchange(task->m_preloader, { })));
+}
+
+Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoader& loader, NetworkStorageManager& manager, WebCore::ResourceRequest&& request, String&& cacheName)
+{
+    Ref topOrigin = loader.parameters().topOrigin ? Ref { *loader.parameters().topOrigin } : SecurityOrigin::createOpaque();
+    Ref clientOrigin = loader.parameters().sourceOrigin ? Ref { *loader.parameters().sourceOrigin } : SecurityOrigin::createOpaque();
+
+    WebCore::ClientOrigin origin {
+        topOrigin->data(),
+        clientOrigin->data()
+    };
+
+    WebCore::RetrieveRecordsOptions options {
+        .request { request },
+        .crossOriginEmbedderPolicy { loader.parameters().parentCrossOriginEmbedderPolicy.value },
+        .sourceOrigin { WTFMove(clientOrigin) }
+    };
+
+    Ref task = adoptRef(*new ServiceWorkerFetchTask(loader, WTFMove(request)));
+    task->loadFromCache(manager, WTFMove(origin), WTFMove(options), WTFMove(cacheName));
+    return task;
 }
 
 ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, RefPtr<ServiceWorkerNavigationPreloader>&& preloader)
@@ -89,6 +106,13 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
         if (RefPtr protectedThis = weakThis.get())
             protectedThis->loadResponseFromPreloader();
     });
+}
+
+ServiceWorkerFetchTask::ServiceWorkerFetchTask(NetworkResourceLoader& loader, ResourceRequest&& request)
+    : m_loader(loader)
+    , m_fetchIdentifier(WebCore::FetchIdentifier::generate())
+    , m_currentRequest(WTFMove(request))
+{
 }
 
 ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerConnection, NetworkResourceLoader& loader, ResourceRequest&& request, SWServerConnectionIdentifier serverConnectionIdentifier, ServiceWorkerIdentifier serviceWorkerIdentifier, SWServerRegistration& registration, NetworkSession* session, bool isWorkerReady)
@@ -293,16 +317,11 @@ void ServiceWorkerFetchTask::didReceiveData(const IPC::SharedBufferReference& da
     if (m_isDone)
         return;
 
-    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
-
-#if ENABLE(CONTENT_FILTERING)
     RefPtr buffer = data.unsafeBuffer();
     if (!buffer)
         return;
-    if (!protectedLoader()->continueAfterServiceWorkerReceivedData(*buffer))
-        return;
-#endif
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(data), 0 });
+
+    sendData(buffer.releaseNonNull());
 }
 
 void ServiceWorkerFetchTask::didReceiveDataFromPreloader(const WebCore::FragmentedSharedBuffer& data)
@@ -310,16 +329,11 @@ void ServiceWorkerFetchTask::didReceiveDataFromPreloader(const WebCore::Fragment
     if (m_isDone)
         return;
 
-    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
-
-#if ENABLE(CONTENT_FILTERING)
     RefPtr buffer = data.makeContiguous();
     if (!buffer)
         return;
-    if (!protectedLoader()->continueAfterServiceWorkerReceivedData(*buffer))
-        return;
-#endif
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(data), 0 });
+
+    sendData(buffer.releaseNonNull());
 }
 
 void ServiceWorkerFetchTask::didReceiveFormData(const IPC::FormDataReference& formData)
@@ -412,6 +426,8 @@ void ServiceWorkerFetchTask::cancelFromClient()
     if (m_isDone)
         return;
 
+    m_isDone = true;
+
     if (m_isLoadingFromPreloader) {
         cancelPreloadIfNecessary();
         return;
@@ -426,6 +442,11 @@ void ServiceWorkerFetchTask::continueDidReceiveFetchResponse()
     SWFETCH_RELEASE_LOG("continueDidReceiveFetchResponse:");
     if (m_isLoadingFromPreloader) {
         loadBodyFromPreloader();
+        return;
+    }
+
+    if (auto record = std::exchange(m_cacheRecord, { })) {
+        finishLoadingWithCacheResponse(WTFMove(*record));
         return;
     }
 
@@ -632,6 +653,58 @@ std::optional<SharedPreferencesForWebProcess> ServiceWorkerFetchTask::sharedPref
         return std::nullopt;
 
     return loader->connectionToWebProcess().sharedPreferencesForWebProcess();
+}
+
+void ServiceWorkerFetchTask::loadFromCache(NetworkStorageManager& manager, WebCore::ClientOrigin&& origin, WebCore::RetrieveRecordsOptions&& options, String&& cacheName)
+{
+    manager.queryCacheStorage(WTFMove(origin), WTFMove(options), WTFMove(cacheName), [weakThis = WeakPtr { *this }](auto&& response) {
+        if (RefPtr protectedThis = weakThis.get())
+            protectedThis->respondWithCacheResponse(WTFMove(response));
+    });
+}
+
+void ServiceWorkerFetchTask::respondWithCacheResponse(std::optional<DOMCacheEngine::Record>&& record)
+{
+    if (!record) {
+        didNotHandle();
+        return;
+    }
+    
+    if (m_isDone)
+        return;
+
+    bool needsContinueDidReceiveResponseMessage = m_currentRequest.requester() == ResourceRequestRequester::Main;
+    processResponse(std::exchange(record->response, { }), needsContinueDidReceiveResponseMessage, ShouldSetSource::No);
+    if (needsContinueDidReceiveResponseMessage) {
+        m_cacheRecord = WTFMove(*record);
+        return;
+    }
+
+    finishLoadingWithCacheResponse(WTFMove(*record));
+}
+void ServiceWorkerFetchTask::finishLoadingWithCacheResponse(DOMCacheEngine::Record&& record)
+{
+    switchOn(WTFMove(record.responseBody), [&](std::nullptr_t) {
+    }, [&](Ref<FormData>&& data) {
+        // FIXME: Add support to form data response bodies.
+        ASSERT_NOT_REACHED();
+    }, [&](Ref<SharedBuffer>&& data) {
+        sendData(WTFMove(data));
+    });
+
+    sendToClient(Messages::WebResourceLoader::DidFinishResourceLoad { { } });
+}
+
+void ServiceWorkerFetchTask::sendData(Ref<SharedBuffer>&& data)
+{
+    ASSERT(!m_isDone);
+    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
+
+#if ENABLE(CONTENT_FILTERING)
+    if (!protectedLoader()->continueAfterServiceWorkerReceivedData(data))
+        return;
+#endif
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(WTFMove(data)), 0 });
 }
 
 } // namespace WebKit

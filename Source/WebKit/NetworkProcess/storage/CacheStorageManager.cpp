@@ -543,4 +543,60 @@ String CacheStorageManager::representationString()
     return builder.toString();
 }
 
+static void queryCaches(Vector<Ref<CacheStorageCache>>&& caches, size_t index, WebCore::RetrieveRecordsOptions&& options, bool shouldIterate, CompletionHandler<void(std::optional<WebCore::DOMCacheEngine::CrossThreadRecord>&&)>&& callback)
+{
+    if (index >= caches.size()) {
+        callback({ });
+        return;
+    }
+
+    Ref cache = caches[index];
+    cache->open([caches = WTFMove(caches), index, options = WTFMove(options), shouldIterate, callback = WTFMove(callback)](auto&& openResult) mutable {
+        if (!openResult.has_value()) {
+            if (!shouldIterate) {
+                callback({ });
+                return;
+            }
+
+            queryCaches(WTFMove(caches), index + 1, WTFMove(options), shouldIterate, WTFMove(callback));
+            return;
+        }
+
+        Ref cache = caches[index];
+        auto matches = cache->findRecords(options);
+        if (!matches.isEmpty()) {
+            cache->retrieveRecords({ WTFMove(matches[0]) }, WTFMove(options), [callback = WTFMove(callback)](auto&& result) mutable {
+                if (!result.has_value()) {
+                    callback({ });
+                    return;
+                }
+                callback(WTFMove(result.value()[0]));
+            });
+            return;
+        }
+        queryCaches(WTFMove(caches), index + 1, WTFMove(options), shouldIterate, WTFMove(callback));
+    });
+}
+
+void CacheStorageManager::query(WebCore::RetrieveRecordsOptions&& options, String&& cacheName, CompletionHandler<void(std::optional<WebCore::DOMCacheEngine::CrossThreadRecord>&&)>&& callback)
+{
+    if (!initializeCaches()) {
+        callback({ });
+        return;
+    }
+
+    size_t index = 0;
+    if (!cacheName.isEmpty()) {
+        index = m_caches.findIf([&](auto& cache) {
+            return cache->name() == cacheName;
+        });
+        if (index == notFound) {
+            callback({ });
+            return;
+        }
+    }
+
+    queryCaches(Vector<Ref<CacheStorageCache>> { m_caches }, index, WTFMove(options), cacheName.isEmpty(), WTFMove(callback));
+}
+
 } // namespace WebKit

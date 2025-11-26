@@ -124,11 +124,14 @@ std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute& rout
     return validateServiceWorkerRouteCondition(route.condition);
 }
 
-static bool matchURLPatternComponent(const String& pattern, StringView value)
+static bool matchURLPatternComponent(const String& pattern, StringView value, bool isPath = false)
 {
     // FIXME: Fully support pattern matching, check for case, whitespace...
     if (pattern.isNull() || pattern == "*"_s)
         return true;
+
+    if (isPath && pattern.startsWith("/**/"_s))
+        return value.endsWith(pattern.substring(4));
 
     bool isPatternFinishingByStar = pattern.endsWith("*"_s);
     return isPatternFinishingByStar ? value.startsWith(pattern.substring(pattern.length() - 1)) : value == pattern;
@@ -154,7 +157,7 @@ static bool matchURLPattern(const ServiceWorkerRoutePattern& urlPattern, const U
     if (!matchURLPatternComponent(urlPattern.port, port))
         return false;
 
-    if (!matchURLPatternComponent(urlPattern.pathname, url.path()))
+    if (!matchURLPatternComponent(urlPattern.pathname, url.path(), true))
         return false;
 
     if (!matchURLPatternComponent(urlPattern.search, url.query()))

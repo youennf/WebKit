@@ -27,6 +27,7 @@
 
 #include "DownloadID.h"
 #include "SharedPreferencesForWebProcess.h"
+#include <WebCore/DOMCacheEngine.h>
 #include <WebCore/FetchIdentifier.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/ScriptExecutionContextIdentifier.h>
@@ -41,6 +42,8 @@ class ResourceError;
 class ResourceRequest;
 class ResourceResponse;
 class SWServerRegistration;
+
+struct RetrieveRecordsOptions;
 }
 
 namespace IPC {
@@ -52,12 +55,15 @@ class SharedBufferReference;
 
 namespace WebCore {
 class NetworkLoadMetrics;
+
+struct ClientOrigin;
 }
 
 namespace WebKit {
 class DownloadManager;
 class NetworkResourceLoader;
 class NetworkSession;
+class NetworkStorageManager;
 class ServiceWorkerNavigationPreloader;
 class WebSWServerConnection;
 class WebSWServerToContextConnection;
@@ -66,9 +72,8 @@ class ServiceWorkerFetchTask : public RefCountedAndCanMakeWeakPtr<ServiceWorkerF
     WTF_MAKE_TZONE_ALLOCATED(ServiceWorkerFetchTask);
 public:
     static RefPtr<ServiceWorkerFetchTask> fromNavigationPreloader(WebSWServerConnection&, NetworkResourceLoader&, const WebCore::ResourceRequest&, NetworkSession*);
-
+    static Ref<ServiceWorkerFetchTask> fromCache(NetworkResourceLoader&, NetworkStorageManager&, WebCore::ResourceRequest&&, String&&);
     static Ref<ServiceWorkerFetchTask> create(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady);
-    static Ref<ServiceWorkerFetchTask> create(WebSWServerConnection&, NetworkResourceLoader&, RefPtr<ServiceWorkerNavigationPreloader>&&);
 
     ~ServiceWorkerFetchTask();
 
@@ -96,6 +101,7 @@ public:
 private:
     ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::SWServerRegistration&, NetworkSession*, bool isWorkerReady);
     ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, RefPtr<ServiceWorkerNavigationPreloader>&&);
+    ServiceWorkerFetchTask(NetworkResourceLoader&, WebCore::ResourceRequest&&);
 
     enum class ShouldSetSource : bool { No, Yes };
     void didReceiveRedirectResponse(WebCore::ResourceResponse&&);
@@ -123,6 +129,11 @@ private:
 
     void workerClosed();
 
+    void loadFromCache(NetworkStorageManager&, WebCore::ClientOrigin&&, WebCore::RetrieveRecordsOptions&& options, String&&);
+    void respondWithCacheResponse(std::optional<WebCore::DOMCacheEngine::Record>&&);
+    void finishLoadingWithCacheResponse(WebCore::DOMCacheEngine::Record&&);
+    void sendData(Ref<WebCore::SharedBuffer>&&);
+
     RefPtr<IPC::Connection> serviceWorkerConnection();
     template<typename Message> bool sendToClient(Message&&);
 
@@ -145,6 +156,8 @@ private:
     bool m_isDone { false };
     bool m_shouldSoftUpdate { false };
     bool m_isLoadingFromPreloader { false };
+    bool m_isLoadingFromCache { false };
+    std::optional<WebCore::DOMCacheEngine::Record> m_cacheRecord;
 };
 
 }
