@@ -545,7 +545,10 @@ String CacheStorageManager::representationString()
 
 static void queryCaches(Vector<Ref<CacheStorageCache>>&& caches, size_t index, WebCore::RetrieveRecordsOptions&& options, bool shouldIterate, CompletionHandler<void(std::optional<WebCore::DOMCacheEngine::CrossThreadRecord>&&)>&& callback)
 {
+    WTFLogAlways("queryCaches1 %d '%s'", (int)index, options.request.url().string().utf8().data());
+
     if (index >= caches.size()) {
+        WTFLogAlways("queryCaches2");
         callback({ });
         return;
     }
@@ -553,23 +556,30 @@ static void queryCaches(Vector<Ref<CacheStorageCache>>&& caches, size_t index, W
     Ref cache = caches[index];
     cache->open([caches = WTFMove(caches), index, options = WTFMove(options), shouldIterate, callback = WTFMove(callback)](auto&& openResult) mutable {
         if (!openResult.has_value()) {
+            WTFLogAlways("queryCaches3");
             if (!shouldIterate) {
+                WTFLogAlways("queryCaches4");
                 callback({ });
                 return;
             }
 
+            WTFLogAlways("queryCaches5");
             queryCaches(WTFMove(caches), index + 1, WTFMove(options), shouldIterate, WTFMove(callback));
             return;
         }
+        WTFLogAlways("queryCaches6");
 
         Ref cache = caches[index];
         auto matches = cache->findRecords(options);
         if (!matches.isEmpty()) {
+            WTFLogAlways("queryCaches7");
             cache->retrieveRecords({ WTFMove(matches[0]) }, WTFMove(options), [callback = WTFMove(callback)](auto&& result) mutable {
                 if (!result.has_value()) {
+                    WTFLogAlways("queryCaches8");
                     callback({ });
                     return;
                 }
+                WTFLogAlways("queryCaches9");
                 callback(WTFMove(result.value()[0]));
             });
             return;

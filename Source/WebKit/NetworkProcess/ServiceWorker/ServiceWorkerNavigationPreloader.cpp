@@ -111,6 +111,9 @@ ServiceWorkerNavigationPreloader::~ServiceWorkerNavigationPreloader() = default;
 
 void ServiceWorkerNavigationPreloader::cancel()
 {
+    RELEASE_LOG(ServiceWorker, "ServiceWorkerNavigationPreloader::cancel %p", this);
+    WTFLogAlways("ServiceWorkerNavigationPreloader::cancel %p", this);
+
     m_isCancelled = true;
     if (m_responseCompletionHandler)
         m_responseCompletionHandler(PolicyAction::Ignore);
@@ -150,6 +153,7 @@ void ServiceWorkerNavigationPreloader::loadFromNetwork()
 {
     ASSERT(m_session);
     RELEASE_LOG(ServiceWorker, "ServiceWorkerNavigationPreloader::loadFromNetwork %p", this);
+    WTFLogAlways("ServiceWorkerNavigationPreloader::loadFromNetwork %p", this);
 
     if (m_state.enabled)
         m_parameters.request.addHTTPHeaderField(HTTPHeaderName::ServiceWorkerNavigationPreload, m_state.headerValue);
@@ -171,6 +175,7 @@ void ServiceWorkerNavigationPreloader::willSendRedirectedRequest(ResourceRequest
 void ServiceWorkerNavigationPreloader::didReceiveResponse(ResourceResponse&& response, PrivateRelayed, ResponseCompletionHandler&& completionHandler)
 {
     RELEASE_LOG(ServiceWorker, "ServiceWorkerNavigationPreloader::didReceiveResponse %p", this);
+    WTFLogAlways("ServiceWorkerNavigationPreloader::didReceiveResponse %p", this);
 
     m_didReceiveResponseOrError = true;
 
@@ -232,16 +237,20 @@ void ServiceWorkerNavigationPreloader::didComplete()
 
 void ServiceWorkerNavigationPreloader::waitForResponse(ResponseCallback&& callback)
 {
+    WTFLogAlways("ServiceWorkerNavigationPreloader::waitForResponse1 %p", this);
+
     if (!m_error.isNull()) {
         callback();
         return;
     }
+    WTFLogAlways("ServiceWorkerNavigationPreloader::waitForResponse2 %p", this);
 
     if (m_responseCompletionHandler) {
         callback();
         return;
     }
 
+    WTFLogAlways("ServiceWorkerNavigationPreloader::waitForResponse3 %p", this);
     m_responseCallback = WTFMove(callback);
 }
 

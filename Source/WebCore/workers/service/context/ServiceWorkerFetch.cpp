@@ -223,9 +223,11 @@ void dispatchFetchEvent(Ref<Client>&& client, ServiceWorkerGlobalScope& globalSc
         processResponse(WTFMove(client), std::forward<Result>(result), mode, redirect, requestURL, WTFMove(certificateInfo), deferredPromise.get());
     });
 
+    WTFLogAlways("dispatchFetchEvent1 %p '%s'", event.ptr(), requestURL.string().utf8().data());
     globalScope.dispatchEvent(event);
 
     if (!event->respondWithEntered()) {
+        WTFLogAlways("dispatchFetchEvent2 %p '%s'", event.ptr(), requestURL.string().utf8().data());
         if (event->defaultPrevented()) {
             ResourceError error { errorDomainWebKitInternal, 0, requestURL, "Fetch event was canceled"_s, ResourceError::Type::General, ResourceError::IsSanitized::Yes };
             client->didFail(error);

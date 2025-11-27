@@ -130,6 +130,8 @@ static bool matchURLPatternComponent(const String& pattern, StringView value, bo
     if (pattern.isNull() || pattern == "*"_s)
         return true;
 
+    WTFLogAlways("matchURLPatternComponent '%s' '%s'", pattern.utf8().data(), value.toString().utf8().data());
+
     if (isPath && pattern.startsWith("/**/"_s))
         return value.endsWith(pattern.substring(4));
 
@@ -160,6 +162,7 @@ static bool matchURLPattern(const ServiceWorkerRoutePattern& urlPattern, const U
     if (!matchURLPatternComponent(urlPattern.pathname, url.path(), true))
         return false;
 
+    WTFLogAlways("matchURLPattern search '%s' '%s'", urlPattern.search.utf8().data(), url.query().toString().utf8().data());
     if (!matchURLPatternComponent(urlPattern.search, url.query()))
         return false;
 
@@ -169,6 +172,7 @@ static bool matchURLPattern(const ServiceWorkerRoutePattern& urlPattern, const U
 // https://w3c.github.io/ServiceWorker/#match-router-condition
 bool matchRouterCondition(const ServiceWorkerRouteCondition& condition, const FetchOptions& options, const ResourceRequest& request, bool isServiceWorkerRunning)
 {
+    WTFLogAlways("matchRouterCondition1");
     if (!condition.orConditions.isEmpty()) {
         for (auto& condition : condition.orConditions) {
             if (matchRouterCondition(condition, options, request, isServiceWorkerRunning))
@@ -177,19 +181,23 @@ bool matchRouterCondition(const ServiceWorkerRouteCondition& condition, const Fe
         return false;
     }
 
+    WTFLogAlways("matchRouterCondition2");
     if (condition.notCondition)
         return !matchRouterCondition(*condition.notCondition, options, request, isServiceWorkerRunning);
 
+    WTFLogAlways("matchRouterCondition3");
     if (condition.urlPattern) {
         if (!matchURLPattern(*condition.urlPattern, request.url()))
             return false;
     }
+    WTFLogAlways("matchRouterCondition4");
 
     if (!condition.requestMethod.isNull()) {
         if (condition.requestMethod != request.httpMethod())
             return false;
     }
 
+    WTFLogAlways("matchRouterCondition5");
     if (condition.requestMode) {
         if (*condition.requestMode != options.mode)
             return false;
@@ -200,12 +208,14 @@ bool matchRouterCondition(const ServiceWorkerRouteCondition& condition, const Fe
             return false;
     }
 
+    WTFLogAlways("matchRouterCondition7");
     if (condition.runningStatus) {
         bool isRunningStatus = *condition.runningStatus == RunningStatus::Running;
         if (isRunningStatus != isServiceWorkerRunning)
             return false;
     }
 
+    WTFLogAlways("matchRouterCondition8");
     return true;
 }
 

@@ -2327,6 +2327,8 @@ std::optional<SharedPreferencesForWebProcess> NetworkStorageManager::sharedPrefe
 
 void NetworkStorageManager::queryCacheStorage(WebCore::ClientOrigin&& origin, WebCore::RetrieveRecordsOptions&& options, String&& cacheName, CompletionHandler<void(std::optional<WebCore::DOMCacheEngine::Record>&&)>&& callback)
 {
+    WTFLogAlways("NetworkStorageManager::queryCacheStorage1 '%s'", options.request.url().string().utf8().data());
+
     auto mainThreadCallback = [callback = WTFMove(callback)](std::optional<WebCore::DOMCacheEngine::CrossThreadRecord>&& result) mutable {
         callOnMainRunLoop([callback = WTFMove(callback), result = WTFMove(result)]() mutable {
             if (!result) {
@@ -2350,6 +2352,8 @@ void NetworkStorageManager::queryCacheStorage(WebCore::ClientOrigin&& origin, We
             callback({ });
             return;
         }
+
+        WTFLogAlways("NetworkStorageManager::queryCacheStorage2 '%s'", options.request.url().string().utf8().data());
 
         cacheStorageManager->query(WTFMove(options), WTFMove(cacheName), WTFMove(callback));
     });

@@ -84,6 +84,8 @@ ResourceError FetchEvent::createResponseError(const URL& url, const String& erro
 
 ExceptionOr<void> FetchEvent::respondWith(Ref<DOMPromise>&& promise)
 {
+    WTFLogAlways("FetchEvent::respondWith %p", this);
+
     if (!isBeingDispatched())
         return Exception { ExceptionCode::InvalidStateError, "Event is not being dispatched"_s };
 
@@ -123,6 +125,8 @@ void FetchEvent::respondWithError(ResourceError&& error)
 
 void FetchEvent::processResponse(Expected<Ref<FetchResponse>, std::optional<ResourceError>>&& result)
 {
+    WTFLogAlways("FetchEvent::processResponse %p", this);
+
     m_respondPromise = nullptr;
     m_waitToRespond = false;
     if (auto callback = WTFMove(m_onResponse))

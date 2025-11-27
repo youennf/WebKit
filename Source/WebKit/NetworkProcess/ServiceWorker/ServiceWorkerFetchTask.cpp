@@ -153,6 +153,8 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
 
 ServiceWorkerFetchTask::~ServiceWorkerFetchTask()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::~ServiceWorkerFetchTask");
+
     SWFETCH_RELEASE_LOG("~ServiceWorkerFetchTask:");
     if (RefPtr serviceWorkerConnection = m_serviceWorkerConnection.get())
         serviceWorkerConnection->unregisterFetch(*this);
@@ -210,6 +212,8 @@ void ServiceWorkerFetchTask::startFetch()
     bool shouldStart = !m_shouldRaceNetworkAndFetchHandler || !m_isLoadingFromPreloader;
     SWFETCH_RELEASE_LOG("startFetch, shouldStart=%d", shouldStart);
 
+    WTFLogAlways("ServiceWorkerFetchTask::startFetch %p shouldStart=%d", this, shouldStart);
+
     if (!shouldStart)
         return;
 
@@ -242,6 +246,9 @@ void ServiceWorkerFetchTask::startFetch()
 
 void ServiceWorkerFetchTask::didReceiveRedirectResponse(WebCore::ResourceResponse&& response)
 {
+    SWFETCH_RELEASE_LOG("didReceiveRedirectResponse:");
+    WTFLogAlways("ServiceWorkerFetchTask::didReceiveRedirectResponse");
+
     cancelPreloadIfNecessary();
 
     processRedirectResponse(WTFMove(response), ShouldSetSource::Yes);
@@ -267,6 +274,9 @@ void ServiceWorkerFetchTask::processRedirectResponse(ResourceResponse&& response
 
 void ServiceWorkerFetchTask::didReceiveResponse(WebCore::ResourceResponse&& response, bool needsContinueDidReceiveResponseMessage)
 {
+    SWFETCH_RELEASE_LOG("didReceiveResponse:");
+    WTFLogAlways("ServiceWorkerFetchTask::didReceiveResponse %p", this);
+
     if (m_preloader && !m_preloader->isServiceWorkerNavigationPreloadEnabled())
         cancelPreloadIfNecessary();
 
@@ -275,14 +285,18 @@ void ServiceWorkerFetchTask::didReceiveResponse(WebCore::ResourceResponse&& resp
 
 void ServiceWorkerFetchTask::processResponse(ResourceResponse&& response, bool needsContinueDidReceiveResponseMessage, ShouldSetSource shouldSetSource)
 {
+    WTFLogAlways("ServiceWorkerFetchTask::processResponse1 %p", this);
+
     if (m_isDone)
         return;
 
+    WTFLogAlways("ServiceWorkerFetchTask::processResponse2 %p", this);
     Ref loader = *m_loader;
 #if ENABLE(CONTENT_FILTERING)
     if (!loader->continueAfterServiceWorkerReceivedResponse(response))
         return;
 #endif
+    WTFLogAlways("ServiceWorkerFetchTask::processResponse3 %p", this);
 
     SWFETCH_RELEASE_LOG("processResponse: (httpStatusCode=%d, MIMEType=%" PUBLIC_LOG_STRING ", expectedContentLength=%lld, needsContinueDidReceiveResponseMessage=%d, source=%u)", response.httpStatusCode(), response.mimeType().utf8().data(), response.expectedContentLength(), needsContinueDidReceiveResponseMessage, static_cast<unsigned>(response.source()));
     m_wasHandled = true;
@@ -310,6 +324,7 @@ void ServiceWorkerFetchTask::processResponse(ResourceResponse&& response, bool n
         didFail(*error);
         return;
     }
+    WTFLogAlways("ServiceWorkerFetchTask::processResponse5 %p", this);
 
     if (shouldSetSource == ShouldSetSource::Yes)
         response.setSource(ResourceResponse::Source::ServiceWorker);
@@ -353,6 +368,8 @@ void ServiceWorkerFetchTask::didReceiveFormData(const IPC::FormDataReference& fo
 
 void ServiceWorkerFetchTask::didFinish(const NetworkLoadMetrics& networkLoadMetrics)
 {
+    WTFLogAlways("ServiceWorkerFetchTask::didFinish");
+
     ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
     SWFETCH_RELEASE_LOG("didFinish:");
 
@@ -371,6 +388,8 @@ void ServiceWorkerFetchTask::didFinish(const NetworkLoadMetrics& networkLoadMetr
 
 void ServiceWorkerFetchTask::didFail(const ResourceError& error)
 {
+    WTFLogAlways("ServiceWorkerFetchTask::didFail");
+
     m_isDone = true;
     if (m_timeoutTimer && m_timeoutTimer->isActive()) {
         m_timeoutTimer->stop();
@@ -384,6 +403,8 @@ void ServiceWorkerFetchTask::didFail(const ResourceError& error)
 
 void ServiceWorkerFetchTask::didNotHandle()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::didNotHandle1 %p", this);
+
     if (m_isDone)
         return;
 
@@ -396,6 +417,7 @@ void ServiceWorkerFetchTask::didNotHandle()
         loadResponseFromPreloader();
         return;
     }
+    WTFLogAlways("ServiceWorkerFetchTask::didNotHandle2 %p", this);
 
     m_isDone = true;
     protectedLoader()->serviceWorkerDidNotHandle(this);
@@ -428,6 +450,7 @@ void ServiceWorkerFetchTask::cannotHandle()
 
 void ServiceWorkerFetchTask::cancelFromClient()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::cancelFromClient");
     SWFETCH_RELEASE_LOG("cancelFromClient: isDone=%d", m_isDone);
     if (m_isDone)
         return;
@@ -445,6 +468,8 @@ void ServiceWorkerFetchTask::cancelFromClient()
 
 void ServiceWorkerFetchTask::continueDidReceiveFetchResponse()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::continueDidReceiveFetchResponse %p", this);
+
     SWFETCH_RELEASE_LOG("continueDidReceiveFetchResponse:");
     if (m_isLoadingFromPreloader) {
         loadBodyFromPreloader();
@@ -506,10 +531,13 @@ void ServiceWorkerFetchTask::softUpdateIfNeeded()
 
 void ServiceWorkerFetchTask::loadResponseFromPreloader()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::loadResponseFromPreloader1 %p", this);
+
     SWFETCH_RELEASE_LOG("loadResponseFromPreloader");
 
     if (m_isLoadingFromPreloader)
         return;
+    WTFLogAlways("ServiceWorkerFetchTask::loadResponseFromPreloader2 %p", this);
 
     m_isLoadingFromPreloader = true;
     protectedPreloader()->waitForResponse([weakThis = WeakPtr { *this }] {
@@ -520,6 +548,8 @@ void ServiceWorkerFetchTask::loadResponseFromPreloader()
 
 void ServiceWorkerFetchTask::preloadResponseIsReady()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::preloadResponseIsReady %p", this);
+
     if (m_shouldRaceNetworkAndFetchHandler && !m_wasHandled) {
         ASSERT(m_preloader);
         if (!m_preloader->response().isSuccessful()) {
@@ -589,6 +619,8 @@ RefPtr<ServiceWorkerNavigationPreloader> ServiceWorkerFetchTask::protectedPreloa
 
 void ServiceWorkerFetchTask::loadBodyFromPreloader()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::loadBodyFromPreloader %p", this);
+
     SWFETCH_RELEASE_LOG("loadBodyFromPreloader");
 
     ASSERT(m_isLoadingFromPreloader);
@@ -599,24 +631,30 @@ void ServiceWorkerFetchTask::loadBodyFromPreloader()
     }
 
     protectedPreloader()->waitForBody([weakThis = WeakPtr { *this }](RefPtr<const WebCore::FragmentedSharedBuffer>&& chunk) {
+        WTFLogAlways("ServiceWorkerFetchTask::loadBodyFromPreloader2");
         RefPtr protectedThis = weakThis.get();
         if (!protectedThis)
             return;
         if (!protectedThis->m_preloader->error().isNull()) {
+            WTFLogAlways("ServiceWorkerFetchTask::loadBodyFromPreloader3");
             // Let's copy the error as calling didFail might destroy m_preloader.
             protectedThis->didFail(ResourceError { protectedThis->m_preloader->error() });
             return;
         }
         if (!chunk) {
+            WTFLogAlways("ServiceWorkerFetchTask::loadBodyFromPreloader4");
             protectedThis->didFinish(protectedThis->m_preloader->networkLoadMetrics());
             return;
         }
+        WTFLogAlways("ServiceWorkerFetchTask::loadBodyFromPreloader5");
         protectedThis->didReceiveDataFromPreloader(chunk.releaseNonNull());
     });
 }
 
 void ServiceWorkerFetchTask::cancelPreloadIfNecessary()
 {
+    WTFLogAlways("ServiceWorkerFetchTask::cancelPreloadIfNecessary");
+
     if (!m_preloader)
         return;
 
@@ -688,7 +726,10 @@ std::optional<SharedPreferencesForWebProcess> ServiceWorkerFetchTask::sharedPref
 
 void ServiceWorkerFetchTask::loadFromCache(NetworkStorageManager& manager, WebCore::ClientOrigin&& origin, WebCore::RetrieveRecordsOptions&& options, String&& cacheName)
 {
+    WTFLogAlways("ServiceWorkerFetchTask::loadFromCache1 '%s'", options.request.url().string().utf8().data());
+
     manager.queryCacheStorage(WTFMove(origin), WTFMove(options), WTFMove(cacheName), [weakThis = WeakPtr { *this }](auto&& response) {
+        WTFLogAlways("ServiceWorkerFetchTask::loadFromCache1 result = %d", !!response);
         if (RefPtr protectedThis = weakThis.get())
             protectedThis->respondWithCacheResponse(WTFMove(response));
     });
@@ -697,6 +738,8 @@ void ServiceWorkerFetchTask::loadFromCache(NetworkStorageManager& manager, WebCo
 void ServiceWorkerFetchTask::respondWithCacheResponse(std::optional<DOMCacheEngine::Record>&& record)
 {
     if (!record) {
+        WTFLogAlways("ServiceWorkerFetchTask::respondWithCacheResponse didNotHandle");
+
         didNotHandle();
         return;
     }
@@ -704,6 +747,7 @@ void ServiceWorkerFetchTask::respondWithCacheResponse(std::optional<DOMCacheEngi
     if (m_isDone)
         return;
 
+    WTFLogAlways("ServiceWorkerFetchTask::respondWithCacheResponse handling");
     bool needsContinueDidReceiveResponseMessage = m_currentRequest.requester() == ResourceRequestRequester::Main;
     processResponse(std::exchange(record->response, { }), needsContinueDidReceiveResponseMessage, ShouldSetSource::No);
     if (needsContinueDidReceiveResponseMessage) {

@@ -288,16 +288,20 @@ RefPtr<ServiceWorkerFetchTask> WebSWServerConnection::createFetchTask(NetworkRes
     if (std::holds_alternative<RouterSourceEnum>(routerSource)) {
         switch (std::get<RouterSourceEnum>(routerSource)) {
         case RouterSourceEnum::Cache:
+            WTFLogAlways("createFetchTask cache route");
             cacheName = ""_s;
             if (registration->shouldSoftUpdate(loader.parameters().options))
                 registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
             break;
         case RouterSourceEnum::FetchEvent:
+                WTFLogAlways("createFetchTask FetchEvent route");
             break;
         case RouterSourceEnum::RaceNetworkAndFetchHandler:
+                WTFLogAlways("createFetchTask RaceNetworkAndFetchHandler route");
             shouldRaceNetworkAndFetchHandler = true;
             break;
         case RouterSourceEnum::Network:
+                WTFLogAlways("createFetchTask Network route");
             if (registration->shouldSoftUpdate(loader.parameters().options))
                 registration->scheduleSoftUpdate(loader.isAppInitiated() ? WebCore::IsAppInitiated::Yes : WebCore::IsAppInitiated::No);
             return nullptr;

@@ -112,6 +112,8 @@ bool queryCacheMatch(const ResourceRequest& request, const ResourceRequest& cach
 
 bool queryCacheMatch(const ResourceRequest& request, const URL& url, bool hasVaryStar, const HashMap<String, String>& varyHeaders, const CacheQueryOptions& options)
 {
+    WTFLogAlways("DOMCacheEngine queryCacheMatch %s %s", request.url().string().utf8().data(), url.string().utf8().data());
+
     if (!matchURLs(request, url, options))
         return false;
 

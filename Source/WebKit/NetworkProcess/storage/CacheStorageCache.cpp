@@ -172,7 +172,9 @@ Vector<CacheStorageRecordInformation> CacheStorageCache::findRecords(const WebCo
 {
     ASSERT(m_isInitialized);
     assertIsOnCorrectQueue();
-    
+
+    WTFLogAlways("CacheStorageCache::findRecords '%s'", options.request.url().string().utf8().data());
+
     Vector<CacheStorageRecordInformation> targetRecordInfos;
     auto url = options.request.url();
     if (url.isNull()) {
