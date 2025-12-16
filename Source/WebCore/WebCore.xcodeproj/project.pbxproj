@@ -10464,6 +10464,7 @@
 		410B3939292F70D50003E515 /* InternalReadableStream.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InternalReadableStream.cpp; sourceTree = "<group>"; };
 		410B393A292F70D60003E515 /* InternalReadableStream.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InternalReadableStream.h; sourceTree = "<group>"; };
 		410B7E711045FAB000D8224F /* JSMessageEventCustom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSMessageEventCustom.cpp; sourceTree = "<group>"; };
+		410B7ECE2EF06B19001217C2 /* RTCDataChannelHandlerClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RTCDataChannelHandlerClient.cpp; sourceTree = "<group>"; };
 		410BA1312570FE57002E2F8A /* LibWebRTCRtpTransformableFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = LibWebRTCRtpTransformableFrame.cpp; path = libwebrtc/LibWebRTCRtpTransformableFrame.cpp; sourceTree = "<group>"; };
 		410BCF5326F0CD8B0040B124 /* RTCLocalSessionDescriptionInit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RTCLocalSessionDescriptionInit.h; sourceTree = "<group>"; };
 		410BCF5526F0CD8C0040B124 /* RTCLocalSessionDescriptionInit.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = RTCLocalSessionDescriptionInit.idl; sourceTree = "<group>"; };
@@ -23350,6 +23351,7 @@
 				073930D92AC644A000C1D1B1 /* RedEyeReduction.h */,
 				3135910C1E7DDCB600F30630 /* RTCBundlePolicy.h */,
 				07221BA217CF0AD400848E51 /* RTCDataChannelHandler.h */,
+				410B7ECE2EF06B19001217C2 /* RTCDataChannelHandlerClient.cpp */,
 				07221BA317CF0AD400848E51 /* RTCDataChannelHandlerClient.h */,
 				416EDBFF2600E78700092675 /* RTCDataChannelIdentifier.h */,
 				861FC9E02992A1F500DFDF6D /* RTCDataChannelLocalIdentifier.h */,

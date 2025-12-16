@@ -689,7 +689,10 @@ ExceptionOr<Ref<RTCDataChannel>> RTCPeerConnection::createDataChannel(String&& l
     if (!channelHandler)
         return Exception { ExceptionCode::OperationError };
 
-    return RTCDataChannel::create(*document(), WTFMove(channelHandler), WTFMove(label), WTFMove(options), RTCDataChannelState::Connecting);
+    Ref channel = RTCDataChannel::create(*document(), WTFMove(channelHandler), WTFMove(label), WTFMove(options), RTCDataChannelState::Connecting);
+
+    m_channels.append(channel->identifier());
+    return channel;
 }
 
 bool RTCPeerConnection::doClose()
@@ -713,6 +716,9 @@ bool RTCPeerConnection::doClose()
         transceiver->receiver().stop();
     }
     m_operations.clear();
+
+    for (auto identifier : std::exchange(m_channels, { }))
+        RTCDataChannelHandlerClient::peerConnectionIsClosing(identifier);
 
     for (auto& transport : m_dtlsTransports)
         transport->close();
@@ -1004,6 +1010,7 @@ void RTCPeerConnection::dispatchDataChannelEvent(UniqueRef<RTCDataChannelHandler
             return;
 
         Ref channel = RTCDataChannel::create(*connection.document(), channelHandler.moveToUniquePtr(), WTFMove(label), WTFMove(channelInit), RTCDataChannelState::Open);
+        connection.m_channels.append(channel->identifier());
         ALWAYS_LOG_WITH_THIS(&connection, LOGIDENTIFIER_WITH_THIS(&connection), makeString("Dispatching data-channel event for channel "_s, channel->label()));
         connection.dispatchEvent(RTCDataChannelEvent::create(eventNames().datachannelEvent, Event::CanBubble::No, Event::IsCancelable::No, Ref { channel }));
         channel->fireOpenEventIfNeeded();

@@ -74,7 +74,7 @@ bool RTCDataChannelRemoteManager::connectToRemoteSource(WebCore::RTCDataChannelI
     if (!handler)
         return false;
 
-    auto iterator = m_sources.add(remoteIdentifier.object(), WebCore::RTCDataChannelRemoteSource::create(remoteIdentifier, makeUniqueRefFromNonNullUniquePtr(WTFMove(handler)), remoteSourceConnection()));
+    auto iterator = m_sources.add(remoteIdentifier.object(), WebCore::RTCDataChannelRemoteSource::create(localIdentifier, remoteIdentifier, makeUniqueRefFromNonNullUniquePtr(WTFMove(handler)), remoteSourceConnection()));
     return iterator.isNewEntry;
 }
 
