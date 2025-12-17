@@ -148,6 +148,7 @@ static void vp9_build_inter_predictor_12(
 }
 
 #if CONFIG_VP9_HIGHBITDEPTH
+//#error "t"
 void vpx_highbd_convolve12_horiz_c(const uint16_t *src, ptrdiff_t src_stride,
                                    uint16_t *dst, ptrdiff_t dst_stride,
                                    const InterpKernel12 *filter, int x0_q4,

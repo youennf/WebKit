@@ -535,6 +535,7 @@
 		410B38E5292BAA610003E515 /* blend_a64_mask_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 410B3590292B6E690003E515 /* blend_a64_mask_neon.c */; };
 		410B38E8292BAA610003E515 /* sad_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 410B35A0292B6E730003E515 /* sad_neon.c */; };
 		410B38E9292BAA610003E515 /* transpose_neon.h in Headers */ = {isa = PBXBuildFile; fileRef = 410B35A1292B6E740003E515 /* transpose_neon.h */; };
+		410B7EDE2EF2BD42001217C2 /* vp9_temporal_filter.c in Sources */ = {isa = PBXBuildFile; fileRef = 4140363C24AA30A000BCE9B2 /* vp9_temporal_filter.c */; };
 		410BA12D2570F6E4002E2F8A /* libaom_av1_encoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 410BA12B2570F6E3002E2F8A /* libaom_av1_encoder.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		410CBFC72B20C3D100005DA2 /* vp9_quantize_ssse3.c in Sources */ = {isa = PBXBuildFile; fileRef = 410CBFC62B20C3D000005DA2 /* vp9_quantize_ssse3.c */; };
 		41109AAE1E5FA19200C0955A /* video_frame_buffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 41109AA71E5FA19200C0955A /* video_frame_buffer.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -24918,6 +24919,7 @@
 				4140369624AA30B600BCE9B2 /* vp9_speed_features.c in Sources */,
 				4140369D24AA30B600BCE9B2 /* vp9_subexp.c in Sources */,
 				414036CD24AA30B700BCE9B2 /* vp9_svc_layercontext.c in Sources */,
+				410B7EDE2EF2BD42001217C2 /* vp9_temporal_filter.c in Sources */,
 				4140373C24AA30DA00BCE9B2 /* vp9_thread_common.c in Sources */,
 				4140374C24AA30DA00BCE9B2 /* vp9_tile_common.c in Sources */,
 				414036CA24AA30B700BCE9B2 /* vp9_tokenize.c in Sources */,

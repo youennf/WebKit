@@ -383,6 +383,71 @@ void vp9_scale_and_extend_frame_neon(const struct yv12_buffer_config* src,
                                      int phase_scaler);
 #define vp9_scale_and_extend_frame vp9_scale_and_extend_frame_neon
 
+
+#define MAX_FILTER_TAP 12
+typedef int16_t InterpKernel12[MAX_FILTER_TAP];
+
+void vpx_highbd_convolve12_horiz_c(const uint16_t *src, ptrdiff_t src_stride,
+                                  uint16_t *dst, ptrdiff_t dst_stride,
+                                  const InterpKernel12 *filter, int x0_q4,
+                                  int x_step_q4, int y0_q4, int y_step_q4,
+                                  int w, int h, int bd);
+#define vpx_highbd_convolve12_horiz vpx_highbd_convolve12_horiz_c
+
+void vpx_highbd_convolve12_vert_c(const uint16_t *src, ptrdiff_t src_stride,
+                                  uint16_t *dst, ptrdiff_t dst_stride,
+                                  const InterpKernel12 *filter, int x0_q4,
+                                  int x_step_q4, int y0_q4, int y_step_q4,
+                                  int w, int h, int bd);
+#define vpx_highbd_convolve12_vert vpx_highbd_convolve12_vert_c
+
+void vpx_highbd_convolve12_c(const uint16_t *src, ptrdiff_t src_stride,
+                             uint16_t *dst, ptrdiff_t dst_stride,
+                             const InterpKernel12 *filter, int x0_q4,
+                             int x_step_q4, int y0_q4, int y_step_q4, int w,
+                             int h, int bd);
+#define vpx_highbd_convolve12 vpx_highbd_convolve12_c
+
+void vpx_convolve12_vert_c(const uint8_t *src, ptrdiff_t src_stride,
+                           uint8_t *dst, ptrdiff_t dst_stride,
+                           const InterpKernel12 *filter, int x0_q4,
+                           int x_step_q4, int y0_q4, int y_step_q4, int w,
+                           int h);
+#define vpx_convolve12_vert vpx_convolve12_vert_c
+
+void vpx_convolve12_horiz_c(const uint8_t *src, ptrdiff_t src_stride,
+                            uint8_t *dst, ptrdiff_t dst_stride,
+                            const InterpKernel12 *filter, int x0_q4,
+                            int x_step_q4, int y0_q4, int y_step_q4, int w,
+                            int h);
+#define vpx_convolve12_horiz vpx_convolve12_horiz_c
+
+void vpx_convolve12_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+                      ptrdiff_t dst_stride, const InterpKernel12 *filter,
+                      int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w,
+                      int h);
+#define vpx_convolve12 vpx_convolve12_c
+
+void vp9_highbd_apply_temporal_filter_c(
+    const uint16_t *y_src, int y_src_stride, const uint16_t *y_pre,
+    int y_pre_stride, const uint16_t *u_src, const uint16_t *v_src,
+    int uv_src_stride, const uint16_t *u_pre, const uint16_t *v_pre,
+    int uv_pre_stride, unsigned int block_width, unsigned int block_height,
+    int ss_x, int ss_y, int strength, const int *const blk_fw, int use_32x32,
+    uint32_t *y_accum, uint16_t *y_count, uint32_t *u_accum, uint16_t *u_count,
+    uint32_t *v_accum, uint16_t *v_count);
+#define vp9_highbd_apply_temporal_filter vp9_highbd_apply_temporal_filter_c
+
+void vp9_apply_temporal_filter_neon(
+    const uint8_t *y_frame1, int y_stride, const uint8_t *y_pred,
+    int y_buf_stride, const uint8_t *u_frame1, const uint8_t *v_frame1,
+    int uv_stride, const uint8_t *u_pred, const uint8_t *v_pred,
+    int uv_buf_stride, unsigned int block_width, unsigned int block_height,
+    int ss_x, int ss_y, int strength, const int *const blk_fw, int use_32x32,
+    uint32_t *y_accumulator, uint16_t *y_count, uint32_t *u_accumulator,
+    uint16_t *u_count, uint32_t *v_accumulator, uint16_t *v_count);
+#define vp9_apply_temporal_filter vp9_apply_temporal_filter_c
+
 void vp9_rtcd(void);
 
 #include "vpx_config.h"
