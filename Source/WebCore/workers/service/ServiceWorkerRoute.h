@@ -83,6 +83,12 @@ struct ServiceWorkerRoute {
 
 size_t computeServiceWorkerRouteConditionCount(const ServiceWorkerRoute&);
 std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute&);
+
+
+#if PLATFORM(COCOA)
+bool isRegexpMatching(String pattern, StringView value);
+#endif
+
 bool matchRouterCondition(const ServiceWorkerRouteCondition&, const FetchOptions&, const ResourceRequest&, bool isServiceWorkerRunning);
 
 } // namespace WebCore
