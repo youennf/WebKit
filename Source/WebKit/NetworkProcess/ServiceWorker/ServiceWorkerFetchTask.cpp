@@ -88,7 +88,7 @@ Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoa
     };
 
     WebCore::RetrieveRecordsOptions options {
-        .request = request,
+        .request = task->m_currentRequest,
 //        .crossOriginEmbedderPolicy = loader.parameters().parentCrossOriginEmbedderPolicy.value,
         .sourceOrigin = WTF::move(clientOrigin)
     };
