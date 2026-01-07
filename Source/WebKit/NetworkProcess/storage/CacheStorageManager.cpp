@@ -551,30 +551,30 @@ static void queryCaches(Vector<Ref<CacheStorageCache>>&& caches, size_t index, W
     }
 
     Ref cache = caches[index];
-    cache->open([caches = WTFMove(caches), index, options = WTFMove(options), shouldIterate, callback = WTFMove(callback)](auto&& openResult) mutable {
+    cache->open([caches = WTF::move(caches), index, options = WTF::move(options), shouldIterate, callback = WTF::move(callback)](auto&& openResult) mutable {
         if (!openResult.has_value()) {
             if (!shouldIterate) {
                 callback({ });
                 return;
             }
 
-            queryCaches(WTFMove(caches), index + 1, WTFMove(options), shouldIterate, WTFMove(callback));
+            queryCaches(WTF::move(caches), index + 1, WTF::move(options), shouldIterate, WTF::move(callback));
             return;
         }
 
         Ref cache = caches[index];
         auto matches = cache->findRecords(options);
         if (!matches.isEmpty()) {
-            cache->retrieveRecords({ WTFMove(matches[0]) }, WTFMove(options), [callback = WTFMove(callback)](auto&& result) mutable {
+            cache->retrieveRecords({ WTF::move(matches[0]) }, WTF::move(options), [callback = WTF::move(callback)](auto&& result) mutable {
                 if (!result.has_value()) {
                     callback({ });
                     return;
                 }
-                callback(WTFMove(result.value()[0]));
+                callback(WTF::move(result.value()[0]));
             });
             return;
         }
-        queryCaches(WTFMove(caches), index + 1, WTFMove(options), shouldIterate, WTFMove(callback));
+        queryCaches(WTF::move(caches), index + 1, WTF::move(options), shouldIterate, WTF::move(callback));
     });
 }
 
@@ -596,7 +596,7 @@ void CacheStorageManager::query(WebCore::RetrieveRecordsOptions&& options, Strin
         }
     }
 
-    queryCaches(Vector<Ref<CacheStorageCache>> { m_caches }, index, WTFMove(options), cacheName.isEmpty(), WTFMove(callback));
+    queryCaches(Vector<Ref<CacheStorageCache>> { m_caches }, index, WTF::move(options), cacheName.isEmpty(), WTF::move(callback));
 }
 
 } // namespace WebKit

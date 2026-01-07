@@ -277,7 +277,7 @@ ServiceWorkerRouteCondition ServiceWorkerRouteCondition::isolatedCopy() const &
         requestDestination,
         runningStatus,
         crossThreadCopy(orConditions),
-        WTFMove(notConditionCopy)
+        WTF::move(notConditionCopy)
     };
 }
 

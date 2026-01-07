@@ -317,7 +317,7 @@ template<typename... Types> struct Coder<Variant<Types...>> {
                 decoder >> optional;
                 if (!optional)
                     return std::nullopt;
-                return std::make_optional<Variant<Types...>>(WTF::InPlaceIndex<index>, WTFMove(*optional));
+                return std::make_optional<Variant<Types...>>(WTF::InPlaceIndex<index>, WTF::move(*optional));
             }
             return decodeForPersistence(decoder, std::make_index_sequence<index + 1> { }, i);
         } else

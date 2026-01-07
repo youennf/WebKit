@@ -165,7 +165,7 @@ static CacheStorageRecord toCacheStorageRecord(WebCore::DOMCacheEngine::CrossThr
 void CacheStorageCache::retrieveRecords(WebCore::RetrieveRecordsOptions&& options, WebCore::DOMCacheEngine::CrossThreadRecordsCallback&& callback)
 {
     auto targetRecordInfos = findRecords(options);
-    retrieveRecords(targetRecordInfos, WTFMove(options), WTFMove(callback));
+    retrieveRecords(targetRecordInfos, WTF::move(options), WTF::move(callback));
 }
 
 Vector<CacheStorageRecordInformation> CacheStorageCache::findRecords(const WebCore::RetrieveRecordsOptions& options)

@@ -306,7 +306,7 @@ RefPtr<ServiceWorkerFetchTask> WebSWServerConnection::createFetchTask(NetworkRes
         cacheName = std::get<RouterSourceDict>(routerSource).cacheName;
 
     if (!cacheName.isNull())
-        return ServiceWorkerFetchTask::fromCache(loader, checkedSession()->storageManager(), ResourceRequest { request }, WTFMove(cacheName));
+        return ServiceWorkerFetchTask::fromCache(loader, checkedSession()->storageManager(), ResourceRequest { request }, WTF::move(cacheName));
 
     if (worker->hasTimedOutAnyFetchTasks()) {
         SWSERVERCONNECTION_RELEASE_LOG_ERROR("startFetch: DidNotHandle because worker %" PRIu64 " has some timeouts", worker->identifier().toUInt64());

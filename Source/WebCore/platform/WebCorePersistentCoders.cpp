@@ -871,7 +871,7 @@ std::optional<WebCore::RouterSourceDict> Coder<WebCore::RouterSourceDict>::decod
     if (!cacheName)
         return std::nullopt;
 
-    return WebCore::RouterSourceDict { WTFMove(*cacheName) };
+    return WebCore::RouterSourceDict { WTF::move(*cacheName) };
 }
 
 void Coder<WebCore::ServiceWorkerRoute>::encodeForPersistence(Encoder& encoder, const WebCore::ServiceWorkerRoute& route)
@@ -891,7 +891,7 @@ std::optional<WebCore::ServiceWorkerRoute> Coder<WebCore::ServiceWorkerRoute>::d
     if (!source)
         return std::nullopt;
 
-    return WebCore::ServiceWorkerRoute { WTFMove(*condition), WTFMove(*source) };
+    return WebCore::ServiceWorkerRoute { WTF::move(*condition), WTF::move(*source) };
 }
 
 void Coder<WebCore::ServiceWorkerRouteCondition>::encodeForPersistence(Encoder& encoder, const WebCore::ServiceWorkerRouteCondition& condition)
@@ -951,10 +951,10 @@ std::optional<WebCore::ServiceWorkerRouteCondition> Coder<WebCore::ServiceWorker
         decoder >> notConditionValue;
         if (!notConditionValue)
             return std::nullopt;
-        notCondition = makeUnique<WebCore::ServiceWorkerRouteCondition>(WTFMove(*notConditionValue));
+        notCondition = makeUnique<WebCore::ServiceWorkerRouteCondition>(WTF::move(*notConditionValue));
     }
 
-    return WebCore::ServiceWorkerRouteCondition { WTFMove(*urlPattern), WTFMove(*requestMethod), WTFMove(*requestMode), WTFMove(*requestDestination), WTFMove(*runningStatus), WTFMove(*orConditions), WTFMove(notCondition) };
+    return WebCore::ServiceWorkerRouteCondition { WTF::move(*urlPattern), WTF::move(*requestMethod), WTF::move(*requestMode), WTF::move(*requestDestination), WTF::move(*runningStatus), WTF::move(*orConditions), WTF::move(notCondition) };
 }
 
 void Coder<WebCore::ServiceWorkerRoutePattern>::encodeForPersistence(Encoder& encoder, const WebCore::ServiceWorkerRoutePattern& condition)
@@ -1006,7 +1006,7 @@ std::optional<WebCore::ServiceWorkerRoutePattern> Coder<WebCore::ServiceWorkerRo
     if (!hash)
         return std::nullopt;
 
-    return WebCore::ServiceWorkerRoutePattern { WTFMove(*username), WTFMove(*password), WTFMove(*hostname), WTFMove(*port), WTFMove(*pathname), WTFMove(*search), WTFMove(*hash) };
+    return WebCore::ServiceWorkerRoutePattern { WTF::move(*username), WTF::move(*password), WTF::move(*hostname), WTF::move(*port), WTF::move(*pathname), WTF::move(*search), WTF::move(*hash) };
 }
 
 } // namespace WTF::Persistence

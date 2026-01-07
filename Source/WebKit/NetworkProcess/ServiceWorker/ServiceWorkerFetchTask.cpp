@@ -77,7 +77,7 @@ RefPtr<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromNavigationPreloader(W
 
 Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoader& loader, NetworkStorageManager& manager, WebCore::ResourceRequest&& request, String&& cacheName)
 {
-    Ref task = adoptRef(*new ServiceWorkerFetchTask(loader, WTFMove(request)));
+    Ref task = adoptRef(*new ServiceWorkerFetchTask(loader, WTF::move(request)));
 
     Ref topOrigin = loader.parameters().topOrigin ? Ref { *loader.parameters().topOrigin } : SecurityOrigin::createOpaque();
     Ref clientOrigin = loader.parameters().sourceOrigin ? Ref { *loader.parameters().sourceOrigin } : SecurityOrigin::createOpaque();
@@ -90,10 +90,10 @@ Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoa
     WebCore::RetrieveRecordsOptions options {
         .request = request,
 //        .crossOriginEmbedderPolicy = loader.parameters().parentCrossOriginEmbedderPolicy.value,
-        .sourceOrigin = WTFMove(clientOrigin)
+        .sourceOrigin = WTF::move(clientOrigin)
     };
 
-    task->loadFromCache(manager, WTFMove(origin), WTFMove(options), WTFMove(cacheName));
+    task->loadFromCache(manager, WTF::move(origin), WTF::move(options), WTF::move(cacheName));
     return task;
 }
 
@@ -112,7 +112,7 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
 ServiceWorkerFetchTask::ServiceWorkerFetchTask(NetworkResourceLoader& loader, ResourceRequest&& request)
     : m_loader(loader)
     , m_fetchIdentifier(WebCore::FetchIdentifier::generate())
-    , m_currentRequest(WTFMove(request))
+    , m_currentRequest(WTF::move(request))
 {
 }
 
@@ -453,7 +453,7 @@ void ServiceWorkerFetchTask::continueDidReceiveFetchResponse()
     }
 
     if (auto record = std::exchange(m_cacheRecord, { })) {
-        finishLoadingWithCacheResponse(WTFMove(*record));
+        finishLoadingWithCacheResponse(WTF::move(*record));
         return;
     }
 
@@ -675,9 +675,9 @@ std::optional<SharedPreferencesForWebProcess> ServiceWorkerFetchTask::sharedPref
 
 void ServiceWorkerFetchTask::loadFromCache(NetworkStorageManager& manager, WebCore::ClientOrigin&& origin, WebCore::RetrieveRecordsOptions&& options, String&& cacheName)
 {
-    manager.queryCacheStorage(WTFMove(origin), WTFMove(options), WTFMove(cacheName), [weakThis = WeakPtr { *this }](auto&& response) {
+    manager.queryCacheStorage(WTF::move(origin), WTF::move(options), WTF::move(cacheName), [weakThis = WeakPtr { *this }](auto&& response) {
         if (RefPtr protectedThis = weakThis.get())
-            protectedThis->respondWithCacheResponse(WTFMove(response));
+            protectedThis->respondWithCacheResponse(WTF::move(response));
     });
 }
 
@@ -694,20 +694,20 @@ void ServiceWorkerFetchTask::respondWithCacheResponse(std::optional<DOMCacheEngi
     bool needsContinueDidReceiveResponseMessage = m_currentRequest.requester() == ResourceRequestRequester::Main;
     processResponse(std::exchange(record->response, { }), needsContinueDidReceiveResponseMessage, ShouldSetSource::No);
     if (needsContinueDidReceiveResponseMessage) {
-        m_cacheRecord = WTFMove(*record);
+        m_cacheRecord = WTF::move(*record);
         return;
     }
 
-    finishLoadingWithCacheResponse(WTFMove(*record));
+    finishLoadingWithCacheResponse(WTF::move(*record));
 }
 void ServiceWorkerFetchTask::finishLoadingWithCacheResponse(DOMCacheEngine::Record&& record)
 {
-    switchOn(WTFMove(record.responseBody), [&](std::nullptr_t) {
+    switchOn(WTF::move(record.responseBody), [&](std::nullptr_t) {
     }, [&](Ref<FormData>&& data) {
         // FIXME: Add support to form data response bodies.
         ASSERT_NOT_REACHED();
     }, [&](Ref<SharedBuffer>&& data) {
-        sendData(WTFMove(data));
+        sendData(WTF::move(data));
     });
 
     sendToClient(Messages::WebResourceLoader::DidFinishResourceLoad { { } });
@@ -722,7 +722,7 @@ void ServiceWorkerFetchTask::sendData(Ref<SharedBuffer>&& data)
     if (!protectedLoader()->continueAfterServiceWorkerReceivedData(data))
         return;
 #endif
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(WTFMove(data)), 0 });
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(WTF::move(data)), 0 });
 }
 
 } // namespace WebKit
