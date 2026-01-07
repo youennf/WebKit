@@ -959,6 +959,7 @@ std::optional<WebCore::ServiceWorkerRouteCondition> Coder<WebCore::ServiceWorker
 
 void Coder<WebCore::ServiceWorkerRoutePattern>::encodeForPersistence(Encoder& encoder, const WebCore::ServiceWorkerRoutePattern& condition)
 {
+    encoder << condition.ignoreCase;
     encoder << condition.protocol;
     encoder << condition.username;
     encoder << condition.password;
@@ -971,6 +972,11 @@ void Coder<WebCore::ServiceWorkerRoutePattern>::encodeForPersistence(Encoder& en
 
 std::optional<WebCore::ServiceWorkerRoutePattern> Coder<WebCore::ServiceWorkerRoutePattern>::decodeForPersistence(Decoder& decoder)
 {
+    std::optional<bool> ignoreCase;
+    decoder >> ignoreCase;
+    if (!ignoreCase)
+        return std::nullopt;
+
     std::optional<String> username;
     decoder >> username;
     if (!username)
@@ -1006,7 +1012,7 @@ std::optional<WebCore::ServiceWorkerRoutePattern> Coder<WebCore::ServiceWorkerRo
     if (!hash)
         return std::nullopt;
 
-    return WebCore::ServiceWorkerRoutePattern { WTF::move(*username), WTF::move(*password), WTF::move(*hostname), WTF::move(*port), WTF::move(*pathname), WTF::move(*search), WTF::move(*hash) };
+    return WebCore::ServiceWorkerRoutePattern { WTF::move(*ignoreCase), WTF::move(*username), WTF::move(*password), WTF::move(*hostname), WTF::move(*port), WTF::move(*pathname), WTF::move(*search), WTF::move(*hash) };
 }
 
 } // namespace WTF::Persistence

@@ -73,12 +73,18 @@ public:
     const String& hash() const { return m_hashComponent.patternString(); }
 
     bool hasRegExpGroups() const;
+    bool ignoreCase() const { return m_ignoreCase; }
 
 private:
-    URLPattern();
-    ExceptionOr<void> compileAllComponents(ScriptExecutionContext&, URLPatternInit&&, const URLPatternOptions&);
+    explicit URLPattern(bool ignoreCase)
+        : m_ignoreCase(ignoreCase)
+    {
+    }
+
+    ExceptionOr<void> compileAllComponents(ScriptExecutionContext&, URLPatternInit&&);
     ExceptionOr<std::optional<URLPatternResult>> match(ScriptExecutionContext&, Variant<URL, URLPatternInput>&&, String&& baseURLString) const;
 
+    const bool m_ignoreCase;
     URLPatternUtilities::URLPatternComponent m_protocolComponent;
     URLPatternUtilities::URLPatternComponent m_usernameComponent;
     URLPatternUtilities::URLPatternComponent m_passwordComponent;

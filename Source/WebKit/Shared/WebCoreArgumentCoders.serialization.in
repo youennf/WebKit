@@ -5298,6 +5298,7 @@ enum class WebCore::RunningStatus : bool
 
 header: <WebCore/ServiceWorkerRoute.h>
 [CustomHeader] struct WebCore::ServiceWorkerRoutePattern {
+    bool ignoreCase;
     String protocol;
     String username;
     String password;

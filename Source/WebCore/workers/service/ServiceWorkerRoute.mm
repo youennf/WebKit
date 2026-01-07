@@ -34,14 +34,14 @@
 #import <Foundation/NSRegularExpression.h>
 
 @interface WebRegexHelper : NSObject
-+ (Boolean)matchWithPattern:(NSString *)pattern value:(NSString *)value;
++ (Boolean)matchWithPattern:(NSString *)pattern value:(NSString *)value ignoreCase:(BOOL)ignoreCase;
 @end
 
 namespace WebCore {
 
-bool isRegexpMatching(String pattern, StringView value)
+bool isRegexpMatching(String pattern, StringView value, bool ignoreCase)
 {
-    return [WebRegexHelper matchWithPattern:pattern.createNSString().get() value:value.createNSString().get()];
+    return [WebRegexHelper matchWithPattern:pattern.createNSString().get() value:value.createNSString().get() ignoreCase:ignoreCase];
 }
 
 }

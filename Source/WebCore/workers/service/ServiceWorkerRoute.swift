@@ -28,11 +28,11 @@ import RegexBuilder
 
 @objc(WebRegexHelper)
 class RegexHelper: NSObject {
-    @objc static func match(pattern: NSString, value: NSString) -> Bool {
+    @objc static func match(pattern: NSString, value: NSString, ignoreCase: Bool) -> Bool {
         guard let expression = try? Regex(pattern as String) else {
             return false
         }
         let swiftValue = value as String
-        return swiftValue.contains(expression)
+        return swiftValue.contains(ignoreCase ? expression.ignoresCase() : expression)
     }
 }

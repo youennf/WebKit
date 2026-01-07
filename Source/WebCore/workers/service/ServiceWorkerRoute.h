@@ -46,6 +46,7 @@ struct ServiceWorkerRoutePattern {
 
     using Component = String;
 
+    bool ignoreCase { false };
     Component protocol;
     Component username;
     Component password;
@@ -89,7 +90,7 @@ std::optional<ExceptionData> validateServiceWorkerRoute(ServiceWorkerRoute&);
 
 
 #if PLATFORM(COCOA)
-bool isRegexpMatching(String pattern, StringView value);
+bool isRegexpMatching(String pattern, StringView value, bool ignoreCase);
 #endif
 
 bool matchRouterCondition(const ServiceWorkerRouteCondition&, const FetchOptions&, const ResourceRequest&, bool isServiceWorkerRunning);
