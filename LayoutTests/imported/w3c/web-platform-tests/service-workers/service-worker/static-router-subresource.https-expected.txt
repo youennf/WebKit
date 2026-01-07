@@ -5,13 +5,13 @@ PASS Subresource cross origin load matched with URLPattern condition via constru
 PASS Subresource load matched with ignoreCase URLPattern condition
 PASS Subresource load matched without ignoreCase URLPattern condition
 PASS Subresource load matched with URLPattern condition via URLPatternCompatible
-FAIL Subresource cross origin load not matched with URLPattern condition via URLPatternCompatible promise_test: Unhandled rejection with value: object "TypeError: Load failed"
+PASS Subresource cross origin load not matched with URLPattern condition via URLPatternCompatible
 PASS Subresource load matched with URLPattern condition via string
 PASS Subresource cross origin load not matched with URLPattern condition via string
 PASS Subresource load matched with RequestMode condition
 PASS Subresource load matched with the nested `or` condition
 PASS Subresource load matched with the next `or` condition
-FAIL Subresource load not matched with `or` condition assert_equals: expected "alvzv" but got "{\"error\": {\"code\": 404, \"message\": \"404\"}}"
+FAIL Subresource load not matched with `or` condition assert_equals: expected "dcxue" but got "{\"error\": {\"code\": 404, \"message\": \"404\"}}"
 FAIL Subresource load matched with the cache source rule assert_equals: expected 404 but got 200
 FAIL Subresource load did not match with the cache and fallback to the network assert_equals: expected "Network\n" but got "From cache"
 FAIL Subresource load matched with the cache source, with specifying the cache name assert_equals: expected 404 but got 200

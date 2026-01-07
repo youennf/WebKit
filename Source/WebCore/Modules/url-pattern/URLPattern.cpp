@@ -282,6 +282,8 @@ ExceptionOr<Ref<URLPattern>> URLPattern::create(ScriptExecutionContext& context,
     return switchOn(WTF::move(value), [&](RefPtr<URLPattern>&& pattern) -> ExceptionOr<Ref<URLPattern>> {
         return pattern.releaseNonNull();
     }, [&](URLPatternInit&& init) -> ExceptionOr<Ref<URLPattern>> {
+        if (init.baseURL.isNull())
+            init.baseURL = baseURL;
         return URLPattern::create(context, WTF::move(init), { }, { });
     }, [&](String&& string) -> ExceptionOr<Ref<URLPattern>> {
         return URLPattern::create(context, WTF::move(string), String { baseURL }, { });
