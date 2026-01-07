@@ -11,7 +11,7 @@ PASS Subresource cross origin load not matched with URLPattern condition via str
 PASS Subresource load matched with RequestMode condition
 PASS Subresource load matched with the nested `or` condition
 PASS Subresource load matched with the next `or` condition
-FAIL Subresource load not matched with `or` condition assert_equals: expected "dcxue" but got "{\"error\": {\"code\": 404, \"message\": \"404\"}}"
+PASS Subresource load not matched with `or` condition
 FAIL Subresource load matched with the cache source rule assert_equals: expected 404 but got 200
 FAIL Subresource load did not match with the cache and fallback to the network assert_equals: expected "Network\n" but got "From cache"
 FAIL Subresource load matched with the cache source, with specifying the cache name assert_equals: expected 404 but got 200

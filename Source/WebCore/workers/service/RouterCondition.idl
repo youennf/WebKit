@@ -32,6 +32,7 @@ dictionary RouterCondition {
     FetchRequestDestination requestDestination;
     RunningStatus runningStatus;
 
-    [ImplementedAs=orConditions] sequence<RouterCondition> _or;
+    // FIXME: We should update the binding generator to escape any leading `-` for identifiers, as per WebIDL spec.
+    [ImplementedAs=orConditions] sequence<RouterCondition> or;
     [ImplementedAs=notCondition] RouterCondition not;
 };
