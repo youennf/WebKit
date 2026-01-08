@@ -36,19 +36,27 @@
 
 namespace WebCore {
 
-static size_t computeServiceWorkerRouteConditionCount(const ServiceWorkerRouteCondition& routeCondition)
+// https://w3c.github.io/ServiceWorker/#count-router-inner-conditions
+std::optional<size_t> countRouterInnerConditions(const ServiceWorkerRouteCondition& routeCondition, size_t result, size_t depth)
 {
-    size_t count = 1;
-    for (auto& condition : routeCondition.orConditions)
-        count += computeServiceWorkerRouteConditionCount(condition);
-    if (routeCondition.notCondition)
-        count += computeServiceWorkerRouteConditionCount(*routeCondition.notCondition);
-    return count;
-}
+    --result;
+    if (!result || !depth)
+        return { };
 
-size_t computeServiceWorkerRouteConditionCount(const ServiceWorkerRoute& route)
-{
-    return computeServiceWorkerRouteConditionCount(route.condition);
+    for (auto& condition : routeCondition.orConditions) {
+        auto orResult = countRouterInnerConditions(condition, result, depth - 1);
+        if (!orResult)
+            return { };
+        result = *orResult;
+    }
+
+    if (routeCondition.notCondition) {
+        auto notResult = countRouterInnerConditions(*routeCondition.notCondition, result, depth - 1);
+        if (!notResult)
+            return { };
+        result = *notResult;
+    }
+    return result;
 }
 
 static URLPatternUtilities::URLPatternStringOptions computeOptions(EncodingCallbackType type, bool ignoreCase)
