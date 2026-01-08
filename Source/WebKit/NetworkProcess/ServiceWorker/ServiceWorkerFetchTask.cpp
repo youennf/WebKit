@@ -77,8 +77,6 @@ RefPtr<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromNavigationPreloader(W
 
 Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoader& loader, NetworkStorageManager& manager, WebCore::ResourceRequest&& request, String&& cacheName)
 {
-    Ref task = adoptRef(*new ServiceWorkerFetchTask(loader, WTF::move(request)));
-
     Ref topOrigin = loader.parameters().topOrigin ? Ref { *loader.parameters().topOrigin } : SecurityOrigin::createOpaque();
     Ref clientOrigin = loader.parameters().sourceOrigin ? Ref { *loader.parameters().sourceOrigin } : SecurityOrigin::createOpaque();
 
@@ -88,11 +86,12 @@ Ref<ServiceWorkerFetchTask> ServiceWorkerFetchTask::fromCache(NetworkResourceLoa
     };
 
     WebCore::RetrieveRecordsOptions options {
-        .request = task->m_currentRequest,
-//        .crossOriginEmbedderPolicy = loader.parameters().parentCrossOriginEmbedderPolicy.value,
-        .sourceOrigin = WTF::move(clientOrigin)
+        .request { request },
+        .crossOriginEmbedderPolicy { loader.parameters().parentCrossOriginEmbedderPolicy.value },
+        .sourceOrigin { WTF::move(clientOrigin) }
     };
 
+    Ref task = adoptRef(*new ServiceWorkerFetchTask(loader, WTF::move(request)));
     task->loadFromCache(manager, WTF::move(origin), WTF::move(options), WTF::move(cacheName));
     return task;
 }
