@@ -141,6 +141,7 @@ private:
     void sendNavigationPreloadUpdate();
 
     RefPtr<ServiceWorkerNavigationPreloader> protectedPreloader();
+    void processPreloadResponse();
 
     WeakPtr<WebSWServerConnection> m_swServerConnection;
     WeakPtr<NetworkResourceLoader> m_loader;

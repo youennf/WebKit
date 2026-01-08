@@ -134,9 +134,9 @@ ServiceWorkerFetchTask::ServiceWorkerFetchTask(WebSWServerConnection& swServerCo
         m_timeoutTimer->startOneShot(loader.connectionToWebProcess().networkProcess().serviceWorkerFetchTimeout());
     }
 
-    bool shouldDoNavigationPreload = session && isNavigationRequest(loader.parameters().options.destination) && m_currentRequest.httpMethod() == "GET"_s;
+    bool canUsePreloader = session && (m_shouldRaceNetworkAndFetchHandler || isNavigationRequest(loader.parameters().options.destination)) && m_currentRequest.httpMethod() == "GET"_s;
 
-    if (shouldDoNavigationPreload && (m_shouldRaceNetworkAndFetchHandler || !isWorkerReady || registration.navigationPreloadState().enabled)) {
+    if (canUsePreloader && (m_shouldRaceNetworkAndFetchHandler || !isWorkerReady || registration.navigationPreloadState().enabled)) {
         NetworkLoadParameters parameters = loader.parameters().networkLoadParameters();
         parameters.request = m_currentRequest;
         m_preloader = ServiceWorkerNavigationPreloader::create(*session, WTF::move(parameters), registration.navigationPreloadState(), loader.shouldCaptureExtraNetworkLoadMetrics());
@@ -522,13 +522,19 @@ void ServiceWorkerFetchTask::preloadResponseIsReady()
 {
     if (m_shouldRaceNetworkAndFetchHandler && !m_wasHandled) {
         ASSERT(m_preloader);
-        // Let's stop listening to fetch event handler.
+        if (!m_preloader->response().isSuccessful()) {
+            cancelPreloadIfNecessary();
+            return;
+        }
+
+        // Let's stop listening to fetch event handler since we will use the preload.
         if (RefPtr serviceWorkerConnection = m_serviceWorkerConnection.get())
             serviceWorkerConnection->unregisterFetch(*this);
         m_serviceWorkerConnection = nullptr;
 
-        didNotHandle();
-        ASSERT(m_isLoadingFromPreloader);
+        m_isLoadingFromPreloader = true;
+        processPreloadResponse();
+        return;
     }
 
     if (!m_isLoadingFromPreloader) {
@@ -536,7 +542,11 @@ void ServiceWorkerFetchTask::preloadResponseIsReady()
             sendNavigationPreloadUpdate();
         return;
     }
+    processPreloadResponse();
+}
 
+void ServiceWorkerFetchTask::processPreloadResponse()
+{
     if (!m_preloader->error().isNull()) {
         // Let's copy the error as calling didFail might destroy m_preloader.
         didFail(ResourceError { m_preloader->error() });
@@ -549,8 +559,12 @@ void ServiceWorkerFetchTask::preloadResponseIsReady()
         return;
     }
 
-    bool needsContinueDidReceiveResponseMessage = true;
+    bool needsContinueDidReceiveResponseMessage = m_currentRequest.requester() == ResourceRequestRequester::Main;
     processResponse(WTF::move(response), needsContinueDidReceiveResponseMessage, ShouldSetSource::No);
+    if (needsContinueDidReceiveResponseMessage)
+        return;
+
+    loadBodyFromPreloader();
 }
 
 void ServiceWorkerFetchTask::sendNavigationPreloadUpdate()
