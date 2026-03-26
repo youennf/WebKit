@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Apple Inc. All rights reserved.
+ * Copyright (C) 2026 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -21,44 +21,27 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #pragma once
 
-#include <optional>
-#include <span>
+#if USE(LIBWEBRTC)
+
+#include "WebRTCVideoDecoderVTB.h"
 
 namespace WebCore {
 
-class BitReader {
+class WebRTCVideoDecoderVTBH265 final : public WebRTCVideoDecoderVTB {
+    WTF_MAKE_TZONE_ALLOCATED_INLINE(WebRTCVideoDecoderVTBH265);
 public:
-    explicit BitReader(std::span<const uint8_t> data)
-        : m_data(data)
-    {
-    }
-
-    std::optional<uint64_t> NODELETE read(size_t);
-    std::optional<bool> NODELETE readBit();
-    std::optional<uint32_t> NODELETE readExponentialGolomb();
-    template <typename T> std::optional<T> read()
-    {
-        static_assert(std::is_unsigned<T>::value);
-        auto value = readBytes(sizeof(T));
-        if (!value)
-            return { };
-        return static_cast<T>(*value);
-    }
-    size_t NODELETE bitOffset() const;
-    bool NODELETE skipBytes(size_t);
-    size_t byteOffset() const { return m_index; }
+    explicit WebRTCVideoDecoderVTBH265(WebRTCVideoDecoderCallback);
+    ~WebRTCVideoDecoderVTBH265() = default;
 
 private:
-    std::optional<uint64_t> readBytes(size_t bytes) { return read(bytes * 8); }
-    std::span<const uint8_t> m_data;
-    size_t m_index { 0 };
-    uint8_t m_currentByte { 0 };
-    size_t m_remainingBits { 0 };
+    void setFormat(std::span<const uint8_t>, uint16_t width, uint16_t height) final;
+    int32_t decodeFrame(int64_t, std::span<const uint8_t>) final;
 };
 
 }
+
+#endif // USE(LIBWEBRTC)

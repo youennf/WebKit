@@ -26,6 +26,7 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <wtf/Forward.h>
 #include <wtf/Vector.h>
 
@@ -52,10 +53,17 @@ struct HEVCParameters {
     uint8_t generalTierFlag { 0 };
     Vector<unsigned char, 6> generalConstraintIndicatorFlags { 0, 0, 0, 0, 0, 0 };
     uint16_t generalLevelIDC { 0 };
+
+    // Width and height extracted from SPS
+    uint16_t width { 0 };
+    uint16_t height { 0 };
+    // Reorder size extracted from VPS (max 16)
+    uint8_t reorderSize { 0 };
 };
 
 WEBCORE_EXPORT std::optional<HEVCParameters> parseHEVCCodecParameters(StringView);
 WEBCORE_EXPORT std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC, const SharedBuffer&);
+WEBCORE_EXPORT std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC, std::span<const uint8_t>);
 WEBCORE_EXPORT String createHEVCCodecParametersString(const HEVCParameters&);
 
 struct DoViParameters {

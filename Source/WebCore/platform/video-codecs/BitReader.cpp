@@ -79,4 +79,27 @@ size_t BitReader::bitOffset() const
     return (m_remainingBits ? 8 - m_remainingBits : 0) + m_index * 8;
 }
 
+std::optional<uint32_t> BitReader::readExponentialGolomb()
+{
+    int leadingZeroBits = 0;
+    while (true) {
+        auto bit = readBit();
+        if (!bit)
+            return std::nullopt;
+        if (*bit)
+            break;
+        leadingZeroBits++;
+        if (leadingZeroBits > 31)
+            return std::nullopt;
+    }
+
+    if (leadingZeroBits == 0)
+        return 0;
+
+    auto suffix = read(leadingZeroBits);
+    if (!suffix)
+        return std::nullopt;
+    return (1u << leadingZeroBits) - 1 + static_cast<uint32_t>(*suffix);
+}
+
 } // namespace WebCore

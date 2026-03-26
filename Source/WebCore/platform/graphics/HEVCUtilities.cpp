@@ -26,6 +26,7 @@
 #include "config.h"
 #include "HEVCUtilities.h"
 
+#include "BitReader.h"
 #include "FourCC.h"
 #include "SharedBuffer.h"
 #include <JavaScriptCore/DataView.h>
@@ -37,6 +38,397 @@
 #include <wtf/text/StringToIntegerConversion.h>
 
 namespace WebCore {
+
+// HEVC NAL unit types (ISO/IEC 23008-2)
+enum class HEVCNalUnitType : uint8_t {
+    VPS = 32,
+    SPS = 33,
+    PPS = 34,
+};
+
+// Remove emulation prevention bytes (0x03 after 0x00 0x00) from RBSP
+static Vector<uint8_t> removeEmulationPreventionBytes(std::span<const uint8_t> data)
+{
+    Vector<uint8_t> result;
+    result.reserveInitialCapacity(data.size());
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (i + 2 < data.size() && data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x03) {
+            result.append(data[i]);
+            result.append(data[i + 1]);
+            i += 2; // Skip the 0x03 emulation prevention byte
+        } else {
+            result.append(data[i]);
+        }
+    }
+
+    return result;
+}
+
+// Structure to hold extracted SPS and VPS data from HVCC
+struct HVCCNalUnits {
+    std::span<const uint8_t> spsData;
+    std::span<const uint8_t> vpsData;
+};
+
+// Extract SPS and VPS NAL units from HVCC data
+static std::optional<HVCCNalUnits> extractNalUnitsFromHVCC(const uint8_t* hvccData, size_t hvccDataSize)
+{
+    // HVCC minimum size: 22 bytes header + 1 byte numOfArrays
+    if (hvccDataSize < 23)
+        return std::nullopt;
+
+    // Parse HVCC header using byte offsets
+    // Byte 0: configurationVersion
+    // Byte 1: general_profile_space (2), general_tier_flag (1), general_profile_idc (5)
+    // Bytes 2-5: general_profile_compatibility_flags (32)
+    // Bytes 6-11: general_constraint_indicator_flags (48)
+    // Byte 12: general_level_idc
+    // Bytes 13-14: min_spatial_segmentation_idc (4 reserved + 12)
+    // Byte 15: parallelismType (6 reserved + 2)
+    // Byte 16: chromaFormat (6 reserved + 2)
+    // Byte 17: bitDepthLumaMinus8 (5 reserved + 3)
+    // Byte 18: bitDepthChromaMinus8 (5 reserved + 3)
+    // Bytes 19-20: avgFrameRate (16)
+    // Byte 21: constantFrameRate (2), numTemporalLayers (3), temporalIdNested (1), lengthSizeMinusOne (2)
+    // Byte 22: numOfArrays
+
+    uint8_t configurationVersion = hvccData[0];
+    if (configurationVersion > 1)
+        return std::nullopt;
+
+    uint8_t numOfArrays = hvccData[22];
+    size_t position = 23;
+
+    std::span<const uint8_t> spsData;
+    std::span<const uint8_t> vpsData;
+
+    for (uint8_t j = 0; j < numOfArrays; ++j) {
+        if (position + 3 > hvccDataSize)
+            return std::nullopt;
+
+        // NAL_unit_type: bit(1) array_completeness; unsigned int(1) reserved = 0; unsigned int(6) NAL_unit_type
+        uint8_t nalUnitType = hvccData[position] & 0x3F;
+        position++;
+
+        // numNalus (16 bits, big-endian)
+        uint16_t numOfNalus = (static_cast<uint16_t>(hvccData[position]) << 8) | hvccData[position + 1];
+        position += 2;
+
+        for (uint16_t k = 0; k < numOfNalus; ++k) {
+            if (position + 2 > hvccDataSize)
+                return std::nullopt;
+
+            // nalUnitLength (16 bits, big-endian)
+            uint16_t nalUnitLength = (static_cast<uint16_t>(hvccData[position]) << 8) | hvccData[position + 1];
+            position += 2;
+
+            if (position + nalUnitLength > hvccDataSize)
+                return std::nullopt;
+
+            // HEVC NAL header is 2 bytes
+            static constexpr size_t hevcNalHeaderSize = 2;
+            if (nalUnitLength <= hevcNalHeaderSize) {
+                position += nalUnitLength;
+                continue;
+            }
+
+            // Extract NAL unit data (excluding the 2-byte NAL header)
+            std::span<const uint8_t> nalData { hvccData + position + hevcNalHeaderSize, nalUnitLength - hevcNalHeaderSize };
+
+            if (nalUnitType == static_cast<uint8_t>(HEVCNalUnitType::SPS)) {
+                spsData = nalData;
+                if (!vpsData.empty())
+                    return HVCCNalUnits { spsData, vpsData };
+            } else if (nalUnitType == static_cast<uint8_t>(HEVCNalUnitType::VPS)) {
+                vpsData = nalData;
+                if (!spsData.empty())
+                    return HVCCNalUnits { spsData, vpsData };
+            }
+
+            position += nalUnitLength;
+        }
+    }
+
+    // Return what we found, even if incomplete
+    if (!spsData.empty() || !vpsData.empty())
+        return HVCCNalUnits { spsData, vpsData };
+
+    return std::nullopt;
+}
+
+// Parse profile_tier_level from SPS/VPS
+static bool parseProfileTierLevel(BitReader& reader, bool profilePresent, uint32_t maxNumSubLayersMinus1)
+{
+    if (profilePresent) {
+        // general_profile_space (2), general_tier_flag (1), general_profile_idc (5)
+        if (!reader.read(8))
+            return false;
+        // general_profile_compatibility_flags (32)
+        if (!reader.read(32))
+            return false;
+        // general_progressive_source_flag (1), general_interlaced_source_flag (1)
+        // general_non_packed_constraint_flag (1), general_frame_only_constraint_flag (1)
+        // general_reserved_zero_7bits (7), general_one_picture_only_constraint_flag (1)
+        // general_reserved_zero_35bits (35), general_inbld_flag (1)
+        if (!reader.read(48))
+            return false;
+    }
+    // general_level_idc (8)
+    if (!reader.read(8))
+        return false;
+
+    // sub_layer_profile_present_flag and sub_layer_level_present_flag
+    bool subLayerProfilePresentFlag[8] = { };
+    bool subLayerLevelPresentFlag[8] = { };
+    for (uint32_t i = 0; i < maxNumSubLayersMinus1; ++i) {
+        auto profileFlag = reader.readBit();
+        if (!profileFlag)
+            return false;
+        subLayerProfilePresentFlag[i] = *profileFlag;
+        auto levelFlag = reader.readBit();
+        if (!levelFlag)
+            return false;
+        subLayerLevelPresentFlag[i] = *levelFlag;
+    }
+
+    if (maxNumSubLayersMinus1 > 0) {
+        for (uint32_t i = maxNumSubLayersMinus1; i < 8; ++i) {
+            if (!reader.read(2))
+                return false;
+        }
+    }
+
+    for (uint32_t i = 0; i < maxNumSubLayersMinus1; ++i) {
+        if (subLayerProfilePresentFlag[i]) {
+            // sub_layer profile data (88 bits = 64 + 24)
+            if (!reader.read(64))
+                return false;
+            if (!reader.read(24))
+                return false;
+        }
+        if (subLayerLevelPresentFlag[i]) {
+            if (!reader.read(8))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+// Structure to hold parsed SPS information
+struct HEVCSpsInfo {
+    uint32_t width { 0 };
+    uint32_t height { 0 };
+};
+
+// Parse SPS to extract width and height
+static std::optional<HEVCSpsInfo> parseSps(std::span<const uint8_t> spsData)
+{
+    if (spsData.empty())
+        return std::nullopt;
+
+    // Remove emulation prevention bytes
+    auto rbspData = removeEmulationPreventionBytes(spsData);
+    BitReader reader(rbspData.span());
+
+    // sps_video_parameter_set_id (4 bits)
+    if (!reader.read(4))
+        return std::nullopt;
+
+    // sps_max_sub_layers_minus1 (3 bits)
+    auto spsMaxSubLayersMinus1Opt = reader.read(3);
+    if (!spsMaxSubLayersMinus1Opt)
+        return std::nullopt;
+    uint32_t spsMaxSubLayersMinus1 = static_cast<uint32_t>(*spsMaxSubLayersMinus1Opt);
+    if (spsMaxSubLayersMinus1 > 6)
+        return std::nullopt;
+
+    // sps_temporal_id_nesting_flag (1 bit)
+    if (!reader.read(1))
+        return std::nullopt;
+
+    // profile_tier_level
+    if (!parseProfileTierLevel(reader, true, spsMaxSubLayersMinus1))
+        return std::nullopt;
+
+    // sps_seq_parameter_set_id (ue(v))
+    if (!reader.readExponentialGolomb())
+        return std::nullopt;
+
+    // chroma_format_idc (ue(v))
+    auto chromaFormatIdcOpt = reader.readExponentialGolomb();
+    if (!chromaFormatIdcOpt)
+        return std::nullopt;
+    uint32_t chromaFormatIdc = *chromaFormatIdcOpt;
+    if (chromaFormatIdc > 3)
+        return std::nullopt;
+
+    uint32_t separateColourPlaneFlag = 0;
+    if (chromaFormatIdc == 3) {
+        // separate_colour_plane_flag (1 bit)
+        auto flagOpt = reader.read(1);
+        if (!flagOpt)
+            return std::nullopt;
+        separateColourPlaneFlag = static_cast<uint32_t>(*flagOpt);
+    }
+
+    // pic_width_in_luma_samples (ue(v))
+    auto picWidthInLumaSamplesOpt = reader.readExponentialGolomb();
+    if (!picWidthInLumaSamplesOpt || *picWidthInLumaSamplesOpt == 0)
+        return std::nullopt;
+    uint32_t picWidthInLumaSamples = *picWidthInLumaSamplesOpt;
+
+    // pic_height_in_luma_samples (ue(v))
+    auto picHeightInLumaSamplesOpt = reader.readExponentialGolomb();
+    if (!picHeightInLumaSamplesOpt || *picHeightInLumaSamplesOpt == 0)
+        return std::nullopt;
+    uint32_t picHeightInLumaSamples = *picHeightInLumaSamplesOpt;
+
+    // conformance_window_flag (1 bit)
+    auto conformanceWindowFlagOpt = reader.readBit();
+    if (!conformanceWindowFlagOpt)
+        return std::nullopt;
+    bool conformanceWindowFlag = *conformanceWindowFlagOpt;
+
+    uint32_t confWinLeftOffset = 0;
+    uint32_t confWinRightOffset = 0;
+    uint32_t confWinTopOffset = 0;
+    uint32_t confWinBottomOffset = 0;
+
+    if (conformanceWindowFlag) {
+        auto leftOpt = reader.readExponentialGolomb();
+        if (!leftOpt)
+            return std::nullopt;
+        confWinLeftOffset = *leftOpt;
+
+        auto rightOpt = reader.readExponentialGolomb();
+        if (!rightOpt)
+            return std::nullopt;
+        confWinRightOffset = *rightOpt;
+
+        auto topOpt = reader.readExponentialGolomb();
+        if (!topOpt)
+            return std::nullopt;
+        confWinTopOffset = *topOpt;
+
+        auto bottomOpt = reader.readExponentialGolomb();
+        if (!bottomOpt)
+            return std::nullopt;
+        confWinBottomOffset = *bottomOpt;
+    }
+
+    // Calculate sub_width_c and sub_height_c based on chroma_format_idc
+    uint32_t subWidthC = ((chromaFormatIdc == 1) || (chromaFormatIdc == 2)) && !separateColourPlaneFlag ? 2 : 1;
+    uint32_t subHeightC = (chromaFormatIdc == 1) && !separateColourPlaneFlag ? 2 : 1;
+
+    // Calculate final width and height
+    uint32_t width = picWidthInLumaSamples - subWidthC * (confWinLeftOffset + confWinRightOffset);
+    uint32_t height = picHeightInLumaSamples - subHeightC * (confWinTopOffset + confWinBottomOffset);
+
+    return HEVCSpsInfo { width, height };
+}
+
+// Structure to hold parsed VPS information
+struct HEVCVpsInfo {
+    static constexpr uint32_t kMaxSubLayers = 7;
+    uint32_t vpsMaxSubLayersMinus1 { 0 };
+    uint32_t vpsMaxNumReorderPics[kMaxSubLayers] { };
+};
+
+// Parse VPS to extract reorder size information
+static std::optional<HEVCVpsInfo> parseVps(std::span<const uint8_t> vpsData)
+{
+    if (vpsData.empty())
+        return std::nullopt;
+
+    // Remove emulation prevention bytes
+    auto rbspData = removeEmulationPreventionBytes(vpsData);
+    BitReader reader(rbspData.span());
+
+    HEVCVpsInfo vps;
+
+    // vps_video_parameter_set_id (4 bits)
+    if (!reader.read(4))
+        return std::nullopt;
+
+    // vps_base_layer_internal_flag (1 bit)
+    if (!reader.read(1))
+        return std::nullopt;
+
+    // vps_base_layer_available_flag (1 bit)
+    if (!reader.read(1))
+        return std::nullopt;
+
+    // vps_max_layers_minus1 (6 bits)
+    if (!reader.read(6))
+        return std::nullopt;
+
+    // vps_max_sub_layers_minus1 (3 bits)
+    auto vpsMaxSubLayersMinus1Opt = reader.read(3);
+    if (!vpsMaxSubLayersMinus1Opt)
+        return std::nullopt;
+    vps.vpsMaxSubLayersMinus1 = static_cast<uint32_t>(*vpsMaxSubLayersMinus1Opt);
+    if (vps.vpsMaxSubLayersMinus1 >= HEVCVpsInfo::kMaxSubLayers)
+        return std::nullopt;
+
+    // vps_temporal_id_nesting_flag (1 bit)
+    if (!reader.read(1))
+        return std::nullopt;
+
+    // vps_reserved_0xffff_16bits (16 bits)
+    if (!reader.read(16))
+        return std::nullopt;
+
+    // profile_tier_level
+    if (!parseProfileTierLevel(reader, true, vps.vpsMaxSubLayersMinus1))
+        return std::nullopt;
+
+    // vps_sub_layer_ordering_info_present_flag (1 bit)
+    auto vpsSubLayerOrderingInfoPresentFlagOpt = reader.readBit();
+    if (!vpsSubLayerOrderingInfoPresentFlagOpt)
+        return std::nullopt;
+    bool vpsSubLayerOrderingInfoPresentFlag = *vpsSubLayerOrderingInfoPresentFlagOpt;
+
+    uint32_t startIndex = vpsSubLayerOrderingInfoPresentFlag ? 0 : vps.vpsMaxSubLayersMinus1;
+    for (uint32_t i = startIndex; i <= vps.vpsMaxSubLayersMinus1; ++i) {
+        // vps_max_dec_pic_buffering_minus1 (ue(v))
+        if (!reader.readExponentialGolomb())
+            return std::nullopt;
+
+        // vps_max_num_reorder_pics (ue(v))
+        auto reorderPicsOpt = reader.readExponentialGolomb();
+        if (!reorderPicsOpt)
+            return std::nullopt;
+        vps.vpsMaxNumReorderPics[i] = *reorderPicsOpt;
+
+        if (i > 0 && vps.vpsMaxNumReorderPics[i] < vps.vpsMaxNumReorderPics[i - 1])
+            return std::nullopt;
+
+        // vps_max_latency_increase_plus1 (ue(v))
+        if (!reader.readExponentialGolomb())
+            return std::nullopt;
+    }
+
+    // Fill in default values if not present
+    if (!vpsSubLayerOrderingInfoPresentFlag) {
+        for (uint32_t i = 0; i < vps.vpsMaxSubLayersMinus1; ++i)
+            vps.vpsMaxNumReorderPics[i] = vps.vpsMaxNumReorderPics[vps.vpsMaxSubLayersMinus1];
+    }
+
+    return vps;
+}
+
+// Compute reorder size from VPS
+static uint8_t computeReorderSizeFromVps(const HEVCVpsInfo& vps)
+{
+    uint32_t maxReorderPics = 0;
+    for (uint32_t i = 0; i <= vps.vpsMaxSubLayersMinus1; ++i)
+        maxReorderPics = std::max(maxReorderPics, vps.vpsMaxNumReorderPics[i]);
+
+    // Cap at 16 as per RTCVideoDecoderH265
+    return static_cast<uint8_t>(std::min(maxReorderPics, 16u));
+}
 
 std::optional<AVCParameters> parseAVCCodecParameters(StringView codecString)
 {
@@ -285,6 +677,79 @@ std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC codecCo
     parameters.generalLevelIDC = view->get<uint8_t>(12, false, &status);
     if (!status)
         return std::nullopt;
+
+    // Extract width, height, and reorder size from SPS/VPS NAL units
+    auto contiguousBuffer = buffer.makeContiguous();
+    if (auto nalUnits = extractNalUnitsFromHVCC(contiguousBuffer->data(), contiguousBuffer->size())) {
+        // Parse SPS for width and height
+        if (auto spsInfo = parseSps(nalUnits->spsData)) {
+            parameters.width = static_cast<uint16_t>(spsInfo->width);
+            parameters.height = static_cast<uint16_t>(spsInfo->height);
+        }
+
+        // Parse VPS for reorder size
+        if (auto vpsInfo = parseVps(nalUnits->vpsData))
+            parameters.reorderSize = computeReorderSizeFromVps(*vpsInfo);
+    }
+
+    return parameters;
+}
+
+std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC codecCode, std::span<const uint8_t> data)
+{
+    // ISO/IEC 14496-15:2014
+    // 8.3.3.1 HEVC decoder configuration record
+
+    // HEVCDecoderConfigurationRecord is at a minimum 23 bytes long
+    if (data.size() < 23)
+        return std::nullopt;
+
+    HEVCParameters parameters;
+    if (codecCode == std::span { "hev1" })
+        parameters.codec = HEVCParameters::Codec::Hev1;
+    else if (codecCode == std::span { "hvc1" })
+        parameters.codec = HEVCParameters::Codec::Hvc1;
+    else
+        return std::nullopt;
+
+    // aligned(8) class HEVCDecoderConfigurationRecord {
+    //    unsigned int(8)  configurationVersion = 1;
+    //    unsigned int(2)  general_profile_space;
+    //    unsigned int(1)  general_tier_flag;
+    //    unsigned int(5)  general_profile_idc;
+    //    unsigned int(32) general_profile_compatibility_flags;
+    //    unsigned int(48) general_constraint_indicator_flags;
+    //    unsigned int(8)  general_level_idc;
+    //    ...
+
+    uint8_t profileSpaceTierIDC = data[1];
+    parameters.generalProfileSpace = (profileSpaceTierIDC & 0b11000000) >> 6;
+    parameters.generalTierFlag = (profileSpaceTierIDC & 0b00100000) >> 5;
+    parameters.generalProfileIDC = profileSpaceTierIDC & 0b00011111;
+
+    // Read general_profile_compatibility_flags (big-endian)
+    parameters.generalProfileCompatibilityFlags = (static_cast<uint32_t>(data[2]) << 24)
+        | (static_cast<uint32_t>(data[3]) << 16)
+        | (static_cast<uint32_t>(data[4]) << 8)
+        | static_cast<uint32_t>(data[5]);
+
+    for (unsigned i = 0; i < 6; ++i)
+        parameters.generalConstraintIndicatorFlags[i] = data[6 + i];
+
+    parameters.generalLevelIDC = data[12];
+
+    // Extract width, height, and reorder size from SPS/VPS NAL units
+    if (auto nalUnits = extractNalUnitsFromHVCC(data.data(), data.size())) {
+        // Parse SPS for width and height
+        if (auto spsInfo = parseSps(nalUnits->spsData)) {
+            parameters.width = static_cast<uint16_t>(spsInfo->width);
+            parameters.height = static_cast<uint16_t>(spsInfo->height);
+        }
+
+        // Parse VPS for reorder size
+        if (auto vpsInfo = parseVps(nalUnits->vpsData))
+            parameters.reorderSize = computeReorderSizeFromVps(*vpsInfo);
+    }
 
     return parameters;
 }
