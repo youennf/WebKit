@@ -66,6 +66,16 @@ WEBCORE_EXPORT std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord
 WEBCORE_EXPORT std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC, std::span<const uint8_t>);
 WEBCORE_EXPORT String createHEVCCodecParametersString(const HEVCParameters&);
 
+// Structure to hold VPS, SPS, and PPS NAL units extracted from Annex B format
+struct HEVCParameterSets {
+    std::span<const uint8_t> vps;
+    std::span<const uint8_t> sps;
+    std::span<const uint8_t> pps;
+};
+
+// Extract VPS, SPS, and PPS NAL units from Annex B format buffer
+WEBCORE_EXPORT std::optional<HEVCParameterSets> extractHEVCParameterSetsFromAnnexB(std::span<const uint8_t> annexBBuffer);
+
 struct DoViParameters {
     enum class Codec { AVC1, AVC3, HEV1, HVC1 } codec { Codec::HVC1 };
     uint16_t bitstreamProfileID { 0 };

@@ -30,6 +30,7 @@
 #if USE(LIBWEBRTC)
 
 #import "WebRTCVideoDecoderVTBAV1.h"
+#import "WebRTCVideoDecoderVTBH265.h"
 #import "WebRTCVideoDecoderVTBVP9.h"
 #import <WebCore/CMUtilities.h>
 #import <WebCore/LibWebRTCMacros.h>

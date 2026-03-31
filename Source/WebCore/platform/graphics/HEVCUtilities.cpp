@@ -46,6 +46,69 @@ enum class HEVCNalUnitType : uint8_t {
     PPS = 34,
 };
 
+// Structure to hold NAL unit index information
+struct NaluIndex {
+    size_t startOffset { 0 };      // Start of the start code
+    size_t payloadStartOffset { 0 }; // Start of the payload (after start code)
+    size_t payloadSize { 0 };      // Size of the payload
+};
+
+// Find all NAL unit indices in an Annex B buffer
+static Vector<NaluIndex> findNaluIndices(std::span<const uint8_t> buffer)
+{
+    Vector<NaluIndex> indices;
+    if (buffer.size() < 4)
+        return indices;
+
+    size_t i = 0;
+    while (i + 2 < buffer.size()) {
+        // Look for start code: 0x00 0x00 0x01 or 0x00 0x00 0x00 0x01
+        if (buffer[i] == 0x00 && buffer[i + 1] == 0x00) {
+            size_t startCodeLength = 0;
+            if (buffer[i + 2] == 0x01) {
+                startCodeLength = 3;
+            } else if (i + 3 < buffer.size() && buffer[i + 2] == 0x00 && buffer[i + 3] == 0x01) {
+                startCodeLength = 4;
+            }
+
+            if (startCodeLength > 0) {
+                NaluIndex index;
+                index.startOffset = i;
+                index.payloadStartOffset = i + startCodeLength;
+
+                // Find the end of this NAL unit (start of next or end of buffer)
+                size_t j = index.payloadStartOffset;
+                while (j + 2 < buffer.size()) {
+                    if (buffer[j] == 0x00 && buffer[j + 1] == 0x00 && (buffer[j + 2] == 0x01 || (j + 3 < buffer.size() && buffer[j + 2] == 0x00 && buffer[j + 3] == 0x01)))
+                        break;
+                    ++j;
+                }
+                // Handle trailing zeros that might be part of the next start code
+                while (j > index.payloadStartOffset && buffer[j - 1] == 0x00)
+                    --j;
+
+                index.payloadSize = j - index.payloadStartOffset;
+                if (index.payloadSize > 0)
+                    indices.append(index);
+
+                i = j;
+                continue;
+            }
+        }
+        ++i;
+    }
+
+    return indices;
+}
+
+// Parse HEVC NAL unit type from the first byte of the NAL unit
+static HEVCNalUnitType parseHEVCNaluType(uint8_t firstByte)
+{
+    // HEVC NAL unit header: forbidden_zero_bit (1), nal_unit_type (6), nuh_layer_id (6), nuh_temporal_id_plus1 (3)
+    // NAL unit type is bits 1-6 (shifted right by 1)
+    return static_cast<HEVCNalUnitType>((firstByte >> 1) & 0x3F);
+}
+
 // Remove emulation prevention bytes (0x03 after 0x00 0x00) from RBSP
 static Vector<uint8_t> removeEmulationPreventionBytes(std::span<const uint8_t> data)
 {
@@ -72,8 +135,9 @@ struct HVCCNalUnits {
 };
 
 // Extract SPS and VPS NAL units from HVCC data
-static std::optional<HVCCNalUnits> extractNalUnitsFromHVCC(const uint8_t* hvccData, size_t hvccDataSize)
+static std::optional<HVCCNalUnits> extractNalUnitsFromHVCC(std::span<const uint8_t> hvccData)
 {
+    auto hvccDataSize = hvccData.size();
     // HVCC minimum size: 22 bytes header + 1 byte numOfArrays
     if (hvccDataSize < 23)
         return std::nullopt;
@@ -134,7 +198,7 @@ static std::optional<HVCCNalUnits> extractNalUnitsFromHVCC(const uint8_t* hvccDa
             }
 
             // Extract NAL unit data (excluding the 2-byte NAL header)
-            std::span<const uint8_t> nalData { hvccData + position + hevcNalHeaderSize, nalUnitLength - hevcNalHeaderSize };
+            auto nalData = hvccData.subspan(position + hevcNalHeaderSize, nalUnitLength - hevcNalHeaderSize);
 
             if (nalUnitType == static_cast<uint8_t>(HEVCNalUnitType::SPS)) {
                 spsData = nalData;
@@ -179,17 +243,18 @@ static bool parseProfileTierLevel(BitReader& reader, bool profilePresent, uint32
         return false;
 
     // sub_layer_profile_present_flag and sub_layer_level_present_flag
-    bool subLayerProfilePresentFlag[8] = { };
-    bool subLayerLevelPresentFlag[8] = { };
+    size_t bitsToRead = 0;
     for (uint32_t i = 0; i < maxNumSubLayersMinus1; ++i) {
         auto profileFlag = reader.readBit();
         if (!profileFlag)
             return false;
-        subLayerProfilePresentFlag[i] = *profileFlag;
+        // sub_layer profile data (88 bits = 64 + 24)
+        bitsToRead += 88;
+
         auto levelFlag = reader.readBit();
         if (!levelFlag)
             return false;
-        subLayerLevelPresentFlag[i] = *levelFlag;
+        bitsToRead += 8;
     }
 
     if (maxNumSubLayersMinus1 > 0) {
@@ -199,21 +264,7 @@ static bool parseProfileTierLevel(BitReader& reader, bool profilePresent, uint32
         }
     }
 
-    for (uint32_t i = 0; i < maxNumSubLayersMinus1; ++i) {
-        if (subLayerProfilePresentFlag[i]) {
-            // sub_layer profile data (88 bits = 64 + 24)
-            if (!reader.read(64))
-                return false;
-            if (!reader.read(24))
-                return false;
-        }
-        if (subLayerLevelPresentFlag[i]) {
-            if (!reader.read(8))
-                return false;
-        }
-    }
-
-    return true;
+    return !!reader.read(bitsToRead);
 }
 
 // Structure to hold parsed SPS information
@@ -333,7 +384,7 @@ static std::optional<HEVCSpsInfo> parseSps(std::span<const uint8_t> spsData)
 struct HEVCVpsInfo {
     static constexpr uint32_t kMaxSubLayers = 7;
     uint32_t vpsMaxSubLayersMinus1 { 0 };
-    uint32_t vpsMaxNumReorderPics[kMaxSubLayers] { };
+    Vector<uint32_t, kMaxSubLayers> vpsMaxNumReorderPics;
 };
 
 // Parse VPS to extract reorder size information
@@ -679,8 +730,8 @@ std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC codecCo
         return std::nullopt;
 
     // Extract width, height, and reorder size from SPS/VPS NAL units
-    auto contiguousBuffer = buffer.makeContiguous();
-    if (auto nalUnits = extractNalUnitsFromHVCC(contiguousBuffer->data(), contiguousBuffer->size())) {
+    Ref contiguousBuffer = buffer.makeContiguous();
+    if (auto nalUnits = extractNalUnitsFromHVCC(contiguousBuffer->span())) {
         // Parse SPS for width and height
         if (auto spsInfo = parseSps(nalUnits->spsData)) {
             parameters.width = static_cast<uint16_t>(spsInfo->width);
@@ -739,7 +790,7 @@ std::optional<HEVCParameters> parseHEVCDecoderConfigurationRecord(FourCC codecCo
     parameters.generalLevelIDC = data[12];
 
     // Extract width, height, and reorder size from SPS/VPS NAL units
-    if (auto nalUnits = extractNalUnitsFromHVCC(data.data(), data.size())) {
+    if (auto nalUnits = extractNalUnitsFromHVCC(data)) {
         // Parse SPS for width and height
         if (auto spsInfo = parseSps(nalUnits->spsData)) {
             parameters.width = static_cast<uint16_t>(spsInfo->width);
@@ -918,6 +969,51 @@ String createDoViCodecParametersString(const DoViParameters& parameters)
         builder.append('0');
     builder.append(parameters.bitstreamLevelID);
     return builder.toString();
+}
+
+std::optional<HEVCParameterSets> extractHEVCParameterSetsFromAnnexB(std::span<const uint8_t> annexBBuffer)
+{
+    auto naluIndices = findNaluIndices(annexBBuffer);
+    if (naluIndices.isEmpty())
+        return std::nullopt;
+
+    std::span<const uint8_t> vps;
+    std::span<const uint8_t> sps;
+    std::span<const uint8_t> pps;
+
+    for (const auto& index : naluIndices) {
+        if (index.payloadSize < 1)
+            continue;
+
+        auto naluType = parseHEVCNaluType(annexBBuffer[index.payloadStartOffset]);
+
+        switch (naluType) {
+        case HEVCNalUnitType::VPS:
+            if (vps.empty())
+                vps = annexBBuffer.subspan(index.payloadStartOffset, index.payloadSize);
+            break;
+        case HEVCNalUnitType::SPS:
+            if (sps.empty())
+                sps = annexBBuffer.subspan(index.payloadStartOffset, index.payloadSize);
+            break;
+        case HEVCNalUnitType::PPS:
+            if (pps.empty())
+                pps = annexBBuffer.subspan(index.payloadStartOffset, index.payloadSize);
+            break;
+        default:
+            break;
+        }
+
+        // If we found all three, we can return early
+        if (!vps.empty() && !sps.empty() && !pps.empty())
+            return HEVCParameterSets { vps, sps, pps };
+    }
+
+    // Return what we found, even if incomplete (caller can check)
+    if (!vps.empty() || !sps.empty() || !pps.empty())
+        return HEVCParameterSets { vps, sps, pps };
+
+    return std::nullopt;
 }
 
 }
