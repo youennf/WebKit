@@ -41,7 +41,7 @@ private:
     void setFormat(std::span<const uint8_t>, uint16_t width, uint16_t height) final;
     int32_t decodeFrame(int64_t, std::span<const uint8_t>) final;
 
-    bool m_isFormaSet { false };
+    bool m_useHEVC { false };
 };
 
 }

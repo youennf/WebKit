@@ -33,8 +33,9 @@
 #import "HEVCUtilitiesCocoa.h"
 #import "Logging.h"
 #import <CoreMedia/CMFormatDescription.h>
-#import <pal/cf/CoreMediaSoftLink.h>
 #import <wtf/BlockPtr.h>
+
+#import <pal/cf/CoreMediaSoftLink.h>
 
 namespace WebCore {
 
@@ -49,6 +50,7 @@ static void overrideH265ColorSpaceAttachments(CVPixelBufferRef pixelBuffer)
 static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> createH265Callback(WebRTCVideoDecoderCallback callback)
 {
     return makeBlockPtr([callback = makeBlockPtr(callback)](OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime) mutable {
+
         if (!pixelBuffer) {
             callback(nil, 0, 0, false);
             return;
@@ -93,29 +95,31 @@ void WebRTCVideoDecoderVTBH265::setFormat(std::span<const uint8_t> data, uint16_
         return;
     }
 
-    m_isFormaSet = true;
+    m_useHEVC = true;
     setVideoFormat(WTF::move(videoFormatDescription));
     setFrameSize(width, height);
 }
 
 int32_t WebRTCVideoDecoderVTBH265::decodeFrame(int64_t timeStamp, std::span<const uint8_t> data)
 {
-    if (!m_isFormaSet) {
-        if (auto parameterSets = extractHEVCParameterSetsFromAnnexB(data)) {
-            const uint8_t* param_set_ptrs[3] = { parameterSets->vps.data(), parameterSets->sps.data(), parameterSets->pps.data() };
-            size_t param_set_sizes[3] = { parameterSets->vps.size(), parameterSets->sps.size(), parameterSets->pps.size() };
+    if (m_useHEVC)
+        return decodeFrameInternal(timeStamp, data);
 
-            CMVideoFormatDescriptionRef description = nullptr;
-            OSStatus status = CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, 3, param_set_ptrs, param_set_sizes, 4, nullptr, &description);
-            if (status == noErr)
-                setVideoFormat(adoptCF(description));
-        }
+    if (auto parameterSets = extractHEVCParameterSetsFromAnnexB(data)) {
+        const uint8_t* parameterDatas[3] = { parameterSets->vps.data(), parameterSets->sps.data(), parameterSets->pps.data() };
+        size_t parameterSizes[3] = { parameterSets->vps.size(), parameterSets->sps.size(), parameterSets->pps.size() };
+        
+        CMVideoFormatDescriptionRef description = nullptr;
+        auto status = PAL::CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, 3, parameterDatas, parameterSizes, 4, nullptr, &description);
+        if (status == noErr)
+            setVideoFormat(adoptCF(description));
     }
 
     if (!hasFormat())
         return -1;
 
-    return decodeFrameInternal(timeStamp, data);
+    auto hvccData = convertHEVCAnnexBToHVCC(data);
+    return decodeFrameInternal(timeStamp, hvccData.span());
 }
 
 }

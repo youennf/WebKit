@@ -76,6 +76,8 @@ struct HEVCParameterSets {
 // Extract VPS, SPS, and PPS NAL units from Annex B format buffer
 WEBCORE_EXPORT std::optional<HEVCParameterSets> extractHEVCParameterSetsFromAnnexB(std::span<const uint8_t> annexBBuffer);
 
+Vector<uint8_t> convertHEVCAnnexBToHVCC(std::span<const uint8_t> annexBBuffer);
+
 struct DoViParameters {
     enum class Codec { AVC1, AVC3, HEV1, HVC1 } codec { Codec::HVC1 };
     uint16_t bitstreamProfileID { 0 };

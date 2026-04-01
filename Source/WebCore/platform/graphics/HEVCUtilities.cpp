@@ -54,51 +54,52 @@ struct NaluIndex {
 };
 
 // Find all NAL unit indices in an Annex B buffer
+// This implementation follows the libwebrtc H264::FindNaluIndices approach
 static Vector<NaluIndex> findNaluIndices(std::span<const uint8_t> buffer)
 {
-    Vector<NaluIndex> indices;
-    if (buffer.size() < 4)
-        return indices;
+    // This is sorta like Boyer-Moore, but with only the first optimization step:
+    // given a 3-byte sequence we're looking at, if the 3rd byte isn't 1 or 0,
+    // skip ahead to the next 3-byte sequence. 0s and 1s are relatively rare, so
+    // this will skip the majority of reads/checks.
+    constexpr size_t kNaluShortStartSequenceSize = 3;
 
-    size_t i = 0;
-    while (i + 2 < buffer.size()) {
-        // Look for start code: 0x00 0x00 0x01 or 0x00 0x00 0x00 0x01
-        if (buffer[i] == 0x00 && buffer[i + 1] == 0x00) {
-            size_t startCodeLength = 0;
-            if (buffer[i + 2] == 0x01) {
-                startCodeLength = 3;
-            } else if (i + 3 < buffer.size() && buffer[i + 2] == 0x00 && buffer[i + 3] == 0x01) {
-                startCodeLength = 4;
-            }
+    Vector<NaluIndex> sequences;
+    if (buffer.size() < kNaluShortStartSequenceSize)
+        return sequences;
 
-            if (startCodeLength > 0) {
+    const size_t end = buffer.size() - kNaluShortStartSequenceSize;
+    for (size_t i = 0; i < end;) {
+        if (buffer[i + 2] > 1) {
+            i += 3;
+        } else if (buffer[i + 2] == 1) {
+            if (buffer[i + 1] == 0 && buffer[i] == 0) {
+                // We found a start sequence, now check if it was a 3 or 4 byte one.
                 NaluIndex index;
                 index.startOffset = i;
-                index.payloadStartOffset = i + startCodeLength;
+                index.payloadStartOffset = i + 3;
+                index.payloadSize = 0;
 
-                // Find the end of this NAL unit (start of next or end of buffer)
-                size_t j = index.payloadStartOffset;
-                while (j + 2 < buffer.size()) {
-                    if (buffer[j] == 0x00 && buffer[j + 1] == 0x00 && (buffer[j + 2] == 0x01 || (j + 3 < buffer.size() && buffer[j + 2] == 0x00 && buffer[j + 3] == 0x01)))
-                        break;
-                    ++j;
-                }
-                // Handle trailing zeros that might be part of the next start code
-                while (j > index.payloadStartOffset && buffer[j - 1] == 0x00)
-                    --j;
+                if (index.startOffset > 0 && buffer[index.startOffset - 1] == 0)
+                    --index.startOffset;
 
-                index.payloadSize = j - index.payloadStartOffset;
-                if (index.payloadSize > 0)
-                    indices.append(index);
+                // Update length of previous entry.
+                if (!sequences.isEmpty())
+                    sequences.last().payloadSize = index.startOffset - sequences.last().payloadStartOffset;
 
-                i = j;
-                continue;
+                sequences.append(index);
             }
+
+            i += 3;
+        } else {
+            ++i;
         }
-        ++i;
     }
 
-    return indices;
+    // Update length of last entry, if any.
+    if (!sequences.isEmpty())
+        sequences.last().payloadSize = buffer.size() - sequences.last().payloadStartOffset;
+
+    return sequences;
 }
 
 // Parse HEVC NAL unit type from the first byte of the NAL unit
@@ -1014,6 +1015,62 @@ std::optional<HEVCParameterSets> extractHEVCParameterSetsFromAnnexB(std::span<co
         return HEVCParameterSets { vps, sps, pps };
 
     return std::nullopt;
+}
+
+Vector<uint8_t> convertHEVCAnnexBToHVCC(std::span<const uint8_t> annexBBuffer)
+{
+    Vector<uint8_t> result;
+
+    auto naluIndices = findNaluIndices(annexBBuffer);
+    if (naluIndices.isEmpty())
+        return result;
+
+    // Calculate the size needed for the output buffer
+    // Each NAL unit will have a 4-byte length prefix instead of start codes
+    // We skip VPS, SPS, and PPS as they should be in the format description
+    size_t totalSize = 0;
+    for (const auto& index : naluIndices) {
+        if (index.payloadSize < 1)
+            continue;
+
+        auto naluType = parseHEVCNaluType(annexBBuffer[index.payloadStartOffset]);
+
+        // Skip parameter set NAL units
+        if (naluType == HEVCNalUnitType::VPS || naluType == HEVCNalUnitType::SPS || naluType == HEVCNalUnitType::PPS)
+            continue;
+
+        // 4 bytes for length prefix + payload size
+        totalSize += 4 + index.payloadSize;
+    }
+
+    if (!totalSize)
+        return result;
+
+    result.reserveInitialCapacity(totalSize);
+
+    // Convert each NAL unit to HVCC format (4-byte big-endian length prefix)
+    for (const auto& index : naluIndices) {
+        if (index.payloadSize < 1)
+            continue;
+
+        auto naluType = parseHEVCNaluType(annexBBuffer[index.payloadStartOffset]);
+
+        // Skip parameter set NAL units
+        if (naluType == HEVCNalUnitType::VPS || naluType == HEVCNalUnitType::SPS || naluType == HEVCNalUnitType::PPS)
+            continue;
+
+        // Write 4-byte big-endian length prefix
+        uint32_t length = static_cast<uint32_t>(index.payloadSize);
+        result.append(static_cast<uint8_t>((length >> 24) & 0xFF));
+        result.append(static_cast<uint8_t>((length >> 16) & 0xFF));
+        result.append(static_cast<uint8_t>((length >> 8) & 0xFF));
+        result.append(static_cast<uint8_t>(length & 0xFF));
+
+        // Write NAL unit payload
+        result.append(annexBBuffer.subspan(index.payloadStartOffset, index.payloadSize));
+    }
+
+    return result;
 }
 
 }
