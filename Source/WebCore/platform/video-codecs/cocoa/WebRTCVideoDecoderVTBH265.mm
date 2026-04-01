@@ -47,9 +47,9 @@ static void overrideH265ColorSpaceAttachments(CVPixelBufferRef pixelBuffer)
     CVBufferSetAttachment(pixelBuffer, (CFStringRef)@"ColorInfoGuessedBy", (CFStringRef)@"WebRTCDecoderVTBVP9", kCVAttachmentMode_ShouldPropagate);
 }
 
-static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> createH265Callback(WebRTCVideoDecoderCallback callback)
+static BlockPtr<void(CVPixelBufferRef, int64_t, int64_t, bool)> createH265Callback(WebRTCVideoDecoderCallback callback)
 {
-    return makeBlockPtr([callback = makeBlockPtr(callback)](OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime) mutable {
+    return makeBlockPtr([callback = makeBlockPtr(callback)](CVPixelBufferRef pixelBuffer, int64_t timeStamp, int64_t, bool isReordered) mutable {
 
         if (!pixelBuffer) {
             callback(nil, 0, 0, false);
@@ -59,12 +59,12 @@ static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, 
         // FIXME: We should remove this override once the encoder is properly setting color space info.
         overrideH265ColorSpaceAttachments(pixelBuffer);
 
-        callback((CVPixelBufferRef)pixelBuffer, presentationTime.value, 0, false);
+        callback(pixelBuffer, timeStamp, 0, isReordered);
     });
 }
 
 WebRTCVideoDecoderVTBH265::WebRTCVideoDecoderVTBH265(WebRTCVideoDecoderCallback callback)
-    : WebRTCVideoDecoderVTB(createH265Callback(WTF::move(callback)))
+    : WebRTCVideoDecoderVTB(createH265Callback(WTF::move(callback)).get())
 {
 }
 

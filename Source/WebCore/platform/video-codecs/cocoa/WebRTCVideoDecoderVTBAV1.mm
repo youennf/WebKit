@@ -59,7 +59,7 @@ static RetainPtr<CMVideoFormatDescriptionRef> computeAV1InputFormat(std::span<co
 }
 
 WebRTCVideoDecoderVTBAV1::WebRTCVideoDecoderVTBAV1(WebRTCVideoDecoderCallback callback)
-    : WebRTCVideoDecoderVTB(createMultiImageCallback(WTF::move(callback)))
+    : WebRTCVideoDecoderVTB(callback)
 {
 }
 

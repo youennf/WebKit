@@ -59,9 +59,10 @@ static void overrideVP9ColorSpaceAttachments(CVPixelBufferRef pixelBuffer)
     CVBufferSetAttachment(pixelBuffer, (CFStringRef)@"ColorInfoGuessedBy", (CFStringRef)@"WebRTCDecoderVTBVP9", kCVAttachmentMode_ShouldPropagate);
 }
 
-static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> createVP9Callback(WebRTCVideoDecoderCallback callback)
+static BlockPtr<void(CVPixelBufferRef, int64_t, int64_t, bool)> createVP9Callback(WebRTCVideoDecoderCallback callback)
 {
-    return makeBlockPtr([callback = makeBlockPtr(callback)](OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime) mutable {
+    return makeBlockPtr([callback = makeBlockPtr(callback)](CVPixelBufferRef pixelBuffer, int64_t timeStamp, int64_t, bool isReordered) mutable {
+        UNUSED_PARAM(isReordered);
         if (!pixelBuffer) {
             callback(nil, 0, 0, false);
             return;
@@ -70,12 +71,12 @@ static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, 
         // FIXME: We should remove this override once the encoder is properly setting color space info.
         overrideVP9ColorSpaceAttachments(pixelBuffer);
 
-        callback((CVPixelBufferRef)pixelBuffer, presentationTime.value, 0, false);
+        callback(pixelBuffer, timeStamp, 0, false);
     });
 }
 
 WebRTCVideoDecoderVTBVP9::WebRTCVideoDecoderVTBVP9(WebRTCVideoDecoderCallback callback)
-    : WebRTCVideoDecoderVTB(createVP9Callback(WTF::move(callback)))
+    : WebRTCVideoDecoderVTB(createVP9Callback(callback).get())
 {
 }
 

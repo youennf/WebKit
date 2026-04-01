@@ -28,6 +28,7 @@
 
 #if USE(LIBWEBRTC)
 
+#include "MediaReorderQueue.h"
 #import <WebCore/CMUtilities.h>
 
 #import "CoreVideoSoftLink.h"
@@ -56,6 +57,103 @@ static RetainPtr<CFDictionaryRef> createPixelBufferAttributes()
     return adoptCF(CFDictionaryCreate(kCFAllocatorDefault, keys, values, attributesSize, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
 }
 
+class WebRTCVideoDecoderVTBQueue : public ThreadSafeRefCountedAndCanMakeThreadSafeWeakPtr<WebRTCVideoDecoderVTBQueue> {
+public:
+    static Ref<WebRTCVideoDecoderVTBQueue> create() { return adoptRef(*new WebRTCVideoDecoderVTBQueue); }
+    void setReorderSize(uint8_t);
+    uint8_t reorderSize() const;
+
+    struct Buffer {
+        RetainPtr<CVPixelBufferRef> frame;
+        int64_t timeStamp { 0 };
+    };
+    void add(Buffer&&, WebRTCVideoDecoderCallback);
+    void flush(WebRTCVideoDecoderCallback);
+
+private:
+    WebRTCVideoDecoderVTBQueue() = default;
+
+    struct BufferComparator {
+        bool operator()(const Buffer& a, const Buffer& b) const { return a.timeStamp <= b.timeStamp; }
+    };
+
+    mutable Lock m_lock;
+    MediaReorderQueue<Buffer, BufferComparator> m_queue WTF_GUARDED_BY_LOCK(m_lock);
+};
+
+uint8_t WebRTCVideoDecoderVTBQueue::reorderSize() const
+{
+    Locker lock(m_lock);
+    return m_queue.reorderSize();
+}
+
+void WebRTCVideoDecoderVTBQueue::setReorderSize(uint8_t size)
+{
+    Locker lock(m_lock);
+    m_queue.setReorderSize(size);
+}
+
+void WebRTCVideoDecoderVTBQueue::add(Buffer&& buffer, WebRTCVideoDecoderCallback callback)
+{
+    Locker lock(m_lock);
+
+    m_queue.append(WTF::move(buffer));
+
+    bool hasCalledCallback = false;
+    bool moreFramesAvailable;
+    while (auto buffer = m_queue.takeIfAvailable(moreFramesAvailable)) {
+        hasCalledCallback = true;
+        callback(buffer->frame.get(), buffer->timeStamp, 0, moreFramesAvailable);
+    }
+
+    if (!hasCalledCallback)
+        callback(nil, 0, 0, true);
+}
+
+void WebRTCVideoDecoderVTBQueue::flush(WebRTCVideoDecoderCallback callback)
+{
+    Locker lock(m_lock);
+
+    while (!m_queue.isEmpty()) {
+        auto buffer = m_queue.takeFirst();
+        callback(buffer.frame.get(), buffer.timeStamp, 0, true);
+    }
+}
+
+WebRTCVideoDecoderVTB::WebRTCVideoDecoderVTB(WebRTCVideoDecoderCallback callback)
+    : m_callback(makeBlockPtr(callback))
+{
+}
+
+WebRTCVideoDecoderVTB::~WebRTCVideoDecoderVTB() = default;
+
+static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> createMultiImageCallback(WebRTCVideoDecoderCallback callback, RefPtr<WebRTCVideoDecoderVTBQueue>&& queue, uint8_t reorderSize)
+{
+    return makeBlockPtr([callback = makeBlockPtr(callback), queue = WTF::move(queue), reorderSize](OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime) mutable {
+        UNUSED_PARAM(reorderSize);
+        if (!pixelBuffer) {
+            callback(nil, 0, 0, false);
+            return;
+        }
+
+        if (!queue) {
+            callback((CVPixelBufferRef)pixelBuffer, presentationTime.value, 0, false);
+            return;
+        }
+
+        if (reorderSize != queue->reorderSize()) {
+            queue->flush(callback.get());
+            queue->setReorderSize(reorderSize);
+        }
+
+        if (!reorderSize) {
+            callback((CVPixelBufferRef)pixelBuffer, presentationTime.value, 0, false);
+            return;
+        }
+        queue->add({ (CVPixelBufferRef)pixelBuffer, presentationTime.value }, callback.get());
+    });
+}
+
 int32_t WebRTCVideoDecoderVTB::decodeFrameInternal(int64_t timeStamp, std::span<const uint8_t> data)
 {
     if (!m_format)
@@ -73,13 +171,16 @@ int32_t WebRTCVideoDecoderVTB::decodeFrameInternal(int64_t timeStamp, std::span<
 
     PAL::CMSampleBufferSetOutputPresentationTimeStamp(sample.get(), PAL::CMTimeMake(timeStamp, 1));
     VTDecodeInfoFlags decodeInfoFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
-    protect(m_decoder)->decodeMultiImageFrame(sample.get(), decodeInfoFlags, makeBlockPtr(m_callback.get()));
+    protect(m_decoder)->decodeMultiImageFrame(sample.get(), decodeInfoFlags, createMultiImageCallback(m_callback.get(), m_queue.get(), m_reorderSize));
     return 0;
 }
 
-void WebRTCVideoDecoderVTB::setVideoFormat(RetainPtr<CMVideoFormatDescriptionRef>&& format)
+void WebRTCVideoDecoderVTB::setVideoFormat(RetainPtr<CMVideoFormatDescriptionRef>&& format, uint8_t reorderSize)
 {
     m_format = WTF::move(format);
+    m_reorderSize = reorderSize;
+    if (reorderSize && !m_queue)
+        m_queue = WebRTCVideoDecoderVTBQueue::create();
 }
 
 void WebRTCVideoDecoderVTB::flush()
@@ -96,18 +197,6 @@ void WebRTCVideoDecoderVTB::setFrameSize(uint16_t width, uint16_t height)
 {
     m_width = width;
     m_height = height;
-}
-
-BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> WebRTCVideoDecoderVTB::createMultiImageCallback(WebRTCVideoDecoderCallback callback)
-{
-    return makeBlockPtr([callback = makeBlockPtr(callback)](OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime) mutable {
-        if (!pixelBuffer) {
-            callback(nil, 0, 0, false);
-            return;
-        }
-
-        callback((CVPixelBufferRef)pixelBuffer, presentationTime.value, 0, false);
-    });
 }
 
 }

@@ -36,7 +36,7 @@ class WebRTCVideoDecoderVTBH265 final : public WebRTCVideoDecoderVTB {
 public:
     explicit WebRTCVideoDecoderVTBH265(WebRTCVideoDecoderCallback);
     ~WebRTCVideoDecoderVTBH265() = default;
-    
+
 private:
     void setFormat(std::span<const uint8_t>, uint16_t width, uint16_t height) final;
     int32_t decodeFrame(int64_t, std::span<const uint8_t>) final;

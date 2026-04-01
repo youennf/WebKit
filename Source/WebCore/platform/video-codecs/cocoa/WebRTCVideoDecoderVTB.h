@@ -33,20 +33,17 @@
 
 namespace WebCore {
 
+class WebRTCVideoDecoderVTBQueue;
+
 class WebRTCVideoDecoderVTB : public WebRTCVideoDecoder {
 public:
-    ~WebRTCVideoDecoderVTB() = default;
+    ~WebRTCVideoDecoderVTB();
 
 protected:
-    WebRTCVideoDecoderVTB(VideoDecoderVTB::CallbackMultiImage&& callback)
-        : m_callback(WTF::move(callback))
-    {
-    }
-
-    static BlockPtr<void(OSStatus, VTDecodeInfoFlags, CVImageBufferRef pixelBuffer, CMTaggedBufferGroupRef, CMTime presentationTime, CMTime)> createMultiImageCallback(WebRTCVideoDecoderCallback);
+    explicit WebRTCVideoDecoderVTB(WebRTCVideoDecoderCallback);
 
     int32_t decodeFrameInternal(int64_t timeStamp, std::span<const uint8_t> data);
-    void setVideoFormat(RetainPtr<CMVideoFormatDescriptionRef>&&);
+    void setVideoFormat(RetainPtr<CMVideoFormatDescriptionRef>&&, uint8_t reorderSize = 0);
 
     uint16_t width() const { return m_width; }
     uint16_t height() const { return m_height; }
@@ -59,11 +56,13 @@ private:
     void flush() final;
     void setFormat(std::span<const uint8_t>, uint16_t width, uint16_t height) override;
 
+    BlockPtr<void(CVPixelBufferRef, int64_t, int64_t, bool)> m_callback;
     RetainPtr<CMVideoFormatDescriptionRef> m_format;
     RefPtr<VideoDecoderVTB> m_decoder;
-    const VideoDecoderVTB::CallbackMultiImage m_callback;
+    RefPtr<WebRTCVideoDecoderVTBQueue> m_queue;
     uint16_t m_width { 0 };
     uint16_t m_height { 0 };
+    uint8_t m_reorderSize { 0 };
 };
 
 }
