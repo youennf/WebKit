@@ -151,6 +151,7 @@ uint32_t HashDjb2_NEON(const uint8_t* src, int count, uint32_t seed) {
   return hash;
 }
 
+#if defined(HAS_HAMMINGDISTANCE_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 uint32_t HammingDistance_NEON_DotProd(const uint8_t* src_a,
                                       const uint8_t* src_b,
                                       int count) {
@@ -182,7 +183,9 @@ uint32_t HammingDistance_NEON_DotProd(const uint8_t* src_a,
       : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
   return diff;
 }
+#endif
 
+#if defined(HAS_SUMSQUAREERROR_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 uint32_t SumSquareError_NEON_DotProd(const uint8_t* src_a,
                                      const uint8_t* src_b,
                                      int count) {
@@ -212,7 +215,7 @@ uint32_t SumSquareError_NEON_DotProd(const uint8_t* src_a,
       : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5");
   return sse;
 }
-
+#endif
 #endif  // !defined(LIBYUV_DISABLE_NEON) && defined(__aarch64__)
 
 #ifdef __cplusplus
