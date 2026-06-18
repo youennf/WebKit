@@ -2793,6 +2793,7 @@ void ARGBToUV444MatrixRow_NEON(const uint8_t* src_argb,
         "v26", "v27", "v28");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static void ARGBToUV444MatrixRow_NEON_I8MM(
     const uint8_t* src_argb,
     uint8_t* dst_u,
@@ -2831,6 +2832,7 @@ static void ARGBToUV444MatrixRow_NEON_I8MM(
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17",
         "v29");
 }
+#endif
 
 // RGB to BT601 coefficients
 // UB   0.875 coefficient = 112
@@ -2848,6 +2850,7 @@ void ARGBToUV444Row_NEON(const uint8_t* src_argb,
                             &kArgbI601Constants);
 }
 
+#if defined(HAS_ARGBTOUV444ROW_NEON_I8MM) // WEBRTC_WEBKIT_BUILD
 void ARGBToUV444Row_NEON_I8MM(const uint8_t* src_argb,
                               uint8_t* dst_u,
                               uint8_t* dst_v,
@@ -2855,6 +2858,7 @@ void ARGBToUV444Row_NEON_I8MM(const uint8_t* src_argb,
   ARGBToUV444MatrixRow_NEON_I8MM(src_argb, dst_u, dst_v, width,
                                  &kArgbI601Constants);
 }
+#endif
 
 void ARGBToUVJ444Row_NEON(const uint8_t* src_argb,
                           uint8_t* dst_u,
@@ -2864,6 +2868,7 @@ void ARGBToUVJ444Row_NEON(const uint8_t* src_argb,
                             &kArgbJPEGConstants);
 }
 
+#if defined(HAS_ARGBTOUV444ROW_NEON_I8MM) // WEBRTC_WEBKIT_BUILD
 void ARGBToUVJ444Row_NEON_I8MM(const uint8_t* src_argb,
                                uint8_t* dst_u,
                                uint8_t* dst_v,
@@ -2871,6 +2876,7 @@ void ARGBToUVJ444Row_NEON_I8MM(const uint8_t* src_argb,
   ARGBToUV444MatrixRow_NEON_I8MM(src_argb, dst_u, dst_v, width,
                                  &kArgbJPEGConstants);
 }
+#endif
 
 #define RGBTOUV_SETUP_REG                                                  \
   "movi       v20.8h, #112          \n" /* UB/VR coefficient  (0.875)   */ \
@@ -3328,6 +3334,7 @@ void ARGB4444ToUVRow_NEON(const uint8_t* src_argb4444,
   );
 }
 
+#if defined(HAS_ARGBTOUV444ROW_NEON_I8MM) // WEBRTC_WEBKIT_BUILD
 // Process any of ARGB, ABGR, BGRA, RGBA, by adjusting the ArgbConstants layout.
 static void ARGBToUVMatrixRow_NEON_I8MM_Impl(const uint8_t* src,
                                         int src_stride,
@@ -3461,6 +3468,7 @@ void ABGRToUVJRow_NEON_I8MM(const uint8_t* src_abgr,
   ARGBToUVMatrixRow_NEON_I8MM_Impl(src_abgr, src_stride_abgr, dst_u, dst_v, width,
                               &kAbgrJPEGConstants);
 }
+#endif
 
 void RGB565ToYRow_NEON(const uint8_t* src_rgb565, uint8_t* dst_y, int width) {
   asm volatile(
@@ -3598,6 +3606,7 @@ void ARGBToYMatrixRow_NEON(const uint8_t* src_argb,
 }
 
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToYMatrixRow_NEON_DotProd(
     const uint8_t* src_argb,
     uint8_t* dst_y,
@@ -3631,7 +3640,7 @@ void ARGBToYMatrixRow_NEON_DotProd(
       : "r"(c)             // %3
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19");
 }
-
+#endif
 
 // RGB to JPeg coefficients
 
@@ -3651,6 +3660,7 @@ void ABGRToYJRow_NEON(const uint8_t* src_abgr, uint8_t* dst_yj, int width) {
   ARGBToYMatrixRow_NEON(src_abgr, dst_yj, width, &kAbgrJPEGConstants);
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToYRow_NEON_DotProd(const uint8_t* src_argb,
                              uint8_t* dst_y,
                              int width) {
@@ -3674,6 +3684,7 @@ void ABGRToYJRow_NEON_DotProd(const uint8_t* src_abgr,
                               int width) {
   ARGBToYMatrixRow_NEON_DotProd(src_abgr, dst_yj, width, &kAbgrJPEGConstants);
 }
+#endif
 
 // RGBA expects first value to be A and ignored, then 3 values to contain RGB.
 
@@ -3689,6 +3700,7 @@ void BGRAToYRow_NEON(const uint8_t* src_bgra, uint8_t* dst_y, int width) {
   ARGBToYMatrixRow_NEON(src_bgra, dst_y, width, &kBgraI601Constants);
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void RGBAToYRow_NEON_DotProd(const uint8_t* src_rgba,
                              uint8_t* dst_y,
                              int width) {
@@ -3706,6 +3718,7 @@ void BGRAToYRow_NEON_DotProd(const uint8_t* src_bgra,
                              int width) {
   ARGBToYMatrixRow_NEON_DotProd(src_bgra, dst_y, width, &kBgraI601Constants);
 }
+#endif
 
 void RGBToYMatrixRow_NEON(const uint8_t* src_rgb,
                                  uint8_t* dst_y,
@@ -4161,6 +4174,7 @@ void ARGBGrayRow_NEON(const uint8_t* src_argb, uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v24", "v25", "v26");
 }
 
+#if defined(HAS_ARGBGRAYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBGrayRowCoeffs = {29, 150, 77, 0};
 static const uvec8 kARGBGrayRowIndices = {0, 0, 0, 19, 2, 2, 2, 23,
                                           4, 4, 4, 27, 6, 6, 6, 31};
@@ -4192,6 +4206,7 @@ void ARGBGrayRow_NEON_DotProd(const uint8_t* src_argb,
         [indices] "r"(&kARGBGrayRowIndices)  // %[indices]
       : "cc", "memory", "v0", "v1", "v2", "v3", "v24", "v25");
 }
+#endif
 
 // Convert 8 ARGB pixels (32 bytes) to 8 Sepia ARGB pixels.
 //    b = (r * 35 + g * 68 + b * 17) >> 7
@@ -4234,6 +4249,7 @@ void ARGBSepiaRow_NEON(uint8_t* dst_argb, int width) {
         "v21", "v22", "v24", "v25", "v26", "v28", "v29", "v30");
 }
 
+#if defined(HAS_ARGBSEPIAROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBSepiaRowCoeffs = {17, 68, 35, 0,  22, 88,
                                           45, 0,  24, 98, 50, 0};
 static const uvec8 kARGBSepiaRowAlphaIndices = {3, 7, 11, 15, 19, 23, 27, 31};
@@ -4274,6 +4290,7 @@ void ARGBSepiaRow_NEON_DotProd(uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v20",
         "v21", "v22", "v24", "v25", "v26", "v28", "v29", "v30");
 }
+#endif
 
 // Tranform 8 ARGB pixels (32 bytes) with color matrix.
 // TODO(fbarchard): Was same as Sepia except matrix is provided.  This function
@@ -4337,6 +4354,7 @@ void ARGBColorMatrixRow_NEON(const uint8_t* src_argb,
         "v17", "v18", "v19", "v22", "v23", "v24", "v25");
 }
 
+#if defined(HAS_ARGBCOLORMATRIXROW_NEON_I8MM) // WEBRTC_WEBKIT_BUILD
 void ARGBColorMatrixRow_NEON_I8MM(const uint8_t* src_argb,
                                   uint8_t* dst_argb,
                                   const int8_t* matrix_argb,
@@ -4392,6 +4410,7 @@ void ARGBColorMatrixRow_NEON_I8MM(const uint8_t* src_argb,
       : "cc", "memory", "v0", "v1", "v16", "v17", "v18", "v19", "v20", "v21",
         "v22", "v23", "v31");
 }
+#endif
 
 // Multiply 2 rows of ARGB pixels together, 8 pixels at a time.
 void ARGBMultiplyRow_NEON(const uint8_t* src_argb,

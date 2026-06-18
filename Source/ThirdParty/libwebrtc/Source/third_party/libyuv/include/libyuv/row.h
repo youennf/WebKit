@@ -577,6 +577,7 @@ extern "C" {
 #define HAS_P410TOAR30ROW_NEON
 #define HAS_P410TOARGBROW_NEON
 
+#if !defined(WEBRTC_WEBKIT_BUILD)
 #define HAS_ABGRTOYJROW_NEON_DOTPROD
 #define HAS_ABGRTOYROW_NEON_DOTPROD
 #define HAS_ARGBGRAYROW_NEON_DOTPROD
@@ -599,6 +600,7 @@ extern "C" {
 #define HAS_ARGBTOUVROW_NEON_I8MM
 #define HAS_BGRATOUVROW_NEON_I8MM
 #define HAS_RGBATOUVROW_NEON_I8MM
+#endif // WEBRTC_WEBKIT_BUILD
 #endif
 
 // The following are available on AArch64 SVE platforms:
