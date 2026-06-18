@@ -1547,6 +1547,8 @@ list(APPEND webrtc_SOURCES
     Source/third_party/boringssl/src/crypto/evp/p_hkdf.cc
     Source/third_party/boringssl/src/crypto/evp/p_mldsa.cc
     Source/third_party/boringssl/src/crypto/evp/print.cc
+    Source/third_party/boringssl/src/crypto/evp/p_mldsa.cc
+    Source/third_party/boringssl/src/crypto/evp/p_mldsamlkem.cc
     Source/third_party/boringssl/src/crypto/evp/p_rsa.cc
     Source/third_party/boringssl/src/crypto/evp/p_x25519.cc
     Source/third_party/boringssl/src/crypto/evp/scrypt.cc
