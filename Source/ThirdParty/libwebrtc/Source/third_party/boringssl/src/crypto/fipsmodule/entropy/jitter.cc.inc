@@ -110,7 +110,10 @@ class MemoryAccessSampler {
     for (unsigned i = 0; i < num_samples_; i++) {
       // The lower bits of an LCG tend to fall into short cycles and so are
       // discarded here.
+#pragma clang diagnostic push // WEBRTC_WEBKIT_BUILD
+#pragma clang diagnostic ignored "-Wdeprecated-volatile"
       array_[(lcg_.Next() >> 6) & (array_size_ - 1)] += 1;
+#pragma clang diagnostic pop // WEBRTC_WEBKIT_BUILD
     }
 
     *out = GetTimestamp();
