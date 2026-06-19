@@ -10,6 +10,11 @@
  */
 #ifndef AOM_CONFIG_H_
 #define AOM_CONFIG_H_
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #define AOM_ARCH_AARCH64 1
 #define AOM_ARCH_ARM 1
 #define AOM_ARCH_PPC 0
@@ -76,15 +81,27 @@
 #define DECODE_HEIGHT_LIMIT 16384
 #define DECODE_WIDTH_LIMIT 16384
 #define FORCE_HIGHBITDEPTH_DECODING 0
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+#define HAVE_ARM_CRC32 0
+#else
 #define HAVE_ARM_CRC32 1
+#endif
 #define HAVE_AVX 0
 #define HAVE_AVX2 0
 #define HAVE_AVX512 0
 #define HAVE_FEXCEPT 1
 #define HAVE_MMX 0
 #define HAVE_NEON 1
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+#define HAVE_NEON_DOTPROD 0
+#else
 #define HAVE_NEON_DOTPROD 1
+#endif
+#if defined(__APPLE__)
+#define HAVE_NEON_I8MM 0
+#else
 #define HAVE_NEON_I8MM 1
+#endif
 #define HAVE_PTHREAD_H 1
 #define HAVE_PTHREAD_SETNAME_NP 1
 #define HAVE_RVV 0
