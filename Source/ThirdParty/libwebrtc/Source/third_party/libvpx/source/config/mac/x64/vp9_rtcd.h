@@ -156,25 +156,16 @@ static void setup_rtcd_internal(void)
     (void)flags;
 
     vp9_block_error = vp9_block_error_sse2;
-    if (flags & HAS_AVX2) vp9_block_error = vp9_block_error_avx2;
     vp9_block_error_fp = vp9_block_error_fp_sse2;
-    if (flags & HAS_AVX2) vp9_block_error_fp = vp9_block_error_fp_avx2;
     vp9_highbd_iht16x16_256_add = vp9_highbd_iht16x16_256_add_c;
-    if (flags & HAS_SSE4_1) vp9_highbd_iht16x16_256_add = vp9_highbd_iht16x16_256_add_sse4_1;
     vp9_highbd_iht4x4_16_add = vp9_highbd_iht4x4_16_add_c;
-    if (flags & HAS_SSE4_1) vp9_highbd_iht4x4_16_add = vp9_highbd_iht4x4_16_add_sse4_1;
     vp9_highbd_iht8x8_64_add = vp9_highbd_iht8x8_64_add_c;
-    if (flags & HAS_SSE4_1) vp9_highbd_iht8x8_64_add = vp9_highbd_iht8x8_64_add_sse4_1;
     vp9_highbd_quantize_fp = vp9_highbd_quantize_fp_c;
-    if (flags & HAS_AVX2) vp9_highbd_quantize_fp = vp9_highbd_quantize_fp_avx2;
     vp9_highbd_quantize_fp_32x32 = vp9_highbd_quantize_fp_32x32_c;
-    if (flags & HAS_AVX2) vp9_highbd_quantize_fp_32x32 = vp9_highbd_quantize_fp_32x32_avx2;
     vp9_quantize_fp = vp9_quantize_fp_sse2;
     if (flags & HAS_SSSE3) vp9_quantize_fp = vp9_quantize_fp_ssse3;
-    if (flags & HAS_AVX2) vp9_quantize_fp = vp9_quantize_fp_avx2;
     vp9_quantize_fp_32x32 = vp9_quantize_fp_32x32_c;
     if (flags & HAS_SSSE3) vp9_quantize_fp_32x32 = vp9_quantize_fp_32x32_ssse3;
-    if (flags & HAS_AVX2) vp9_quantize_fp_32x32 = vp9_quantize_fp_32x32_avx2;
     vp9_scale_and_extend_frame = vp9_scale_and_extend_frame_c;
     if (flags & HAS_SSSE3) vp9_scale_and_extend_frame = vp9_scale_and_extend_frame_ssse3;
 }
