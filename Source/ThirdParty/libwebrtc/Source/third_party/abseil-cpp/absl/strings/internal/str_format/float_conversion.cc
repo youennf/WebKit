@@ -124,8 +124,7 @@ inline char DivideBy10WithCarry(uint64_t* v, char carry) {
   return static_cast<char>(next_carry % divisor);
 }
 
-using MaxFloatType =
-    typename std::conditional<IsDoubleDouble(), double, long double>::type;
+using MaxFloatType = std::conditional_t<IsDoubleDouble(), double, long double>;
 
 // Generates the decimal representation for an integer of the form `v * 2^exp`,
 // where `v` and `exp` are both positive integers.
@@ -1063,10 +1062,7 @@ bool FallbackToSnprintf(const Float v, const FormatConversionSpecImpl &conv,
   std::string space(512, '\0');
   absl::string_view result;
   while (true) {
-#pragma clang diagnostic push // WEBRTC_WEBKIT_BUILD
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
     int n = snprintf(&space[0], space.size(), fmt, w, p, v);
-#pragma clang diagnostic pop // WEBRTC_WEBKIT_BUILD
     if (n < 0) return false;
     if (static_cast<size_t>(n) < space.size()) {
       result = absl::string_view(space.data(), static_cast<size_t>(n));
@@ -1173,8 +1169,7 @@ constexpr bool CanFitMantissa() {
 #if defined(__clang__) && (__clang_major__ < 9) && !defined(__SSE3__)
       // Workaround for clang bug: https://bugs.llvm.org/show_bug.cgi?id=38289
       // Casting from long double to uint64_t is miscompiled and drops bits.
-      (!std::is_same<Float, long double>::value ||
-       !std::is_same<Int, uint64_t>::value) &&
+      (!std::is_same_v<Float, long double> || !std::is_same_v<Int, uint64_t>) &&
 #endif
       std::numeric_limits<Float>::digits <= std::numeric_limits<Int>::digits;
 }
@@ -1182,8 +1177,7 @@ constexpr bool CanFitMantissa() {
 template <typename Float>
 struct Decomposed {
   using MantissaType =
-      std::conditional_t<std::is_same<long double, Float>::value, uint128,
-                         uint64_t>;
+      std::conditional_t<std::is_same_v<long double, Float>, uint128, uint64_t>;
   static_assert(std::numeric_limits<Float>::digits <= sizeof(MantissaType) * 8,
                 "");
   MantissaType mantissa;
