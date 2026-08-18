@@ -31,7 +31,6 @@ static int arm_get_cpu_caps(void) {
 
 #elif defined(__APPLE__)  // end !CONFIG_RUNTIME_CPU_DETECT
 
-#if HAVE_NEON_DOTPROD || HAVE_NEON_I8MM // WEBRTC_WEBKIT_BUILD change
 // sysctlbyname() parameter documentation for instruction set characteristics:
 // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics
 static INLINE int64_t have_feature(const char *feature) {
@@ -42,7 +41,6 @@ static INLINE int64_t have_feature(const char *feature) {
   }
   return feature_present;
 }
-#endif
 
 static int arm_get_cpu_caps(void) {
   int flags = 0;
