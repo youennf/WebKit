@@ -247,10 +247,6 @@ Status MasterParser::Feed(Callback* callback, Reader* reader,
           return Status(Status::kElementOverflow);
         } else if (total_bytes_read_ == byte_cap) {
           state_ = State::kEndReached;
-#if defined(WEBRTC_WEBKIT_BUILD)
-          callback = original_callback;
-          callback->OnElementEnd(child_metadata_);
-#endif
           continue;
         }
 
@@ -261,9 +257,6 @@ Status MasterParser::Feed(Callback* callback, Reader* reader,
         }
         PrepareForNextChild();
         callback = original_callback;
-#if defined(WEBRTC_WEBKIT_BUILD)
-        callback->OnElementEnd(child_metadata_);
-#endif
         continue;
       }
 
