@@ -6022,7 +6022,11 @@ static void update_level_info(VP9_COMP *cpi, size_t size, int arf_src_index) {
 
   // update compression_ratio
   level_spec->compression_ratio = (double)level_stats->total_uncompressed_size *
+#if WEBRTC_WEBKIT_BUILD
+                                  (double)cm->bit_depth /
+#else
                                   cm->bit_depth /
+#endif
                                   level_stats->total_compressed_size / 8.0;
 
   // update max_col_tiles
