@@ -182,9 +182,7 @@ PayloadTypePicker::PayloadTypePicker() {
 
       // Payload type assignments currently used by WebRTC.
       // Includes data to reduce collisions (and thus reassignments)
-      // TODO(bugs.webrtc.org/400630582): Delete this, it's only for test
-      // stability.
-      {.format = {"reserved-do-not-use", 1, 0}, .payload_type = 102},
+
       {.format = {kCnCodecName, 16000, 1}, .payload_type = 105},
       {.format = {kCnCodecName, 32000, 1}, .payload_type = 106},
       {.format = {kOpusCodecName,
@@ -370,7 +368,7 @@ void PayloadTypeRecorder::Rollback() {
 RTCError RtpHeaderExtensionRecorder::AddMapping(RtpHeaderExtensionId id,
                                                 absl::string_view uri,
                                                 bool encrypt) {
-  auto it = uri_to_id_.find(std::pair{std::string(uri), encrypt});
+  auto it = uri_to_id_.find(std::pair{uri, encrypt});
   if (it != uri_to_id_.end()) {
     if (it->second != id) {
       RTC_HISTOGRAM_BOOLEAN(
@@ -393,7 +391,7 @@ RTCError RtpHeaderExtensionRecorder::AddMapping(RtpHeaderExtensionId id,
 RTCErrorOr<RtpHeaderExtensionId> RtpHeaderExtensionRecorder::LookupId(
     absl::string_view uri,
     bool encrypt) const {
-  auto it = uri_to_id_.find(std::pair{std::string(uri), encrypt});
+  auto it = uri_to_id_.find(std::pair{uri, encrypt});
   if (it == uri_to_id_.end()) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,
                     "No ID found for extension");
@@ -448,7 +446,8 @@ RTCErrorOr<RtpHeaderExtensionId> RtpHeaderExtensionPicker::SuggestMapping(
   // We prefer to allocate from the top of the range (14 down to 1).
   for (RtpHeaderExtensionId id =
            RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId;
-       id >= RtpHeaderExtensionId::kMinId; id = id.value() - 1) {
+       id >= RtpHeaderExtensionId::kMinId;
+       id = RtpHeaderExtensionId(id.value() - 1)) {
     if (!seen_ids_.contains(id)) {
       AddMapping(id, uri, encrypt);
       return id;

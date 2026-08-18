@@ -37,7 +37,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
-#include "api/sframe/sframe_encrypter_interface.h"
+#include "api/sframe/sframe_encryptor_interface.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -235,8 +235,8 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   void SetFrameTransformer(
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
-  RTCErrorOr<scoped_refptr<SframeEncrypterInterface>>
-  CreateSframeEncrypterOrError(const SframeEncrypterInit& options) override;
+  RTCErrorOr<scoped_refptr<SframeEncryptorInterface>>
+  CreateSframeEncryptorOrError(const SframeEncryptorInit& options) override;
 
   void SetEncoderSelector(
       std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
@@ -358,9 +358,6 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
 
   absl::AnyInvocable<RTCError()> enable_sframe_at_owner_
       RTC_GUARDED_BY(signaling_thread_);
-#if !defined(WEBRTC_WEBKIT_BUILD)
-  virtual RTCError GenerateKeyFrame(const std::vector<std::string>& rids) = 0;
-#endif
 };
 
 // LocalAudioSinkAdapter receives data callback as a sink to the local

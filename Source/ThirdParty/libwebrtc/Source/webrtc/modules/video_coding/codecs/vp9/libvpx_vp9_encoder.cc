@@ -1009,11 +1009,11 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
-  // We only support one stream at the moment.
-  if (frame_types && !frame_types->empty()) {
-    if ((*frame_types)[0] == VideoFrameType::kVideoFrameKey) {
-      force_key_frame_ = true;
-    }
+  // A keyframe request on any stream triggers a keyframe on all streams
+  // in order to keep the temporal layering structure aligned.
+  if (frame_types &&
+      absl::c_linear_search(*frame_types, VideoFrameType::kVideoFrameKey)) {
+    force_key_frame_ = true;
   }
 
   if (pics_since_key_ + 1 ==
@@ -1033,39 +1033,6 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
       force_key_frame_ = true;
     }
   }
-
-#if WEBRTC_WEBKIT_BUILD
-  if (input_image.color_space() && current_color_space_ != input_image.color_space()) {
-    current_color_space_ = input_image.color_space();
-    force_key_frame_ = true;
-
-    vpx_color_range_t vpxColorRange = current_color_space_ && current_color_space_->range() == ColorSpace::RangeID::kFull ? VPX_CR_FULL_RANGE : VPX_CR_STUDIO_RANGE;
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_RANGE, vpxColorRange);
-    vpx_color_space_t vpxColorSpace = VPX_CS_UNKNOWN;
-    if (current_color_space_) {
-      switch (current_color_space_->primaries()) {
-        case ColorSpace::PrimaryID::kBT709:
-          vpxColorSpace = current_color_space_->matrix() == ColorSpace::MatrixID::kRGB ? VPX_CS_SRGB : VPX_CS_BT_709;
-          break;
-        case ColorSpace::PrimaryID::kBT470BG:
-          vpxColorSpace = VPX_CS_BT_601;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE170M:
-          vpxColorSpace = VPX_CS_SMPTE_170;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE240M:
-          vpxColorSpace = VPX_CS_SMPTE_240;
-          break;
-        case ColorSpace::PrimaryID::kBT2020:
-          vpxColorSpace = VPX_CS_BT_2020;
-          break;
-        default:
-          break;
-      }
-    }
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_SPACE, vpxColorSpace);
-  }
-#endif
 
   vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   if (!force_key_frame_) {

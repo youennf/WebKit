@@ -78,10 +78,6 @@ class VideoRtpReceiver : public RtpReceiverBase {
 
   RtpParameters GetParameters() const override;
 
-#if defined(WEBRTC_WEBKIT_BUILD)
-  void GenerateKeyFrame() override;
-#endif
-
   // RtpReceiverInternal implementation.
   void Stop() override;
   absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;

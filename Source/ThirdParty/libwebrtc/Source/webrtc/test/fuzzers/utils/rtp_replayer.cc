@@ -22,6 +22,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/test/time_controller.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -34,9 +35,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/logging.h"
-#if !WEBRTC_WEBKIT_BUILD
 #include "rtc_base/strings/json.h"
-#endif
 #include "system_wrappers/include/clock.h"
 #include "test/call_config_utils.h"
 #include "test/create_test_environment.h"
@@ -49,7 +48,6 @@
 namespace webrtc {
 namespace test {
 
-#if !WEBRTC_WEBKIT_BUILD
 void RtpReplayer::Replay(const std::string& replay_config_filepath,
                          const uint8_t* rtp_dump_data,
                          size_t rtp_dump_size) {
@@ -59,7 +57,6 @@ void RtpReplayer::Replay(const std::string& replay_config_filepath,
   return Replay(std::move(stream_state), std::move(receive_stream_configs),
                 rtp_dump_data, rtp_dump_size);
 }
-#endif
 
 void RtpReplayer::Replay(
     std::unique_ptr<StreamState> stream_state,
@@ -84,7 +81,7 @@ void RtpReplayer::Replay(
     // Extensions are registered with an ID, which you signal to the
     // peer so they know what to expect. This code only cares about
     // parsing so the value of the ID isn't relevant.
-    extensions.RegisterByType(i, extension_type);
+    extensions.RegisterByType(RtpHeaderExtensionId(i), extension_type);
   }
 
   // Setup the video streams based on the configuration.
@@ -94,8 +91,8 @@ void RtpReplayer::Replay(
   // by chromium. To avoid blocking when running in chromium, real (default)
   // task queues are used, while `time_controller` is used only for the Clock.
   Environment env = CreateTestEnvironment({.time = time_controller.GetClock()});
-  CallConfig call_config(env);
-  std::unique_ptr<Call> call = Call::Create(std::move(call_config));
+  std::unique_ptr<Call> call =
+      Call::Create(CallConfig::CreateSingleThreaded(env));
   SetupVideoStreams(&receive_stream_configs, stream_state.get(), call.get());
 
   // Start replaying the provided stream now that it has been configured.
@@ -110,7 +107,6 @@ void RtpReplayer::Replay(
   }
 }
 
-#if !WEBRTC_WEBKIT_BUILD
 std::vector<VideoReceiveStreamInterface::Config>
 RtpReplayer::ReadConfigFromFile(const std::string& replay_config,
                                 Transport* transport) {
@@ -135,7 +131,6 @@ RtpReplayer::ReadConfigFromFile(const std::string& replay_config,
   }
   return receive_stream_configs;
 }
-#endif
 
 void RtpReplayer::SetupVideoStreams(
     std::vector<VideoReceiveStreamInterface::Config>* receive_stream_configs,
@@ -204,15 +199,8 @@ void RtpReplayer::ReplayPackets(
       RTC_LOG(LS_ERROR) << "Packet error, corrupt packets or incorrect setup?";
       break;
     }
-#ifdef WEBRTC_WEBKIT_BUILD
-    // Set the clock rate if zero - always 90K for video
-    if (received_packet.payload_type_frequency() == 0) {
-        received_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-    }
-#else
     // Set the clock rate - always 90K for video
     received_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-#endif
 
     call.Receiver()->DeliverRtpPacket(
         MediaType::VIDEO, std::move(received_packet),

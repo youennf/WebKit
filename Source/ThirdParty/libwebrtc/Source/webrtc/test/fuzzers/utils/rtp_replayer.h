@@ -21,10 +21,7 @@
 #include "api/test/time_controller.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video_codecs/video_decoder_factory.h"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
 #include "call/call.h"
-#pragma clang diagnostic pop
 #include "call/video_receive_stream.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "test/null_transport.h"

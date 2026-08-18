@@ -55,17 +55,10 @@
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
-#if defined(WEBRTC_WEBKIT_BUILD) && defined(WEBKIT_LIBWEBRTC_OPENH264_ENCODER) && WEBKIT_LIBWEBRTC_OPENH264_ENCODER
-#include "wels/codec_api.h"
-#include "wels/codec_app_def.h"
-#include "wels/codec_def.h"
-#include "wels/codec_ver.h"
-#else
 #include "third_party/openh264/src/codec/api/wels/codec_api.h"
 #include "third_party/openh264/src/codec/api/wels/codec_app_def.h"
 #include "third_party/openh264/src/codec/api/wels/codec_def.h"
 #include "third_party/openh264/src/codec/api/wels/codec_ver.h"
-#endif
 
 namespace webrtc {
 
@@ -143,6 +136,28 @@ std::optional<ScalabilityMode> ScalabilityModeFromTemporalLayers(
       RTC_DCHECK_NOTREACHED();
   }
   return std::nullopt;
+}
+
+bool IsValidResolution(int width, int height) {
+  // H.264 Level 5.2 limits:
+  // Max macroblocks per frame (MaxFS) = 36864
+  // Max width/height in macroblocks = Sqrt(MaxFS * 8) = 543
+  // A macroblock is 16x16.
+  const int64_t width_in_mbs = (static_cast<int64_t>(width) + 15) / 16;
+  const int64_t height_in_mbs = (static_cast<int64_t>(height) + 15) / 16;
+
+  if (width_in_mbs * height_in_mbs > 36864) {
+    return false;
+  }
+
+  // Aspect ratio check:
+  // PicWidthInMbs <= Sqrt(MaxFS * 8)
+  // FrameHeightInMbs <= Sqrt(MaxFS * 8)
+  if (width_in_mbs > 543 || height_in_mbs > 543) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -269,6 +284,18 @@ int32_t H264EncoderImpl::InitEncode(const VideoCodec* inst,
   if (codec_.numberOfSimulcastStreams == 0) {
     codec_.simulcastStream[0].width = codec_.width;
     codec_.simulcastStream[0].height = codec_.height;
+  }
+
+  for (int i = 0; i < number_of_streams; ++i) {
+    if (!IsValidResolution(codec_.simulcastStream[i].width,
+                           codec_.simulcastStream[i].height)) {
+      RTC_LOG(LS_ERROR) << "InitEncode: Invalid stream resolution: "
+                        << codec_.simulcastStream[i].width << "x"
+                        << codec_.simulcastStream[i].height;
+      Release();
+      ReportError();
+      return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
+    }
   }
 
   for (int i = 0, idx = number_of_streams - 1; i < number_of_streams;

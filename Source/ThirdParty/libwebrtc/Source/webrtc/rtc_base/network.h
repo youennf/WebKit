@@ -80,10 +80,7 @@ class DefaultLocalAddressProvider {
   // The default local address is the local address used in multi-homed endpoint
   // when the any address (0.0.0.0 or ::) is used as the local address. It's
   // important to check the return value as a IP family may not be enabled.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   virtual bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const = 0;
-#pragma clang diagnostic pop
 };
 
 class MdnsResponderProvider {
@@ -197,12 +194,13 @@ class RTC_EXPORT NetworkManager : public DefaultLocalAddressProvider,
 
   // The implementation of the Subscribe methods is in the .cc file due
   // to linking issues with Chrome.
+
   [[deprecated]] void SubscribeNetworksChanged(
       absl::AnyInvocable<void()> callback);
   void SubscribeNetworksChanged(void* tag, absl::AnyInvocable<void()> callback);
   void UnsubscribeNetworksChanged(void* tag);
   void NotifyNetworksChanged() { networks_changed_callbacks_.Send(); }
-  [[deprecated]] void SubscribeError(absl::AnyInvocable<void()> callback);
+
   void SubscribeError(void* tag, absl::AnyInvocable<void()> callback);
   void UnsubscribeError(void* tag);
   void NotifyError() { error_callbacks_.Send(); }
@@ -242,10 +240,7 @@ class RTC_EXPORT Network {
   std::unique_ptr<Network> Clone() const;
 
   // This signal is fired whenever type() or underlying_type_for_vpn() changes.
-  [[deprecated]] void SubscribeTypeChanged(
-      absl::AnyInvocable<void(const Network*)> callback) {
-    type_changed_callbacks_.AddReceiver(std::move(callback));
-  }
+
   void SubscribeTypeChanged(void* tag,
                             absl::AnyInvocable<void(const Network*)> callback) {
     type_changed_callbacks_.AddReceiver(tag, std::move(callback));
@@ -258,10 +253,7 @@ class RTC_EXPORT Network {
   }
 
   // This signal is fired whenever network preference changes.
-  [[deprecated]] void SubscribeNetworkPreferenceChanged(
-      absl::AnyInvocable<void(const Network*)> callback) {
-    network_preference_changed_callbacks_.AddReceiver(std::move(callback));
-  }
+
   void SubscribeNetworkPreferenceChanged(
       void* tag,
       absl::AnyInvocable<void(const Network*)> callback) {
@@ -486,7 +478,6 @@ class RTC_EXPORT Network {
   friend class NetworkManager;
 };
 
-#if WEBRTC_WEBKIT_BUILD // Move NetworkManagerBase and BasicNetworkManager definitions after Network.
 // Base class for NetworkManager implementations.
 class RTC_EXPORT NetworkManagerBase : public NetworkManager {
  public:
@@ -607,8 +598,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 
  protected:
 #if defined(WEBRTC_POSIX)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   // Separated from CreateNetworks for tests.
   void ConvertIfAddrs(ifaddrs* interfaces,
                       IfAddrsConverter* converter,
@@ -617,7 +606,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
       RTC_RUN_ON(thread_);
   NetworkMonitorInterface::InterfaceInfo GetInterfaceInfo(
       struct ifaddrs* cursor) const RTC_RUN_ON(thread_);
-#pragma clang diagnostic pop
 #endif  // defined(WEBRTC_POSIX)
 
   // Creates a network object for each network available on the machine.
@@ -664,7 +652,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   std::vector<NetworkMask> vpn_;
   scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
-#endif // WEBRTC_WEBKIT_BUILD
 
 }  //  namespace webrtc
 

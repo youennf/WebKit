@@ -70,9 +70,6 @@
 
 namespace webrtc {
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
-
 template <class T>
 class ABSL_NULLABILITY_COMPATIBLE scoped_refptr {
  public:
@@ -219,7 +216,6 @@ template <typename T, typename U>
 bool operator<(const scoped_refptr<T>& a, const scoped_refptr<U>& b) {
   return a.get() < b.get();
 }
-#pragma clang diagnostic pop
 
 }  // namespace webrtc
 

@@ -38,13 +38,10 @@ FIRFilter* CreateFirFilter(const float* coefficients,
 // If we know the minimum architecture at compile time, avoid CPU detection.
 #if defined(WEBRTC_ARCH_X86_FAMILY)
   // x86 CPU detection required.
-#if !defined(WEBRTC_WEBKIT_BUILD)
   if (cpu_info::Supports(cpu_info::ISA::kAVX2)) {
     filter =
         new FIRFilterAVX2(coefficients, coefficients_length, max_input_length);
-  } else
-#endif
-  if (cpu_info::Supports(cpu_info::ISA::kSSE2)) {
+  } else if (cpu_info::Supports(cpu_info::ISA::kSSE2)) {
     filter =
         new FIRFilterSSE2(coefficients, coefficients_length, max_input_length);
   } else {

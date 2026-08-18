@@ -57,7 +57,7 @@ namespace webrtc {
 namespace {
 
 // By default, release builds don't log, debug builds at info level
-#if !defined(NDEBUG) && !defined(WEBRTC_WEBKIT_BUILD)
+#if !defined(NDEBUG)
 constexpr LoggingSeverity kDefaultLoggingSeverity = LS_INFO;
 #else
 constexpr LoggingSeverity kDefaultLoggingSeverity = LS_NONE;
@@ -438,7 +438,7 @@ void LogMessage::UpdateMinLogSeverity()
 void LogMessage::OutputToDebug(const LogLineRef& log_line) {
   std::string msg_str = log_line.DefaultLogLine();
   bool log_to_stderr = log_to_stderr_;
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) && defined(NDEBUG) && !WEBRTC_WEBKIT_BUILD
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) && defined(NDEBUG)
   // On the Mac, all stderr output goes to the Console log and causes clutter.
   // So in opt builds, don't log to stderr unless the user specifically sets
   // a preference to do so.

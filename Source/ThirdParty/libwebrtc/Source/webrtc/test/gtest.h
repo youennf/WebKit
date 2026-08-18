@@ -14,13 +14,10 @@
 #include "rtc_base/ignore_wundef.h"
 
 RTC_PUSH_IGNORING_WUNDEF()
-#ifdef WEBRTC_WEBKIT_BUILD
-#include <gtest/gtest-spi.h>
-#include <gtest/gtest.h>
-#else
+// IWYU pragma: begin_exports
 #include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#endif // WEBRTC_WEBKIT_BUILD
+// IWYU pragma: end_exports
 RTC_POP_IGNORING_WUNDEF()
 
 // GTEST_HAS_DEATH_TEST is set to 1 when death tests are supported, but appears

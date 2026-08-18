@@ -163,6 +163,10 @@ class VideoTrackSourceInterface : public MediaSourceInterface,
   virtual void ProcessConstraints(
       const VideoTrackSourceConstraints& /* constraints */) {}
 
+  // Returns true if zero-hertz mode should be allowed for non-screenshare
+  // modes.
+  virtual bool allow_zero_hertz_video() const { return false; }
+
  protected:
   ~VideoTrackSourceInterface() override = default;
 };
@@ -339,29 +343,17 @@ class MediaStreamInterface : public RefCountInterface,
   // Note: Default implementations are for avoiding link time errors in
   // implementations that mock this API.
   // TODO(bugs.webrtc.org/13980): Remove default implementations.
-  virtual bool AddTrack(webrtc::scoped_refptr<AudioTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
+  virtual bool AddTrack(scoped_refptr<AudioTrackInterface> /* track */) {
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool AddTrack(scoped_refptr<VideoTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<AudioTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<VideoTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
 
  protected:

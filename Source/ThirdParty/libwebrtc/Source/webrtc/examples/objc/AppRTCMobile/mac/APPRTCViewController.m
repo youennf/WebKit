@@ -65,7 +65,7 @@ static NSUInteger const kBottomViewHeight = 200;
 @synthesize logView = _logView;
 
 - (void)displayLogMessage:(NSString*)message {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     self.logView.string =
         [NSString stringWithFormat:@"%@%@\n", self.logView.string, message];
     NSRange range = NSMakeRange(self.logView.string.length, 0);
@@ -388,7 +388,7 @@ static NSUInteger const kBottomViewHeight = 200;
 }
 
 - (void)showAlertWithMessage:(NSString*)message {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     NSAlert* alert = [[NSAlert alloc] init];
     [alert setMessageText:message];
     [alert runModal];
