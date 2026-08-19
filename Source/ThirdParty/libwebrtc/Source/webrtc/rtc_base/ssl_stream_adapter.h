@@ -129,7 +129,11 @@ class SSLStreamAdapter : public StreamInterface {
   static std::unique_ptr<SSLStreamAdapter> Create(
       std::unique_ptr<StreamInterface> stream,
       absl::AnyInvocable<void(SSLHandshakeError)> handshake_error,
+#if WEBRTC_WEBKIT_BUILD
+      std::nullptr_t /*field_trials*/) {
+#else
       nullptr_t /*field_trials*/) {
+#endif
     return Create(std::move(stream), std::move(handshake_error));
   }
 
