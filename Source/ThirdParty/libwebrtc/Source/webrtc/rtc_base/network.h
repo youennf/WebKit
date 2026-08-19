@@ -80,7 +80,10 @@ class DefaultLocalAddressProvider {
   // The default local address is the local address used in multi-homed endpoint
   // when the any address (0.0.0.0 or ::) is used as the local address. It's
   // important to check the return value as a IP family may not be enabled.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
   virtual bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const = 0;
+#pragma clang diagnostic pop
 };
 
 class MdnsResponderProvider {
@@ -478,6 +481,7 @@ class RTC_EXPORT Network {
   friend class NetworkManager;
 };
 
+#if WEBRTC_WEBKIT_BUILD // Move NetworkManagerBase and BasicNetworkManager definitions after Network.
 // Base class for NetworkManager implementations.
 class RTC_EXPORT NetworkManagerBase : public NetworkManager {
  public:
@@ -598,6 +602,8 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 
  protected:
 #if defined(WEBRTC_POSIX)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
   // Separated from CreateNetworks for tests.
   void ConvertIfAddrs(ifaddrs* interfaces,
                       IfAddrsConverter* converter,
@@ -606,6 +612,7 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
       RTC_RUN_ON(thread_);
   NetworkMonitorInterface::InterfaceInfo GetInterfaceInfo(
       struct ifaddrs* cursor) const RTC_RUN_ON(thread_);
+#pragma clang diagnostic pop
 #endif  // defined(WEBRTC_POSIX)
 
   // Creates a network object for each network available on the machine.
@@ -652,6 +659,7 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   std::vector<NetworkMask> vpn_;
   scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
+#endif // WEBRTC_WEBKIT_BUILD
 
 }  //  namespace webrtc
 
