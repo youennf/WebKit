@@ -1330,6 +1330,38 @@ TEST_F(RTCStatsIntegrationTest, GetStatsAfterClose) {
   EXPECT_EQ(report->begin()->type(), RTCPeerConnectionStats::kType);
 }
 
+TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
+#if !defined(WEBRTC_ENCODER_PSNR_STATS)
+  // PSNR sampling is gated on `WEBRTC_ENCODER_PSNR_STATS` in every
+  // encoder (see e.g. `modules/video_coding/codecs/h264/h264_encoder_impl.cc`
+  // and `modules/video_coding/codecs/av1/libaom_av1_encoder.cc`).  Without
+  // it, no encoder ever calls `EncodedImage::set_psnr()`, so the field-trial
+  // never produces `outbound-rtp.psnrSum` / `psnrMeasurements`.
+  GTEST_SKIP() << "Encoder PSNR stats disabled in this build";
+#else
+  StartCall("WebRTC-Video-CalculatePsnr/Enabled,sampling_interval:1000ms/");
+
+  // This assumes all other stats are ok and tests the stats which should be
+  // different under the field trial.
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  for (const RTCStats& stats : *report) {
+    if (stats.type() == RTCOutboundRtpStreamStats::kType) {
+      const RTCOutboundRtpStreamStats& outbound_stream(
+          stats.cast_to<RTCOutboundRtpStreamStats>());
+      RTCStatsVerifier verifier(report.get(), &outbound_stream);
+      if (outbound_stream.kind.has_value() &&
+          *outbound_stream.kind == "video") {
+        verifier.TestAttributeIsDefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsNonNegative(outbound_stream.psnr_measurements);
+      } else {
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
+      }
+    }
+  }
+#endif  // !defined(WEBRTC_ENCODER_PSNR_STATS)
+}
+
 TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {
   // CCFB negotiation is asymmetric: the generator sets the flag but doesn't
   // add it to codecs' feedback_params, while the parser adds it to codecs'
