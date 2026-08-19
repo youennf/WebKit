@@ -289,6 +289,10 @@ void DtlsTransportInternalImpl::CompleteDtlsInStun(bool success) {
   ice_transport()->ResetDtlsStunPiggybackCallbacks();
 
   DeregisterReceivedPacketCallback(&dtls_stun_piggyback_controller_);
+#if WEBRTC_WEBKIT_BUILD
+  ice_transport()->UnsubscribeReceivingState(this);
+  ice_transport()->UnsubscribeWritableState(this);
+#endif
 }
 
 DtlsTransportState DtlsTransportInternalImpl::dtls_state() const {
