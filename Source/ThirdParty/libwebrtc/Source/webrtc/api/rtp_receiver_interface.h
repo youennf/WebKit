@@ -129,6 +129,10 @@ class RTC_EXPORT RtpReceiverInterface : public RefCountInterface,
     SetFrameTransformer(std::move(frame_transformer));
   }
 
+#if defined(WEBRTC_WEBKIT_BUILD)
+  virtual void GenerateKeyFrame() { }
+#endif
+
   // Default implementation of SetFrameTransformer.
   // TODO: bugs.webrtc.org/15929 - Make pure virtual.
   void SetFrameTransformer(

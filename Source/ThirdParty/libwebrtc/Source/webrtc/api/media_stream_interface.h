@@ -343,17 +343,29 @@ class MediaStreamInterface : public RefCountInterface,
   // Note: Default implementations are for avoiding link time errors in
   // implementations that mock this API.
   // TODO(bugs.webrtc.org/13980): Remove default implementations.
-  virtual bool AddTrack(scoped_refptr<AudioTrackInterface> /* track */) {
+  virtual bool AddTrack(webrtc::scoped_refptr<AudioTrackInterface> /* track */) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool AddTrack(scoped_refptr<VideoTrackInterface> /* track */) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<AudioTrackInterface> /* track */) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<VideoTrackInterface> /* track */) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
+    return false;
   }
 
  protected:

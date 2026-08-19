@@ -842,7 +842,9 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // is removed; remove default implementation once upstream is updated.
   virtual RTCError RemoveTrackOrError(
       scoped_refptr<RtpSenderInterface> /* sender */) {
+#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
+#endif
     return RTCError();
   }
 
