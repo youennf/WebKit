@@ -104,6 +104,11 @@ void PacketTransportInternal::NotifyReadyToSend(
 }
 
 void PacketTransportInternal::SubscribeReceivingState(
+    absl::AnyInvocable<void(PacketTransportInternal*)> callback) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  receiving_state_callbacks_.AddReceiver(std::move(callback));
+}
+void PacketTransportInternal::SubscribeReceivingState(
     void* tag,
     absl::AnyInvocable<void(PacketTransportInternal*)> callback) {
   RTC_DCHECK_RUN_ON(&network_checker_);
