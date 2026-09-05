@@ -136,6 +136,7 @@ struct PeerConnectionFactoryAndThreads {
 
 static void doReleaseLogging(webrtc::LoggingSeverity severity, const char* message)
 {
+    WTFLogAlways("%s\n", message);
 #if RELEASE_LOG_DISABLED
     UNUSED_PARAM(severity);
     UNUSED_PARAM(message);
@@ -153,11 +154,11 @@ static webrtc::LoggingSeverity NODELETE computeLogLevel(WTFLogLevel level)
     switch (level) {
     case WTFLogLevel::Always:
     case WTFLogLevel::Error:
-        return webrtc::LS_ERROR;
+        return webrtc::LS_VERBOSE;
     case WTFLogLevel::Warning:
-        return webrtc::LS_WARNING;
+        return webrtc::LS_VERBOSE;
     case WTFLogLevel::Info:
-        return webrtc::LS_INFO;
+        return webrtc::LS_VERBOSE;
     case WTFLogLevel::Debug:
         return webrtc::LS_VERBOSE;
     }
@@ -165,7 +166,7 @@ static webrtc::LoggingSeverity NODELETE computeLogLevel(WTFLogLevel level)
 #else
     UNUSED_PARAM(level);
 #endif
-    return webrtc::LS_NONE;
+    return webrtc::LS_VERBOSE;
 }
 
 static LibWebRTCLogSink& getRTCLogSink()

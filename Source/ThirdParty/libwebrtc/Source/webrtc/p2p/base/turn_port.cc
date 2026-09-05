@@ -878,18 +878,30 @@ void TurnPort::ResolveTurnAddress(const SocketAddress& address) {
                    << address.ToSensitiveString();
   resolver_ = socket_factory()->CreateAsyncDnsResolver();
   auto callback = [this] {
+#if WEBRTC_WEBKIT_BUILD
+    // If DNS resolve is failed when trying to connect to the server,
+#else
     // If DNS resolve is failed when trying to connect to the server using TCP,
+#endif
     // one of the reason could be due to DNS queries blocked by firewall.
     // In such cases we will try to connect to the server with hostname,
     // assuming socket layer will resolve the hostname through a HTTP proxy (if
     // any).
     auto& result = resolver_->result();
     if (result.GetError() != 0 && (server_address_.proto == PROTO_TCP ||
+#if WEBRTC_WEBKIT_BUILD
+                                   server_address_.proto == PROTO_UDP ||
+#endif
                                    server_address_.proto == PROTO_TLS ||
                                    server_address_.proto == PROTO_DTLS)) {
       if (!CreateTurnClientSocket()) {
         OnAllocateError(STUN_ERROR_SERVER_NOT_REACHABLE,
                         "TURN host lookup received error.");
+      }
+      if (server_address_.proto == PROTO_UDP) {
+        // If its UDP, send AllocateRequest now.
+        // For TCP and TLS AllcateRequest will be sent by OnSocketConnect.
+        SendRequest(new TurnAllocateRequest(this), 0);
       }
       return;
     }
