@@ -135,6 +135,11 @@ private:
     FloatSize m_contentSize;
     uint32_t m_width { 0 };
     uint32_t m_height { 0 };
+    // Point→pixel scale read from SCK's per-frame SCStreamFrameInfoScaleFactor attachment. Used by
+    // streamConfiguration() to promote track-settings width/height from points to pixels when a
+    // settings snapshot was built before the first frame revealed the real scale (otherwise SCK
+    // downsamples retina content on retina displays).
+    float m_pointPixelScale { 1 };
     float m_frameRate { 0 };
     bool m_isRunning { false };
     bool m_isVideoEffectEnabled { false };

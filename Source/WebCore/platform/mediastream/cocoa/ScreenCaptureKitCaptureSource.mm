@@ -346,6 +346,19 @@ RetainPtr<SCStreamConfiguration> ScreenCaptureKitCaptureSource::streamConfigurat
     auto width = m_width;
     auto height = m_height;
 
+    // RealtimeMediaSource settings are a snapshot: if the first intrinsicSize() read happened
+    // before the first SCK frame revealed the real point→pixel scale, m_width/m_height can be
+    // latched in point dimensions while m_contentSize ends up in pixels. SCK would then produce a
+    // downsampled buffer. Detect this (the width : m_contentSize ratio matches the per-frame scale)
+    // and promote in place so the output stays at native density.
+    if (width && height && !m_contentSize.isEmpty() && m_pointPixelScale > 1.1f) {
+        float widthRatio = m_contentSize.width() / static_cast<float>(width);
+        if (std::abs(widthRatio - m_pointPixelScale) < 0.1f) {
+            width  = static_cast<uint32_t>(std::round(width  * m_pointPixelScale));
+            height = static_cast<uint32_t>(std::round(height * m_pointPixelScale));
+        }
+    }
+
     if (!width && !height) {
         width = m_contentSize.width();
         height = m_contentSize.height();
@@ -377,23 +390,10 @@ void ScreenCaptureKitCaptureSource::startContentStream()
 
         if (m_contentSize.isEmpty())
             m_contentSize = defaultIntrinsicSize;
+        if ([m_contentFilter pointPixelScale])
+            m_contentSize.scale([m_contentFilter pointPixelScale]);
 
-        // Scale from points to pixels. SCContentFilter::pointPixelScale returns 0 when the captured
-        // window doesn't intersect any screen (true of our tab-capture mirror window at (-100000,
-        // -100000)); fall back to the main screen's backing scale factor so the stream resolution
-        // matches the retina pixel density of the content we're compositing. Without this, SCK
-        // captures a point-dimensioned stream and the result looks blurred by exactly the retina
-        // scale factor.
-        auto pointPixelScale = static_cast<float>([m_contentFilter pointPixelScale]);
-        if (pointPixelScale < 1) {
-            if (NSScreen *mainScreen = [NSScreen mainScreen])
-                pointPixelScale = static_cast<float>([mainScreen backingScaleFactor]);
-            if (pointPixelScale < 1)
-                pointPixelScale = 1;
-        }
-        m_contentSize.scale(pointPixelScale);
-
-        ALWAYS_LOG_IF_POSSIBLE(LOGIDENTIFIER, "contentFilter.contentRect = ", m_contentSize, ", contentFilter.pointPixelScale = ", [m_contentFilter pointPixelScale], ", effective scale = ", pointPixelScale);
+        ALWAYS_LOG_IF_POSSIBLE(LOGIDENTIFIER, "contentFilter.contentRect = ", m_contentSize, ", contentFilter.pointPixelScale = ", [m_contentFilter pointPixelScale]);
     }
 
     if (!m_contentFilter) {
@@ -589,6 +589,14 @@ void ScreenCaptureKitCaptureSource::streamDidOutputVideoSampleBuffer(RetainPtr<C
         UNUSED_PARAM(shouldDisallowReconfiguration);
 #endif
     }).get()];
+
+    // Cache the per-frame point→pixel scale. The streamConfiguration() boundary uses this to detect
+    // and promote track settings (m_width/m_height) that were latched in point dimensions before the
+    // first frame revealed the real scale — otherwise SCK downsamples retina content on retina
+    // displays. SCK's SCStreamFrameInfoScaleFactor is the authoritative source: SCContentFilter's
+    // own pointPixelScale is unreliable in the GPU process for off-screen tab-capture windows.
+    if (scaleFactor > 0)
+        m_pointPixelScale = static_cast<float>(scaleFactor);
 
     if (status) {
         switch (*status) {
