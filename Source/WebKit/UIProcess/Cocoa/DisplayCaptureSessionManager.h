@@ -72,6 +72,7 @@ private:
     void showTabPicker(WebPageProxy& requestingPage, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
     void startTabCapture(WebPageProxy&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
     void updateCaptureMode();
+    void updateTabCaptureCursorMirror();
 
     void pollPickerOverlays();
     void installPickerOverlayInWindow(NSWindow *);
@@ -91,7 +92,11 @@ private:
     enum class CaptureMode { None, SafariWindow, OffscreenReparent };
     CaptureMode m_tabCaptureMode { CaptureMode::None };
     RetainPtr<NSWindow> m_tabCaptureOffscreenWindow;
+    RetainPtr<CALayer> m_tabCaptureCursorLayer;
     RetainPtr<NSTimer> m_tabCaptureModePoll;
+    RetainPtr<NSTimer> m_tabCaptureCursorRefreshTimer;
+    RetainPtr<NSObject> m_tabCaptureCursorLocalMonitor;
+    RetainPtr<NSObject> m_tabCaptureCursorGlobalMonitor;
     RetainPtr<NSObject> m_tabCaptureViewFrameObserver;
     WeakPtr<WebPageProxy> m_capturedPage;
 
