@@ -1336,13 +1336,9 @@ void UIDelegate::UIClient::decidePolicyForUserMediaPermissionRequest(WebPageProx
     }
 
     if (request.requiresDisplayCapture()) {
-        bool respondsToRequestDisplayCapturePermission = [delegate respondsToSelector:@selector(_webView:requestDisplayCapturePermissionForOrigin:initiatedByFrame:withSystemAudio:decisionHandler:)];
-        if (!respondsToRequestDisplayCapturePermission || request.canRequestDisplayCapturePermission()) {
-            request.promptForGetDisplayMedia(UserMediaPermissionRequestProxy::UserMediaDisplayCapturePromptType::UserChoose);
-            return;
-        }
-
-        callDisplayCapturePermissionDelegate(page, frame, FrameInfoData { request.frameInfo() }, userMediaOrigin, topLevelOrigin, request);
+        // Prototype: always use WebKit's own alert (so the Window/Screen/Tab picker fires) instead
+        // of handing off to the Safari delegate's own prompt.
+        request.promptForGetDisplayMedia(UserMediaPermissionRequestProxy::UserMediaDisplayCapturePromptType::UserChoose);
         return;
     }
 

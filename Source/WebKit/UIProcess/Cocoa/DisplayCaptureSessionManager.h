@@ -30,8 +30,16 @@
 #include "UserMediaPermissionRequestProxy.h"
 #include "WebPageProxy.h"
 #include <WebCore/SecurityOriginData.h>
+#include <memory>
 #include <wtf/CompletionHandler.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/WeakPtr.h>
+
+OBJC_CLASS CALayer;
+OBJC_CLASS NSMutableArray;
+OBJC_CLASS NSObject;
+OBJC_CLASS NSTimer;
+OBJC_CLASS NSWindow;
 
 namespace WebCore {
 class SecurityOrigin;
@@ -59,8 +67,14 @@ public:
 private:
 
 #if HAVE(SCREEN_CAPTURE_KIT)
-    enum class CaptureSessionType { None, Screen, Window };
+    enum class CaptureSessionType { None, Screen, Window, Tab };
     void alertForGetDisplayMedia(WebPageProxy&, const WebCore::SecurityOriginData&, CompletionHandler<void(DisplayCaptureSessionManager::CaptureSessionType)>&&);
+    void showTabPicker(WebPageProxy& requestingPage, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+
+    void pollPickerOverlays();
+    void installPickerOverlayInWindow(NSWindow *);
+    void dismissPickerOverlays();
+    void endPickerSession();
 #endif
     void showWindowPicker(const WebCore::SecurityOriginData&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
     void showScreenPicker(const WebCore::SecurityOriginData&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
@@ -70,6 +84,15 @@ private:
 
     std::optional<unsigned> m_indexOfDeviceSelectedForTesting;
     PromptOverride m_systemCanPromptForTesting { PromptOverride::Default };
+
+    // Tab-picker overlay session state.
+    RetainPtr<NSMutableArray> m_pickerOverlays;
+    RetainPtr<NSMutableArray> m_pickerWindowsWithMouseMovedEnabled;
+    RetainPtr<NSTimer> m_pickerHoverTimer;
+    RetainPtr<NSObject> m_pickerEventMonitor;
+    RetainPtr<NSWindow> m_pickerHoveredWindow;
+    WeakPtr<WebPageProxy> m_pickerRequestingPage;
+    std::shared_ptr<CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>> m_pickerCompletion;
 };
 
 } // namespace WebKit
