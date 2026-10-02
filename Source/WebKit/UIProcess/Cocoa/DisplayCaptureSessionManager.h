@@ -57,6 +57,14 @@ public:
 
     void promptForGetDisplayMedia(UserMediaPermissionRequestProxy::UserMediaDisplayCapturePromptType, WebPageProxy&, const WebCore::SecurityOriginData&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
     void cancelGetDisplayMediaPrompt(WebPageProxy&);
+
+    // Called from -[WKWebView _willReplace:] when a browser tab swaps the WKWebView it's showing
+    // (e.g. cross-domain navigation producing a new WKWebView). If `oldPage` is the one currently
+    // being tab-captured, moves the capture session onto `newPage`: tears down the mirror and
+    // activity-state override on the old page, installs them on the new page, and swaps the mirror
+    // root in the offscreen capture window. The SCK stream against that window keeps running.
+    // No-op if `oldPage` is not the captured page.
+    void migrateTabCaptureIfNeeded(WebPageProxy& oldPage, WebPageProxy& newPage);
     bool canRequestDisplayCapturePermission();
     void setIndexOfDeviceSelectedForTesting(std::optional<unsigned> index) { m_indexOfDeviceSelectedForTesting = index; }
 
