@@ -606,6 +606,17 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
     } else
         RELEASE_LOG_ERROR(WebRTC, "startTabCapture - drawing area is not a RemoteLayerTreeDrawingAreaProxy; mirror unavailable.");
 
+    // Cursor mirror layer: sibling of the (soon-to-arrive) mirror root. Also under sublayerTransform's
+    // -topInset shift, so updateTabCaptureCursorMirror pre-adds topInset to the layer's Y position so
+    // the hotspot lands on the correct content-area coordinate once the transform is applied.
+    RetainPtr cursorLayer = adoptNS([[CALayer alloc] init]);
+    [cursorLayer setAnchorPoint:CGPointMake(0, 0)];
+    [cursorLayer setContentsScale:[window backingScaleFactor]];
+    [cursorLayer setZPosition:1000];
+    [cursorLayer setHidden:YES];
+    [[contentView layer] addSublayer:cursorLayer.get()];
+    m_tabCaptureCursorLayer = cursorLayer;
+
     uint32_t windowID = static_cast<uint32_t>([targetWindow windowNumber]);
     if (!windowID) {
         RELEASE_LOG_ERROR(WebRTC, "startTabCapture - no windowNumber for target %p.", targetWindow);
@@ -647,6 +658,32 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
         RELEASE_LOG(WebRTC, "startTabCapture - resized offscreen window to %gx%g (inset=%g).", newSize.width, newSize.height, inset);
     }];
 
+    // Install NSEvent monitors to drive the cursor mirror. Local for events within our app's windows,
+    // global for events in other apps (so capture of a hovered link cursor still works when Safari isn't
+    // the key app). Both only reposition the mirror layer — they never consume the event.
+    auto cursorEventBlock = ^(NSEvent *event) {
+        DisplayCaptureSessionManager::singleton().updateTabCaptureCursorMirror();
+    };
+    m_tabCaptureCursorLocalMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged | NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp | NSEventMaskRightMouseDown | NSEventMaskRightMouseUp) handler:^NSEvent *(NSEvent *event) {
+        cursorEventBlock(event);
+        return event;
+    }];
+    m_tabCaptureCursorGlobalMonitor = [NSEvent addGlobalMonitorForEventsMatchingMask:(NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged) handler:cursorEventBlock];
+
+    // Safari's own windows only deliver mouse-moved events to the local monitor if they accept them.
+    if (webView.get().window && ![webView.get().window acceptsMouseMovedEvents])
+        [webView.get().window setAcceptsMouseMovedEvents:YES];
+
+    // Refresh timer catches cursor changes that occur without mouse motion (e.g. JS-driven cursor changes,
+    // or a late IPC arrival after the last mouse event).
+    if (m_tabCaptureCursorRefreshTimer)
+        [m_tabCaptureCursorRefreshTimer invalidate];
+    m_tabCaptureCursorRefreshTimer = [NSTimer timerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *) {
+        DisplayCaptureSessionManager::singleton().updateTabCaptureCursorMirror();
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:m_tabCaptureCursorRefreshTimer.get() forMode:NSRunLoopCommonModes];
+    updateTabCaptureCursorMirror();
+
     if (protect(page.preferences())->useGPUProcessForDisplayCapture()) {
         Ref gpuProcess = protect(page.configuration().processPool())->ensureGPUProcess();
         gpuProcess->updateSandboxAccess(false, false, true);
@@ -669,6 +706,76 @@ void DisplayCaptureSessionManager::updateCaptureMode()
 #endif
 }
 
+void DisplayCaptureSessionManager::updateTabCaptureCursorMirror()
+{
+#if HAVE(WINDOW_CAPTURE)
+    if (!m_tabCaptureCursorLayer || !m_tabCaptureOffscreenWindow)
+        return;
+    RefPtr page = m_capturedPage.get();
+    if (!page)
+        return;
+    RetainPtr webView = page->cocoaView();
+    if (!webView) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+    NSWindow *webViewWindow = [webView window];
+    if (!webViewWindow) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+
+    // Map screen mouse location → WKWebView-local coordinates with top-left origin.
+    NSPoint mouseScreen = [NSEvent mouseLocation];
+    NSPoint mouseInWindow = [webViewWindow convertPointFromScreen:mouseScreen];
+    NSRect webViewInWindow = [webView convertRect:[webView bounds] toView:nil];
+    CGFloat localX = mouseInWindow.x - NSMinX(webViewInWindow);
+    CGFloat localYFromBottom = mouseInWindow.y - NSMinY(webViewInWindow);
+    CGFloat localYFromTop = NSHeight(webViewInWindow) - localYFromBottom;
+
+    // Hide if the mouse is outside the WKWebView's content area, or above the chrome inset.
+    CGFloat topInset = page->obscuredContentInsets().top();
+    CGFloat mirrorY = localYFromTop - topInset;
+    bool insideContent = localX >= 0 && localX <= NSWidth(webViewInWindow)
+        && localYFromTop >= topInset && localYFromTop <= NSHeight(webViewInWindow);
+    if (!insideContent) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+
+    // Pull image + hotspot from the currently-set NSCursor. WebKit's PageClientImplMac::setCursor already
+    // called [NSCursor set] with the Cursor::platformCursor() for the current hit-tested element, so this
+    // reflects link / IBeam / resize / custom cursors as they are selected.
+    NSCursor *current = [NSCursor currentCursor];
+    if (!current) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+    NSImage *image = [current image];
+    NSSize imageSize = image ? [image size] : NSZeroSize;
+    if (!image || imageSize.width <= 0 || imageSize.height <= 0) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+    NSPoint hotSpot = [current hotSpot];
+
+    CGImageRef cgImage = [image CGImageForProposedRect:nullptr context:nil hints:nil];
+    if (!cgImage) {
+        [m_tabCaptureCursorLayer setHidden:YES];
+        return;
+    }
+
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [m_tabCaptureCursorLayer setContents:(__bridge id)cgImage];
+    [m_tabCaptureCursorLayer setBounds:CGRectMake(0, 0, imageSize.width, imageSize.height)];
+    // The cursor layer is a sublayer of the content view's layer which carries a sublayerTransform of
+    // -topInset on Y. Pre-add topInset so the net effect places the hotspot at content-coord mirrorY.
+    [m_tabCaptureCursorLayer setPosition:CGPointMake(localX - hotSpot.x, mirrorY - hotSpot.y + topInset)];
+    [m_tabCaptureCursorLayer setHidden:NO];
+    [CATransaction commit];
+#endif
+}
 #endif // HAVE(SCREEN_CAPTURE_KIT)
 
 std::optional<WebCore::CaptureDevice> DisplayCaptureSessionManager::deviceSelectedForTesting(WebCore::CaptureDevice::DeviceType deviceType, unsigned indexOfDeviceSelectedForTesting)
