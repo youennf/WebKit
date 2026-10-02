@@ -65,6 +65,15 @@ public:
     // root in the offscreen capture window. The SCK stream against that window keeps running.
     // No-op if `oldPage` is not the captured page.
     void migrateTabCaptureIfNeeded(WebPageProxy& oldPage, WebPageProxy& newPage);
+
+    // Called from WebPageProxy::finishAttachingToWebProcess after a process-swap-on-navigation
+    // (triggered by Back/Forward or by cross-site navigation that reuses the same WKWebView).
+    // The WebPageProxy stays the same, so m_capturedPage still points at the right page, but the
+    // mirror RemoteLayerTreeHost is holding state from the previous process and the new process
+    // has no idea the mirror exists. Tear the mirror down and re-enable it so a fresh seed IPC
+    // goes out to the new WebContent, and swap the new mirror root into the offscreen window.
+    // No-op if `page` is not the captured page.
+    void reattachTabCaptureMirrorAfterProcessSwap(WebPageProxy& page);
     bool canRequestDisplayCapturePermission();
     void setIndexOfDeviceSelectedForTesting(std::optional<unsigned> index) { m_indexOfDeviceSelectedForTesting = index; }
 
