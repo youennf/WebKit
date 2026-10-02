@@ -40,6 +40,7 @@
 #import "ContentAsStringIncludesChildFrames.h"
 #import "DefaultWebBrowserChecks.h"
 #import "DiagnosticLoggingClient.h"
+#import "DisplayCaptureSessionManager.h"
 #import "EditingRange.h"
 #import "FindClient.h"
 #import "FullscreenClient.h"
@@ -5151,6 +5152,22 @@ static RetainPtr<NSArray> wkTextManipulationErrors(NSArray<_WKTextManipulationIt
 {
     THROW_IF_SUSPENDED;
     _page->stopMediaCapture(WebCore::MediaProducerMediaCaptureKind::EveryKind);
+}
+
+- (void)_willReplace:(WKWebView *)previousWebView
+{
+    WTFLogAlways("_willReplace is called");
+    THROW_IF_SUSPENDED;
+#if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
+    if (!previousWebView)
+        return;
+    RefPtr previousPage = previousWebView->_page;
+    if (!previousPage)
+        return;
+    WebKit::DisplayCaptureSessionManager::singleton().migrateTabCaptureIfNeeded(*previousPage, *_page);
+#else
+    UNUSED_PARAM(previousWebView);
+#endif
 }
 
 - (void)_stopAllMediaPlayback

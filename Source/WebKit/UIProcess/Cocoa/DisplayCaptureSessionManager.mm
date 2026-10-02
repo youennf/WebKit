@@ -53,6 +53,9 @@
 #import <wtf/cocoa/TypeCastsCocoa.h>
 #import <wtf/text/StringToIntegerConversion.h>
 
+#import <pal/spi/cg/CoreGraphicsSPI.h>
+#import <pal/spi/cocoa/QuartzCoreSPI.h>
+
 @interface WKTabCaptureMirrorFlippedView : NSView
 @end
 @implementation WKTabCaptureMirrorFlippedView
@@ -962,6 +965,65 @@ void DisplayCaptureSessionManager::cancelGetDisplayMediaPrompt(WebPageProxy& pag
         return;
 
     gpuProcess->cancelGetDisplayMediaPrompt();
+#endif
+}
+
+void DisplayCaptureSessionManager::migrateTabCaptureIfNeeded(WebPageProxy& oldPage, WebPageProxy& newPage)
+{
+#if HAVE(SCREEN_CAPTURE_KIT) && HAVE(WINDOW_CAPTURE)
+    RefPtr captured = m_capturedPage.get();
+    if (!captured || captured.get() != &oldPage) {
+        RELEASE_LOG(WebRTC, "migrateTabCaptureIfNeeded - oldPage %" PRIu64 " is not the captured page; no-op.", oldPage.identifier().toUInt64());
+        return;
+    }
+    if (&oldPage == &newPage)
+        return;
+    if (!m_tabCaptureOffscreenWindow) {
+        RELEASE_LOG_ERROR(WebRTC, "migrateTabCaptureIfNeeded - no offscreen capture window; aborting migration.");
+        return;
+    }
+
+    RELEASE_LOG(WebRTC, "migrateTabCaptureIfNeeded - migrating capture from page %" PRIu64 " to page %" PRIu64 ".",
+        oldPage.identifier().toUInt64(), newPage.identifier().toUInt64());
+
+    // Tear down on the old page: drop activity-state override and remove the mirror from its drawing area.
+    oldPage.setIsBeingCapturedForTabCapture(false);
+    if (auto* oldDA = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(oldPage.drawingArea()))
+        oldDA->disableCaptureMirrorLayerTree();
+
+    // Remove the old mirror root from our offscreen content view. We don't know which sublayer is the
+    // old mirror root (we didn't retain a direct reference), so remove any CALayer that is NOT the
+    // cursor layer we installed on top.
+    RetainPtr<CALayer> contentViewLayer = [[m_tabCaptureOffscreenWindow contentView] layer];
+    if (contentViewLayer) {
+        for (CALayer *sublayer in [[contentViewLayer sublayers] copy]) {
+            if (sublayer == m_tabCaptureCursorLayer.get())
+                continue;
+            [sublayer removeFromSuperlayer];
+        }
+    }
+
+    // Rebind to the new page and install the mirror there. Insert the arriving mirror root into the
+    // same offscreen content view when it attaches, below the cursor overlay.
+    m_capturedPage = newPage;
+    newPage.setIsBeingCapturedForTabCapture(true);
+
+    WeakObjCPtr<CALayer> weakContentViewLayer = contentViewLayer.get();
+    if (auto* newDA = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(newPage.drawingArea())) {
+        newDA->enableCaptureMirrorLayerTree([weakContentViewLayer](RetainPtr<CALayer> mirrorRoot) mutable {
+            RetainPtr<CALayer> cv = weakContentViewLayer.get();
+            if (!cv || !mirrorRoot) {
+                RELEASE_LOG_ERROR(WebRTC, "migrateTabCaptureIfNeeded mirror attach - cv=%p mirrorRoot=%p; aborting.", cv.get(), mirrorRoot.get());
+                return;
+            }
+            [cv insertSublayer:mirrorRoot.get() atIndex:0];
+            RELEASE_LOG(WebRTC, "migrateTabCaptureIfNeeded mirror attach - new mirrorRoot=%p inserted into offscreen window.", mirrorRoot.get());
+        });
+    } else
+        RELEASE_LOG_ERROR(WebRTC, "migrateTabCaptureIfNeeded - new page has no RemoteLayerTreeDrawingAreaProxy; mirror unavailable.");
+#else
+    UNUSED_PARAM(oldPage);
+    UNUSED_PARAM(newPage);
 #endif
 }
 

@@ -430,6 +430,13 @@ for this property.
 @property (nonatomic, setter=_setMediaCaptureEnabled:) BOOL _mediaCaptureEnabled WK_API_AVAILABLE(macos(10.13), ios(11.0));
 - (void)_stopMediaCapture WK_API_AVAILABLE(macos(10.15.4), ios(13.4));
 
+// Called on the incoming WKWebView just before it takes over a user-visible slot (e.g. a browser
+// tab) from `previousWebView`, which presented the same logical content. Lets WebKit migrate
+// tab-scoped state that is bound to the previous WKWebView — presently the tab capture session
+// (getDisplayMedia with capture of this tab) — onto `self` so capture continues uninterrupted
+// across the swap. No-op if `previousWebView` has nothing attached.
+- (void)_willReplace:(WKWebView *)previousWebView WK_API_AVAILABLE(macos(WK_MAC_TBA));
+
 @property (nonatomic, readonly) BOOL _isSuspended;
 
 #if TARGET_OS_IPHONE
