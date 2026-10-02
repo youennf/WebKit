@@ -3611,6 +3611,15 @@ void WebPageProxy::updateActivityState(OptionSet<ActivityState> flagsToUpdate)
         internals().activityState.add(ActivityState::IsVisibleOrOccluded);
     if (flagsToUpdate & ActivityState::IsInWindow && pageClient->isViewInWindow())
         internals().activityState.add(ActivityState::IsInWindow);
+    // Tab-capture override: while this page is being captured (possibly from a background tab), keep
+    // the visibility-related bits set so WebContent continues committing layer transactions. Without
+    // this the mirror stops receiving updates as soon as Safari moves the tab off-screen.
+    if (m_isBeingCapturedForTabCapture) {
+        internals().activityState.add(ActivityState::IsInWindow);
+        internals().activityState.add(ActivityState::IsVisible);
+        internals().activityState.add(ActivityState::IsVisibleOrOccluded);
+        internals().activityState.add(ActivityState::WindowIsActive);
+    }
     bool isVisuallyIdle = pageClient->isVisuallyIdle();
 #if PLATFORM(COCOA) && !HAVE(CGS_FIX_FOR_RADAR_97530095) && ENABLE(MEDIA_USAGE)
     if (pageClient->isMainViewVisible() && m_mediaUsageManager && m_mediaUsageManager->isPlayingVideoInViewport())
@@ -8165,6 +8174,16 @@ void WebPageProxy::seedFullLayerTreeInNextTransaction()
         RELEASE_LOG(WebRTC, "WebPageProxy::seedFullLayerTreeInNextTransaction - sending to WebContent pid=%d pageID=%" PRIu64 ".", webProcess.processID(), pageID.toUInt64());
         webProcess.send(Messages::WebPage::SeedFullLayerTreeInNextTransaction(), pageID);
     });
+}
+
+void WebPageProxy::setIsBeingCapturedForTabCapture(bool captured)
+{
+    if (m_isBeingCapturedForTabCapture == captured)
+        return;
+    m_isBeingCapturedForTabCapture = captured;
+    RELEASE_LOG(WebRTC, "WebPageProxy::setIsBeingCapturedForTabCapture(%d) on page %" PRIu64 ".", captured, identifier().toUInt64());
+    // Push the recomputed visibility bits to WebContent so it stops/starts throttling.
+    activityStateDidChange({ WebCore::ActivityState::IsInWindow, WebCore::ActivityState::IsVisible, WebCore::ActivityState::IsVisibleOrOccluded, WebCore::ActivityState::WindowIsActive });
 }
 
 void WebPageProxy::preferencesDidChange()

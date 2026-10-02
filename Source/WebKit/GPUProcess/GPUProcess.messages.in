@@ -72,6 +72,8 @@ messages -> GPUProcess : AuxiliaryProcess {
 
 #if HAVE(SCREEN_CAPTURE_KIT)
     PromptForGetDisplayMedia(enum:uint8_t WebCore::DisplayCapturePromptType type) -> (std::optional<WebCore::CaptureDevice> device)
+    PromptForGetDisplayMediaForWindowID(uint32_t windowID, std::optional<WebCore::FloatRect> initialCrop) -> (std::optional<WebCore::CaptureDevice> device)
+    UpdateActiveTabCaptureFilterForWindowID(uint32_t newWindowID, std::optional<WebCore::FloatRect> sourceRect) -> (bool success) Async
     CancelGetDisplayMediaPrompt()
 #endif
 

@@ -53,6 +53,12 @@
 #import <wtf/cocoa/TypeCastsCocoa.h>
 #import <wtf/text/StringToIntegerConversion.h>
 
+@interface WKTabCaptureMirrorFlippedView : NSView
+@end
+@implementation WKTabCaptureMirrorFlippedView
+- (BOOL)isFlipped { return YES; }
+@end
+
 @interface WKTabCapturePickerOverlay : NSView
 - (instancetype)initWithFrame:(NSRect)frame shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock;
 - (void)setShowsCaptureTint:(BOOL)shows;
@@ -332,6 +338,19 @@ static RetainPtr<NSView> pickerVisibleWKWebViewInWindow(NSWindow *window)
     return fallback;
 }
 
+static RefPtr<WebPageProxy> pickerPageForCocoaView(NSView *view)
+{
+    if (!view)
+        return nullptr;
+    for (Ref process : WebProcessProxy::allProcesses()) {
+        for (Ref page : process->pages()) {
+            if (page->cocoaView().get() == view)
+                return page.ptr();
+        }
+    }
+    return nullptr;
+}
+
 static NSWindow *pickerWindowUnderMouse()
 {
     NSPoint mouseLocation = [NSEvent mouseLocation];
@@ -425,10 +444,14 @@ void DisplayCaptureSessionManager::installPickerOverlayInWindow(NSWindow *window
         if (!mgr.m_pickerCompletion)
             return;
         auto completion = WTF::move(*mgr.m_pickerCompletion);
+        RetainPtr<NSView> host = pickerVisibleWKWebViewInWindow(window_.get());
+        RefPtr picked = pickerPageForCocoaView(host.get());
         mgr.endPickerSession();
-        // Tab capture is not implemented yet in this commit; picking a tab tears the picker down and
-        // returns no device so getDisplayMedia rejects cleanly.
-        completion(std::nullopt);
+        if (!picked) {
+            completion(std::nullopt);
+            return;
+        }
+        mgr.startTabCapture(*picked, WTF::move(completion));
     };
     auto cancelBlock = ^{
         auto& mgr = DisplayCaptureSessionManager::singleton();
@@ -474,6 +497,176 @@ void DisplayCaptureSessionManager::endPickerSession()
     m_pickerHoveredWindow = nullptr;
     m_pickerRequestingPage = nullptr;
     m_pickerCompletion = nullptr;
+}
+
+UNUSED_FUNCTION static bool webViewIsVisibleOnScreen(NSView *webView)
+{
+    if (!webView)
+        return false;
+    NSWindow *window = [webView window];
+    if (!window || ![window isVisible])
+        return false;
+    if ([webView isHiddenOrHasHiddenAncestor])
+        return false;
+    return true;
+}
+
+// Normalized (0-1) crop rect of the Safari window — intersection of WKWebView rect with the window's
+// contentLayoutRect (excludes title bar). Expressed as fractions of the window frame. In SCK's
+// coordinate the rect's Y is "from top" because SCK's contentRect is top-left-origin.
+UNUSED_FUNCTION static std::optional<WebCore::FloatRect> safariWindowCropForWebView(NSView *webView)
+{
+    if (!webView)
+        return std::nullopt;
+    NSWindow *window = [webView window];
+    if (!window)
+        return std::nullopt;
+    NSRect windowFrame = [window frame];
+    if (NSWidth(windowFrame) <= 0 || NSHeight(windowFrame) <= 0)
+        return std::nullopt;
+    NSRect webViewInWindow = [webView convertRect:[webView bounds] toView:nil];
+    NSRect contentLayout = [window contentLayoutRect];
+    NSRect visible = NSIntersectionRect(webViewInWindow, contentLayout);
+    if (NSIsEmptyRect(visible))
+        return std::nullopt;
+    return WebCore::FloatRect {
+        static_cast<float>(NSMinX(visible) / NSWidth(windowFrame)),
+        static_cast<float>((NSHeight(windowFrame) - NSMaxY(visible)) / NSHeight(windowFrame)),
+        static_cast<float>(NSWidth(visible) / NSWidth(windowFrame)),
+        static_cast<float>(NSHeight(visible) / NSHeight(windowFrame))
+    };
+}
+
+void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
+{
+#if HAVE(WINDOW_CAPTURE)
+    RetainPtr webView = page.cocoaView();
+    if (!webView) {
+        completionHandler(std::nullopt);
+        return;
+    }
+
+    m_capturedPage = page;
+
+    // Force the captured page's activity state to stay visible / in-window even when Safari moves it
+    // to the background, so WebContent keeps committing fresh backing-store (otherwise the mirror
+    // ends up with white tiles).
+    page.setIsBeingCapturedForTabCapture(true);
+
+    // Offscreen window used to host the mirror layer tree and the cursor overlay. SCK captures it by
+    // windowNumber even though it's positioned off-screen.
+    //
+    // Use a flipped contentView (isFlipped=YES) so its layer's coordinate system matches WKFlippedView.
+    // Shrink the window height by obscuredContentInsets.top() and shift the mirror root up by the same
+    // amount via sublayerTransform on the content layer — WebKit lays out content below the inset, so
+    // this crops the empty strip. The cursor mirror compensates for this shift in its own position.
+    NSRect webViewFrame = [webView frame];
+    auto topInset = page.obscuredContentInsets().top();
+    NSSize contentSize = NSMakeSize(NSWidth(webViewFrame) ?: 800, std::max<CGFloat>(1, (NSHeight(webViewFrame) ?: 600) - topInset));
+    NSRect offscreenFrame = NSMakeRect(-100000, -100000, contentSize.width, contentSize.height);
+    RetainPtr window = adoptNS([[NSWindow alloc] initWithContentRect:offscreenFrame styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO]);
+    [window setReleasedWhenClosed:NO];
+    [window setOpaque:YES];
+    [window setHasShadow:NO];
+    [window setBackgroundColor:[NSColor whiteColor]];
+    [window setLevel:NSNormalWindowLevel];
+    RetainPtr contentView = adoptNS([[WKTabCaptureMirrorFlippedView alloc] initWithFrame:NSMakeRect(0, 0, contentSize.width, contentSize.height)]);
+    [contentView setWantsLayer:YES];
+    [[contentView layer] setBackgroundColor:[NSColor whiteColor].CGColor];
+    // Shift reparented sublayers up by topInset so content starts at Y=0 of the mirror.
+    if (topInset > 0)
+        [[contentView layer] setSublayerTransform:CATransform3DMakeTranslation(0, -topInset, 0)];
+    RELEASE_LOG(WebRTC, "startTabCapture - obscuredContentInsets top=%g webViewFrame=%gx%g.", topInset, NSWidth(webViewFrame), NSHeight(webViewFrame));
+    [window setContentView:contentView.get()];
+    [window orderFrontRegardless];
+    m_tabCaptureOffscreenWindow = window;
+
+    // Capture always targets the offscreen window and reads from the mirror tree. The primary tree
+    // stays with Safari untouched, so the user's WKWebView keeps rendering normally while capture runs.
+    NSWindow *targetWindow = window.get();
+    m_tabCaptureMode = CaptureMode::OffscreenReparent;
+    RELEASE_LOG(WebRTC, "startTabCapture - page %" PRIu64 " mirror-capture target=%p windowID=%ld.",
+        page.identifier().toUInt64(), targetWindow, (long)[targetWindow windowNumber]);
+
+    // Attach a mirror RemoteLayerTreeHost. Attach is async: the completion fires once WebContent has
+    // resent the full layer tree (via SeedFullLayerTreeInNextTransaction) and the mirror has a root.
+    WeakObjCPtr<CALayer> weakContentViewLayer = [contentView layer];
+    if (auto* da = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(page.drawingArea())) {
+        da->enableCaptureMirrorLayerTree([weakContentViewLayer](RetainPtr<CALayer> mirrorRoot) mutable {
+            RetainPtr<CALayer> contentViewLayer = weakContentViewLayer.get();
+            if (!contentViewLayer || !mirrorRoot) {
+                RELEASE_LOG_ERROR(WebRTC, "startTabCapture mirror attach - contentViewLayer=%p mirrorRoot=%p; aborting.", contentViewLayer.get(), mirrorRoot.get());
+                return;
+            }
+            // Insert below the cursor layer (highest zPosition). The sublayerTransform on contentViewLayer
+            // crops the top chrome inset.
+            [contentViewLayer insertSublayer:mirrorRoot.get() atIndex:0];
+            RELEASE_LOG(WebRTC, "startTabCapture mirror attach - mirrorRoot=%p added to offscreen window.", mirrorRoot.get());
+        });
+    } else
+        RELEASE_LOG_ERROR(WebRTC, "startTabCapture - drawing area is not a RemoteLayerTreeDrawingAreaProxy; mirror unavailable.");
+
+    uint32_t windowID = static_cast<uint32_t>([targetWindow windowNumber]);
+    if (!windowID) {
+        RELEASE_LOG_ERROR(WebRTC, "startTabCapture - no windowNumber for target %p.", targetWindow);
+        completionHandler(std::nullopt);
+        return;
+    }
+
+    // No mode switching in the prototype — the poller is retained only to simplify teardown bookkeeping.
+    if (m_tabCaptureModePoll)
+        [m_tabCaptureModePoll invalidate];
+    m_tabCaptureModePoll = nullptr;
+
+    // Track WKWebView size changes so the offscreen window stays sized to match. NSViewFrameDidChangeNotification
+    // fires whenever the observed view's frame changes.
+    [webView setPostsFrameChangedNotifications:YES];
+    if (m_tabCaptureViewFrameObserver)
+        [[NSNotificationCenter defaultCenter] removeObserver:m_tabCaptureViewFrameObserver.get()];
+    WeakObjCPtr<NSView> weakWebView = webView.get();
+    RetainPtr<NSWindow> weakWindow = window;
+    WeakPtr<WebPageProxy> weakPage { page };
+    m_tabCaptureViewFrameObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSViewFrameDidChangeNotification object:webView.get() queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *) {
+        RetainPtr strongWebView = weakWebView.get();
+        RetainPtr strongWindow = weakWindow;
+        RefPtr strongPage = weakPage.get();
+        if (!strongWebView || !strongWindow || !strongPage)
+            return;
+        NSRect newFrame = [strongWebView frame];
+        CGFloat inset = strongPage->obscuredContentInsets().top();
+        NSSize newSize = NSMakeSize(NSWidth(newFrame) ?: 1, std::max<CGFloat>(1, (NSHeight(newFrame) ?: 1) - inset));
+        NSRect currentWindowFrame = [strongWindow frame];
+        if (NSWidth(currentWindowFrame) == newSize.width && NSHeight(currentWindowFrame) == newSize.height)
+            return;
+        [strongWindow setFrame:NSMakeRect(NSMinX(currentWindowFrame), NSMinY(currentWindowFrame), newSize.width, newSize.height) display:NO];
+        [[strongWindow contentView] setFrame:NSMakeRect(0, 0, newSize.width, newSize.height)];
+        if (inset > 0)
+            [[[strongWindow contentView] layer] setSublayerTransform:CATransform3DMakeTranslation(0, -inset, 0)];
+        else
+            [[[strongWindow contentView] layer] setSublayerTransform:CATransform3DIdentity];
+        RELEASE_LOG(WebRTC, "startTabCapture - resized offscreen window to %gx%g (inset=%g).", newSize.width, newSize.height, inset);
+    }];
+
+    if (protect(page.preferences())->useGPUProcessForDisplayCapture()) {
+        Ref gpuProcess = protect(page.configuration().processPool())->ensureGPUProcess();
+        gpuProcess->updateSandboxAccess(false, false, true);
+        gpuProcess->promptForGetDisplayMediaForWindowID(windowID, std::nullopt, WTF::move(completionHandler));
+        return;
+    }
+    WebCore::ScreenCaptureKitSharingSessionManager::singleton().promptForGetDisplayMediaForWindowID(windowID, std::nullopt, WTF::move(completionHandler));
+#else
+    UNUSED_PARAM(page);
+    completionHandler(std::nullopt);
+#endif
+}
+
+void DisplayCaptureSessionManager::updateCaptureMode()
+{
+#if HAVE(WINDOW_CAPTURE)
+    // Prototype: always-offscreen. The visibility-driven mode switch is intentionally disabled so the
+    // compositor tree stays reparented into our capture window even when the WKWebView is foregrounded.
+    // Safari's own view will render blank while capture is active; that trade is accepted for the experiment.
+#endif
 }
 
 #endif // HAVE(SCREEN_CAPTURE_KIT)

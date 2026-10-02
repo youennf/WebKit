@@ -507,6 +507,16 @@ void GPUProcessProxy::promptForGetDisplayMedia(WebCore::DisplayCapturePromptType
     sendWithAsyncReply(Messages::GPUProcess::PromptForGetDisplayMedia { type }, WTF::move(completionHandler));
 }
 
+void GPUProcessProxy::promptForGetDisplayMediaForWindowID(uint32_t windowID, std::optional<WebCore::FloatRect> initialCrop, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
+{
+    sendWithAsyncReply(Messages::GPUProcess::PromptForGetDisplayMediaForWindowID { windowID, initialCrop }, WTF::move(completionHandler));
+}
+
+void GPUProcessProxy::updateActiveTabCaptureFilterForWindowID(uint32_t newWindowID, std::optional<WebCore::FloatRect> sourceRect, CompletionHandler<void(bool)>&& completionHandler)
+{
+    sendWithAsyncReply(Messages::GPUProcess::UpdateActiveTabCaptureFilterForWindowID { newWindowID, sourceRect }, WTF::move(completionHandler));
+}
+
 void GPUProcessProxy::cancelGetDisplayMediaPrompt()
 {
     send(Messages::GPUProcess::CancelGetDisplayMediaPrompt { }, 0);

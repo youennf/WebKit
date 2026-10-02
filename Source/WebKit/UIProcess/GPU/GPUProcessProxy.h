@@ -124,6 +124,8 @@ public:
 
 #if HAVE(SCREEN_CAPTURE_KIT)
     void promptForGetDisplayMedia(WebCore::DisplayCapturePromptType, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+    void promptForGetDisplayMediaForWindowID(uint32_t windowID, std::optional<WebCore::FloatRect> initialCrop, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+    void updateActiveTabCaptureFilterForWindowID(uint32_t newWindowID, std::optional<WebCore::FloatRect> sourceRect, CompletionHandler<void(bool)>&&);
     void cancelGetDisplayMediaPrompt();
 #endif
 
