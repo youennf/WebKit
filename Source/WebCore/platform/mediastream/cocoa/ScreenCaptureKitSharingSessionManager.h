@@ -27,6 +27,7 @@
 #if HAVE(SCREEN_CAPTURE_KIT)
 
 #include <WebCore/DisplayCapturePromptType.h>
+#include <WebCore/FloatRect.h>
 #include <wtf/AbstractCanMakeCheckedPtr.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/RefCountedAndCanMakeWeakPtr.h>
@@ -70,6 +71,11 @@ public:
     void updateContentFilter(SCContentFilter*);
     void streamDidEnd();
 
+    // Normalized crop rect (0-1 fractions of SCK's reported contentRect) applied post-capture by
+    // ScreenCaptureKitCaptureSource::streamDidOutputVideoSampleBuffer.
+    void setPendingSourceRect(std::optional<FloatRect> rect) { m_pendingSourceRect = rect; }
+    std::optional<FloatRect> pendingSourceRect() const { return m_pendingSourceRect; }
+
     bool operator==(const ScreenCaptureSessionSource&) const;
 
 private:
@@ -79,6 +85,7 @@ private:
     RetainPtr<SCContentFilter> m_contentFilter;
     WeakPtr<ScreenCaptureSessionSourceObserver> m_observer;
     CleanupFunction m_cleanupFunction;
+    std::optional<FloatRect> m_pendingSourceRect;
 };
 
 class ScreenCaptureKitSharingSessionManager : public RefCountedAndCanMakeWeakPtr<ScreenCaptureKitSharingSessionManager> {
@@ -99,6 +106,8 @@ public:
     void cancelPendingSessionForDevice(const CaptureDevice&);
 
     WEBCORE_EXPORT void promptForGetDisplayMedia(DisplayCapturePromptType, CompletionHandler<void(std::optional<CaptureDevice>)>&&);
+    WEBCORE_EXPORT void promptForGetDisplayMediaForWindowID(uint32_t windowID, std::optional<FloatRect> initialCrop, CompletionHandler<void(std::optional<CaptureDevice>)>&&);
+    WEBCORE_EXPORT void updateActiveTabCaptureFilterForWindowID(uint32_t newWindowID, std::optional<FloatRect> sourceRect, CompletionHandler<void(bool success)>&&);
     WEBCORE_EXPORT void cancelGetDisplayMediaPrompt();
 
 private:
@@ -116,6 +125,7 @@ private:
     Vector<WeakPtr<ScreenCaptureSessionSource>> m_activeSources;
 
     RetainPtr<SCContentFilter> m_pendingContentFilter;
+    std::optional<FloatRect> m_pendingSourceRect;
 
     RetainPtr<WebDisplayMediaPromptHelper> m_promptHelper;
     CompletionHandler<void(std::optional<CaptureDevice>)> m_completionHandler;

@@ -70,6 +70,8 @@ private:
     enum class CaptureSessionType { None, Screen, Window, Tab };
     void alertForGetDisplayMedia(WebPageProxy&, const WebCore::SecurityOriginData&, CompletionHandler<void(DisplayCaptureSessionManager::CaptureSessionType)>&&);
     void showTabPicker(WebPageProxy& requestingPage, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+    void startTabCapture(WebPageProxy&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+    void updateCaptureMode();
 
     void pollPickerOverlays();
     void installPickerOverlayInWindow(NSWindow *);
@@ -84,6 +86,14 @@ private:
 
     std::optional<unsigned> m_indexOfDeviceSelectedForTesting;
     PromptOverride m_systemCanPromptForTesting { PromptOverride::Default };
+
+    // Tab-capture state.
+    enum class CaptureMode { None, SafariWindow, OffscreenReparent };
+    CaptureMode m_tabCaptureMode { CaptureMode::None };
+    RetainPtr<NSWindow> m_tabCaptureOffscreenWindow;
+    RetainPtr<NSTimer> m_tabCaptureModePoll;
+    RetainPtr<NSObject> m_tabCaptureViewFrameObserver;
+    WeakPtr<WebPageProxy> m_capturedPage;
 
     // Tab-picker overlay session state.
     RetainPtr<NSMutableArray> m_pickerOverlays;

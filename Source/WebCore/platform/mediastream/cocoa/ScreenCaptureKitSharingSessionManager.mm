@@ -157,6 +157,101 @@ void ScreenCaptureKitSharingSessionManager::cancelGetDisplayMediaPrompt()
         cancelPicking();
 }
 
+void ScreenCaptureKitSharingSessionManager::promptForGetDisplayMediaForWindowID(uint32_t windowID, std::optional<FloatRect> initialCrop, CompletionHandler<void(std::optional<CaptureDevice>)>&& completionHandler)
+{
+#if HAVE(WINDOW_CAPTURE)
+    ASSERT(isMainThread());
+
+    if (m_completionHandler) {
+        auto previous = std::exchange(m_completionHandler, nullptr);
+        previous(std::nullopt);
+    }
+    m_completionHandler = WTF::move(completionHandler);
+    m_pendingSourceRect = initialCrop;
+
+    auto lookupBlock = makeBlockPtr([weakThis = WeakPtr { *this }, windowID](SCShareableContent *content, NSError *error) mutable {
+        callOnMainRunLoop([weakThis = WTF::move(weakThis), windowID, content = retainPtr(content), error = retainPtr(error)]() mutable {
+            RefPtr protectedThis = weakThis.get();
+            if (!protectedThis)
+                return;
+            if (error || !content) {
+                RELEASE_LOG_ERROR(WebRTC, "ScreenCaptureKitSharingSessionManager::promptForGetDisplayMediaForWindowID - SCShareableContent failed.");
+                protectedThis->completeDeviceSelection(nullptr);
+                return;
+            }
+            RetainPtr<SCWindow> targetWindow;
+            for (SCWindow *window in [content.get() windows]) {
+                if ([window windowID] == windowID) {
+                    targetWindow = window;
+                    break;
+                }
+            }
+            if (!targetWindow) {
+                RELEASE_LOG_ERROR(WebRTC, "ScreenCaptureKitSharingSessionManager::promptForGetDisplayMediaForWindowID - window %u not found.", static_cast<unsigned>(windowID));
+                protectedThis->completeDeviceSelection(nullptr);
+                return;
+            }
+            RetainPtr<SCContentFilter> filter = adoptNS([PAL::allocSCContentFilterInstance() initWithDesktopIndependentWindow:targetWindow.get()]);
+            protectedThis->completeDeviceSelection(filter.get());
+        });
+    });
+
+    [PAL::getSCShareableContentClassSingleton() getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:NO completionHandler:lookupBlock.get()];
+#else
+    UNUSED_PARAM(windowID);
+    UNUSED_PARAM(initialCrop);
+    completionHandler(std::nullopt);
+#endif
+}
+
+void ScreenCaptureKitSharingSessionManager::updateActiveTabCaptureFilterForWindowID(uint32_t newWindowID, std::optional<FloatRect> sourceRect, CompletionHandler<void(bool)>&& completionHandler)
+{
+#if HAVE(WINDOW_CAPTURE)
+    ASSERT(isMainThread());
+    if (m_activeSources.isEmpty()) {
+        completionHandler(false);
+        return;
+    }
+
+    auto lookupBlock = makeBlockPtr([weakThis = WeakPtr { *this }, newWindowID, sourceRect, completionHandler = WTF::move(completionHandler)] (SCShareableContent *content, NSError *error) mutable {
+        callOnMainRunLoop([weakThis = WTF::move(weakThis), newWindowID, sourceRect, content = retainPtr(content), error = retainPtr(error), completionHandler = WTF::move(completionHandler)] () mutable {
+            RefPtr protectedThis = weakThis.get();
+            if (!protectedThis || error || !content) {
+                completionHandler(false);
+                return;
+            }
+            RetainPtr<SCWindow> targetWindow;
+            for (SCWindow *window in [content.get() windows]) {
+                if ([window windowID] == newWindowID) {
+                    targetWindow = window;
+                    break;
+                }
+            }
+            if (!targetWindow) {
+                completionHandler(false);
+                return;
+            }
+            RetainPtr<SCContentFilter> filter = adoptNS([PAL::allocSCContentFilterInstance() initWithDesktopIndependentWindow:targetWindow.get()]);
+            for (auto& weakSource : protectedThis->m_activeSources) {
+                if (RefPtr source = weakSource.get()) {
+                    source->setPendingSourceRect(sourceRect);
+                    source->updateContentFilter(filter.get());
+                    completionHandler(true);
+                    return;
+                }
+            }
+            completionHandler(false);
+        });
+    });
+
+    [PAL::getSCShareableContentClassSingleton() getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:NO completionHandler:lookupBlock.get()];
+#else
+    UNUSED_PARAM(newWindowID);
+    UNUSED_PARAM(sourceRect);
+    completionHandler(false);
+#endif
+}
+
 void ScreenCaptureKitSharingSessionManager::cancelPicking()
 {
     ASSERT(isMainThread());
@@ -434,6 +529,8 @@ RefPtr<ScreenCaptureSessionSource> ScreenCaptureKitSharingSessionManager::create
     };
 
     auto newSession = ScreenCaptureSessionSource::create(WTF::move(observer), WTF::move(stream), contentFilter, WTF::move(cleanupFunction));
+    if (m_pendingSourceRect)
+        newSession->setPendingSourceRect(m_pendingSourceRect);
     m_activeSources.append(newSession);
 
     return newSession;

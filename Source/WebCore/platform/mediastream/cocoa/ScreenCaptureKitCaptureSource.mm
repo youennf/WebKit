@@ -377,10 +377,23 @@ void ScreenCaptureKitCaptureSource::startContentStream()
 
         if (m_contentSize.isEmpty())
             m_contentSize = defaultIntrinsicSize;
-        if ([m_contentFilter pointPixelScale])
-            m_contentSize.scale([m_contentFilter pointPixelScale]);
 
-        ALWAYS_LOG_IF_POSSIBLE(LOGIDENTIFIER, "contentFilter.contentRect = ", m_contentSize, ", contentFilter.pointPixelScale = ", [m_contentFilter pointPixelScale]);
+        // Scale from points to pixels. SCContentFilter::pointPixelScale returns 0 when the captured
+        // window doesn't intersect any screen (true of our tab-capture mirror window at (-100000,
+        // -100000)); fall back to the main screen's backing scale factor so the stream resolution
+        // matches the retina pixel density of the content we're compositing. Without this, SCK
+        // captures a point-dimensioned stream and the result looks blurred by exactly the retina
+        // scale factor.
+        auto pointPixelScale = static_cast<float>([m_contentFilter pointPixelScale]);
+        if (pointPixelScale < 1) {
+            if (NSScreen *mainScreen = [NSScreen mainScreen])
+                pointPixelScale = static_cast<float>([mainScreen backingScaleFactor]);
+            if (pointPixelScale < 1)
+                pointPixelScale = 1;
+        }
+        m_contentSize.scale(pointPixelScale);
+
+        ALWAYS_LOG_IF_POSSIBLE(LOGIDENTIFIER, "contentFilter.contentRect = ", m_contentSize, ", contentFilter.pointPixelScale = ", [m_contentFilter pointPixelScale], ", effective scale = ", pointPixelScale);
     }
 
     if (!m_contentFilter) {
@@ -594,6 +607,21 @@ void ScreenCaptureKitCaptureSource::streamDidOutputVideoSampleBuffer(RetainPtr<C
 
     if (scaleFactor != 1)
         contentRect.scale(scaleFactor);
+
+    // Post-capture crop: if the session source has a normalized (0-1) crop rect, re-express the
+    // target contentRect as that fraction of SCK's reported rect. Used in SafariWindow mode to crop
+    // out tab/URL chrome.
+    if (m_sessionSource) {
+        if (auto pending = m_sessionSource->pendingSourceRect()) {
+            FloatRect cropInPixels {
+                contentRect.x() + static_cast<float>(pending->x() * contentRect.width()),
+                contentRect.y() + static_cast<float>(pending->y() * contentRect.height()),
+                static_cast<float>(pending->width() * contentRect.width()),
+                static_cast<float>(pending->height() * contentRect.height())
+            };
+            contentRect = cropInPixels;
+        }
+    }
 
     auto scaledContentRect = contentRect;
     if (contentScale && contentScale != 1)

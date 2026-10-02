@@ -1893,6 +1893,11 @@ public:
     // a full tree in one shot. Fire-and-forget; the mirror picks the state up when that commit arrives.
     void seedFullLayerTreeInNextTransaction();
 
+    // Tab-capture support: while true, activityState() forces IsInWindow/IsVisible bits so the page
+    // keeps committing layer transactions even when Safari moves the tab off-screen.
+    void setIsBeingCapturedForTabCapture(bool);
+    bool isBeingCapturedForTabCapture() const { return m_isBeingCapturedForTabCapture; }
+
     float headerHeightForPrinting(WebFrameProxy&);
     float footerHeightForPrinting(WebFrameProxy&);
     void drawHeaderForPrinting(WebFrameProxy&, WebCore::FloatRect&&);
@@ -4075,6 +4080,7 @@ private:
 #endif
 
     RefPtr<DrawingAreaProxy> m_drawingArea;
+    bool m_isBeingCapturedForTabCapture { false };
 #if PLATFORM(COCOA)
     std::unique_ptr<RemoteLayerTreeHost> m_frozenRemoteLayerTreeHost;
     RefPtr<RemoteScrollingCoordinatorProxy> m_scrollingCoordinatorProxy;
