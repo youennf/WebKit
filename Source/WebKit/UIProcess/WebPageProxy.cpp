@@ -1755,6 +1755,14 @@ void WebPageProxy::finishAttachingToWebProcess(const Site& site, ProcessLaunchRe
     if (RefPtr pageClient = this->pageClient())
         pageClient->didRelaunchProcess();
     protect(pageLoadState())->didSwapWebProcesses();
+
+#if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
+    // If this page is being tab-captured, the mirror RemoteLayerTreeHost holds state keyed to the
+    // previous WebContent process and the new process has no idea the mirror exists. Re-seat the
+    // mirror so the new process gets a seed IPC and the offscreen window picks up the fresh root.
+    if (m_isBeingCapturedForTabCapture && reason == ProcessLaunchReason::ProcessSwap)
+        DisplayCaptureSessionManager::singleton().reattachTabCaptureMirrorAfterProcessSwap(*this);
+#endif
 }
 
 void WebPageProxy::didAttachToRunningProcess()

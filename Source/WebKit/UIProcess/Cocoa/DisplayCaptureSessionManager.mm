@@ -1027,6 +1027,53 @@ void DisplayCaptureSessionManager::migrateTabCaptureIfNeeded(WebPageProxy& oldPa
 #endif
 }
 
+void DisplayCaptureSessionManager::reattachTabCaptureMirrorAfterProcessSwap(WebPageProxy& page)
+{
+#if HAVE(SCREEN_CAPTURE_KIT) && HAVE(WINDOW_CAPTURE)
+    RefPtr captured = m_capturedPage.get();
+    if (!captured || captured.get() != &page)
+        return;
+    if (!m_tabCaptureOffscreenWindow)
+        return;
+
+    RELEASE_LOG(WebRTC, "reattachTabCaptureMirrorAfterProcessSwap - page %" PRIu64 " swapped WebContent; re-seeding mirror.",
+        page.identifier().toUInt64());
+
+    // Pop any orphaned mirror root sublayers off the offscreen content view (cursor overlay stays).
+    RetainPtr<CALayer> contentViewLayer = [[m_tabCaptureOffscreenWindow contentView] layer];
+    if (contentViewLayer) {
+        for (CALayer *sublayer in [[contentViewLayer sublayers] copy]) {
+            if (sublayer == m_tabCaptureCursorLayer.get())
+                continue;
+            [sublayer removeFromSuperlayer];
+        }
+    }
+
+    auto* da = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(page.drawingArea());
+    if (!da) {
+        RELEASE_LOG_ERROR(WebRTC, "reattachTabCaptureMirrorAfterProcessSwap - no RemoteLayerTreeDrawingAreaProxy.");
+        return;
+    }
+
+    // Disable the mirror (drops the host carrying stale pre-swap layer IDs), then re-enable so a
+    // fresh seed IPC is sent to the newly-attached WebContent process. The attach completion
+    // reinstalls the new mirror root as the base sublayer of the offscreen content view.
+    da->disableCaptureMirrorLayerTree();
+    WeakObjCPtr<CALayer> weakContentViewLayer = contentViewLayer.get();
+    da->enableCaptureMirrorLayerTree([weakContentViewLayer](RetainPtr<CALayer> mirrorRoot) mutable {
+        RetainPtr<CALayer> cv = weakContentViewLayer.get();
+        if (!cv || !mirrorRoot) {
+            RELEASE_LOG_ERROR(WebRTC, "reattachTabCaptureMirrorAfterProcessSwap mirror attach - cv=%p mirrorRoot=%p; aborting.", cv.get(), mirrorRoot.get());
+            return;
+        }
+        [cv insertSublayer:mirrorRoot.get() atIndex:0];
+        RELEASE_LOG(WebRTC, "reattachTabCaptureMirrorAfterProcessSwap mirror attach - mirrorRoot=%p inserted.", mirrorRoot.get());
+    });
+#else
+    UNUSED_PARAM(page);
+#endif
+}
+
 } // namespace WebKit
 
 #endif // PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
