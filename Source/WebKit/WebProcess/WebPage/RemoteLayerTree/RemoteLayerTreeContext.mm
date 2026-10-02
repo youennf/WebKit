@@ -121,6 +121,22 @@ void RemoteLayerTreeContext::layerDidEnterContext(PlatformCALayerRemote& layer, 
     m_livePlatformLayers.add(layerID, &layer);
 }
 
+void RemoteLayerTreeContext::seedFullLayerTreeInNextTransaction()
+{
+    RELEASE_LOG(WebRTC, "RemoteLayerTreeContext::seedFullLayerTreeInNextTransaction - seeding %u live layers.", static_cast<unsigned>(m_livePlatformLayers.size()));
+    for (auto& [layerID, weakLayer] : m_livePlatformLayers) {
+        RefPtr layer = weakLayer.get();
+        if (!layer)
+            continue;
+        if (!m_createdLayers.contains(layerID)) {
+            RemoteLayerTreeTransaction::LayerCreationProperties creationProperties;
+            layer->populateCreationProperties(creationProperties, *this, layer->layerType());
+            m_createdLayers.add(layerID, WTF::move(creationProperties));
+        }
+        layer->markAllEverChangedPropertiesAsChanged();
+    }
+}
+
 #if HAVE(AVKIT)
 void RemoteLayerTreeContext::layerDidEnterContext(PlatformCALayerRemote& layer, PlatformCALayer::LayerType type, WebCore::HTMLVideoElement& videoElement)
 {

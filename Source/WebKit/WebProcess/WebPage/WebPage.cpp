@@ -5653,6 +5653,15 @@ void WebPage::updateRenderingWithForcedRepaint(CompletionHandler<void()>&& compl
     protect(drawingArea())->updateRenderingWithForcedRepaintAsync(*this, WTF::move(completionHandler));
 }
 
+void WebPage::seedFullLayerTreeInNextTransaction()
+{
+    RefPtr drawingArea = this->drawingArea();
+    if (!drawingArea)
+        return;
+    if (auto* remoteDrawingArea = dynamicDowncast<RemoteLayerTreeDrawingArea>(*drawingArea))
+        remoteDrawingArea->seedFullLayerTreeInNextTransaction();
+}
+
 void WebPage::preferencesDidChange(const WebPreferencesStore& store, std::optional<uint64_t> sharedPreferencesVersion)
 {
 #if ENABLE(GPU_PROCESS)

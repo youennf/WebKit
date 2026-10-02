@@ -298,6 +298,7 @@ messages -> WebPage WantsAsyncDispatchMessage {
 
     GetAccessibilityTreeData() -> (std::optional<IPC::SharedBufferReference> dataReference)
     UpdateRenderingWithForcedRepaint() -> ()
+    SeedFullLayerTreeInNextTransaction()
     SelectAll()
     ScheduleFullEditorStateUpdate()
 

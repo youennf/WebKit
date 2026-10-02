@@ -86,6 +86,11 @@ public:
 
     void layerPropertyChangedWhileBuildingTransaction(PlatformCALayerRemote&);
 
+    // Seeds a newly-installed mirror RemoteLayerTreeHost in the UI process: for every live layer,
+    // ensure the next transaction re-emits a creation entry and re-sends every property that has
+    // ever been set. Idempotent; safe to call again if the mirror reattaches.
+    void seedFullLayerTreeInNextTransaction();
+
     // From the UI process
     void animationDidStart(WebCore::PlatformLayerIdentifier, const String& key, MonotonicTime startTime);
     void animationDidEnd(WebCore::PlatformLayerIdentifier, const String& key);

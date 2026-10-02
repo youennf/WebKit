@@ -77,6 +77,7 @@ using namespace WebCore;
 #define REMOTE_LAYER_TREE_HOST_RELEASE_LOG(...) RELEASE_LOG(ViewState, __VA_ARGS__)
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(RemoteLayerTreeHost);
+WTF_MAKE_TZONE_ALLOCATED_IMPL(MirrorRemoteLayerTreeHost);
 
 RemoteLayerTreeHost::RemoteLayerTreeHost(RemoteLayerTreeDrawingAreaProxy& drawingArea)
     : m_drawingArea(drawingArea)
@@ -463,6 +464,9 @@ void RemoteLayerTreeHost::animationDidStart(std::optional<WebCore::PlatformLayer
     if (!m_drawingArea)
         return;
 
+    if (!shouldDispatchAnimationCallbacks())
+        return;
+
     RetainPtr layer = layerForID(layerID);
     if (!layer)
         return;
@@ -483,6 +487,9 @@ void RemoteLayerTreeHost::animationDidStart(std::optional<WebCore::PlatformLayer
 void RemoteLayerTreeHost::animationDidEnd(std::optional<WebCore::PlatformLayerIdentifier> layerID, CAAnimation *animation)
 {
     if (!m_drawingArea)
+        return;
+
+    if (!shouldDispatchAnimationCallbacks())
         return;
 
     RetainPtr layer = layerForID(layerID);
@@ -620,7 +627,7 @@ RefPtr<RemoteLayerTreeNode> RemoteLayerTreeHost::makeNode(const IPC::Connection&
             return RemoteLayerTreeNode::createWithPlainLayer(*properties.layerID);
 
 #if HAVE(AVKIT)
-        if (properties.videoElementData) {
+        if (properties.videoElementData && shouldRegisterWithVideoPresentationManager()) {
             RefPtr page = drawingArea().page();
             if (RefPtr videoManager = page ? page->videoPresentationManager() : nullptr) {
                 auto playerIdentifier = PlaybackSessionContextIdentifier { properties.videoElementData->playerIdentifier, WebProcessProxy::fromConnection(connection)->coreProcessIdentifier() };
