@@ -132,6 +132,16 @@ public:
 
     bool hasDebugIndicator() const { return !!m_debugIndicatorLayerTreeHost; }
 
+    // Tab-capture fan-out. Attaches a MirrorRemoteLayerTreeHost that consumes the same transaction
+    // stream as the primary host and produces a parallel CALayer tree. The attach is asynchronous:
+    // enabling triggers a WebContent-side "seed full layer tree" IPC, and `completion` fires with
+    // the populated mirror root once the seeded transaction has been applied. The primary tree in
+    // Safari is never touched — reading / scrolling / input stay routed through it as normal.
+    void enableCaptureMirrorLayerTree(CompletionHandler<void(RetainPtr<CALayer>)>&&);
+    void disableCaptureMirrorLayerTree();
+    bool hasCaptureMirrorLayerTree() const { return !!m_captureMirrorLayerTreeHost; }
+    RetainPtr<CALayer> captureMirrorRootLayer() const;
+
     RetainPtr<CALayer> layerWithIDForTesting(WebCore::PlatformLayerIdentifier) const;
 
     void viewWillStartLiveResize() final;
@@ -191,6 +201,21 @@ private:
     float indicatorScale(WebCore::IntSize contentsSize) const;
     void updateDebugIndicator() final;
     void updateDebugIndicator(WebCore::IntSize contentsSize, bool rootLayerChanged, float scale, const WebCore::IntPoint& scrollPosition);
+
+    // Mirror backing-store sync, workaround for RemoteLayerBackingStoreProperties being
+    // move-on-first-consume. Copies the primary CALayer's visual contents (an IOSurface — safely
+    // shareable across CALayers) onto the matching mirror CALayer.
+    void copyBackingStoreContentsToMirrorLayer(WebCore::PlatformLayerIdentifier);
+
+    // Scroll-tree sync for the mirror. The scrolling tree mutates primary layer positions/transforms
+    // directly, bypassing transactions — once after each commit, and again on every display refresh
+    // for async-scrolled / fixed / sticky content. Copy the resulting geometry onto the mirror.
+    //
+    // ModelLayer: read primary layer's model values. Right after commit, that's authoritative.
+    // PresentationLayer: read -presentationLayer; the scrolling tree uses implicit animations on some
+    //   layers so the currently-visible geometry lives on the presentation side between commits.
+    enum class MirrorGeometrySyncSource : bool { ModelLayer, PresentationLayer };
+    void syncMirrorLayerGeometryFromPrimary(MirrorGeometrySyncSource);
     void initializeDebugIndicator();
 
     void initializeSlowFrameIndicator();
@@ -244,6 +269,8 @@ private:
     WebCore::IntSize m_lastSentSizeToContentAutoSizeMaximumSize;
 
     const std::unique_ptr<RemoteLayerTreeHost> m_debugIndicatorLayerTreeHost;
+    std::unique_ptr<MirrorRemoteLayerTreeHost> m_captureMirrorLayerTreeHost;
+    CompletionHandler<void(RetainPtr<CALayer>)> m_pendingCaptureMirrorAttach;
     const RetainPtr<CALayer> m_tileMapHostLayer;
     const RetainPtr<CALayer> m_exposedRectIndicatorLayer;
 

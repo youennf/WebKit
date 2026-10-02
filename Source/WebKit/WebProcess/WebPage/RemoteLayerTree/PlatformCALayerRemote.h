@@ -78,6 +78,10 @@ public:
     void recursiveBuildTransaction(RemoteLayerTreeContext&, RemoteLayerTreeTransaction&);
     void recursiveMarkWillBeDisplayedWithRenderingSuppresion();
 
+    // Mark every property this layer has ever set as changed again, so the next transaction resends
+    // all of them. Used to seed a freshly-attached mirror RemoteLayerTreeHost with the current state.
+    void markAllEverChangedPropertiesAsChanged() { m_properties.notePropertiesChanged(m_properties.everChangedProperties); }
+
     void setNeedsDisplayInRect(const WebCore::FloatRect& dirtyRect) override;
     void setNeedsDisplay() override;
     bool needsDisplay() const override;

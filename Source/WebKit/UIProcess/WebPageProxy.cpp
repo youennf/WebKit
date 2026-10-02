@@ -8155,6 +8155,18 @@ void WebPageProxy::updateRenderingWithForcedRepaint(CompletionHandler<void()>&& 
     });
 }
 
+void WebPageProxy::seedFullLayerTreeInNextTransaction()
+{
+    if (!hasRunningProcess()) {
+        RELEASE_LOG(WebRTC, "WebPageProxy::seedFullLayerTreeInNextTransaction - page %" PRIu64 " has no running process; skipping.", identifier().toUInt64());
+        return;
+    }
+    forEachWebContentProcess([&](auto& webProcess, auto pageID) {
+        RELEASE_LOG(WebRTC, "WebPageProxy::seedFullLayerTreeInNextTransaction - sending to WebContent pid=%d pageID=%" PRIu64 ".", webProcess.processID(), pageID.toUInt64());
+        webProcess.send(Messages::WebPage::SeedFullLayerTreeInNextTransaction(), pageID);
+    });
+}
+
 void WebPageProxy::preferencesDidChange()
 {
     if (!hasRunningProcess())

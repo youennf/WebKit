@@ -258,6 +258,13 @@ void RemoteLayerTreeDrawingArea::updateRenderingWithForcedRepaintAsync(WebPage& 
     completionHandler();
 }
 
+void RemoteLayerTreeDrawingArea::seedFullLayerTreeInNextTransaction()
+{
+    protect(m_remoteLayerTreeContext)->seedFullLayerTreeInNextTransaction();
+    // Force a repaint so the seeded transaction is actually built and sent.
+    updateRenderingWithForcedRepaint();
+}
+
 void RemoteLayerTreeDrawingArea::acceleratedAnimationDidStart(WebCore::PlatformLayerIdentifier layerID, const String& key, MonotonicTime startTime)
 {
     m_remoteLayerTreeContext->animationDidStart(layerID, key, startTime);

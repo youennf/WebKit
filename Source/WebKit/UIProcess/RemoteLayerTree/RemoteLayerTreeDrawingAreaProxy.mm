@@ -552,12 +552,57 @@ void RemoteLayerTreeDrawingAreaProxy::commitLayerTreeTransaction(IPC::Connection
         }
     }
 
+    // Fan out the transaction to the mirror host. Deliberately NOT gated on mainFrameData — subframe
+    // transactions (OOPIF iframes, embeds, ads) must reach the mirror too, otherwise cross-origin
+    // content never gets created in the mirror tree.
+    //
+    // Deliberately NOT wrapped in scrollingCoordinatorProxy->willCommit/didCommitLayerAndScrollingTrees:
+    // the mirror has no scrolling-tree state; duplicating those calls on every mirror update confuses
+    // the scrolling coordinator on subframe commits and scrolling stops working on the primary tree.
+    if (m_captureMirrorLayerTreeHost) {
+        m_captureMirrorLayerTreeHost->updateLayerTree(connection, layerTreeTransaction, mainFrameData);
+        [m_captureMirrorLayerTreeHost->rootLayer() setName:@"Tab capture mirror root"];
+
+        // Workaround for RemoteLayerBackingStoreProperties move-on-first-consume: the primary host's
+        // apply consumed the buffer handle, so the mirror host's apply produced an empty backing store.
+        // Copy the primary CALayer's materialized `contents` (an IOSurface — safely shareable across
+        // CALayers) onto the mirror layer for every layer whose backing store changed in this commit.
+        // If RemoteLayerBackingStoreProperties ever becomes clone-on-apply, this whole block goes away.
+        for (auto& [layerID, properties] : layerTreeTransaction.changedLayerProperties()) {
+            if (!properties->changedProperties.contains(LayerChange::BackingStoreChanged)
+                && !properties->changedProperties.contains(LayerChange::BackingStoreAttachmentChanged))
+                continue;
+            copyBackingStoreContentsToMirrorLayer(layerID);
+        }
+
+        // First commit after enableCaptureMirrorLayerTree(): fire the pending completion once the
+        // mirror has a root. (The seed IPC guarantees this on the first *post-seed* transaction;
+        // any pre-seed transaction in flight before this will produce a nil root and we wait.)
+        if (m_pendingCaptureMirrorAttach) {
+            RetainPtr root = m_captureMirrorLayerTreeHost->rootLayer();
+            if (root) {
+                auto completion = std::exchange(m_pendingCaptureMirrorAttach, nullptr);
+                completion(root);
+            }
+        }
+    }
+
+    // Scroll-tree fix: `applyScrollingTreeLayerPositionsAfterCommit` adjusts positions/transforms on
+    // *primary* layers directly, bypassing transactions. Copy the resulting geometry onto matching
+    // mirror layers so the mirror stays visually aligned as the user scrolls.
+    syncMirrorLayerGeometryFromPrimary(MirrorGeometrySyncSource::ModelLayer);
+
     page->layerTreeCommitComplete();
 }
 
 void RemoteLayerTreeDrawingAreaProxy::asyncSetLayerContents(WebCore::PlatformLayerIdentifier layerID, RemoteLayerBackingStoreProperties&& properties)
 {
     m_remoteLayerTreeHost->asyncSetLayerContents(layerID, WTF::move(properties));
+
+    // Same move-on-first-consume workaround as in commitLayerTreeTransaction: the properties object
+    // above was moved from, so the mirror can't consume it. Copy from the primary CALayer instead.
+    if (m_captureMirrorLayerTreeHost)
+        copyBackingStoreContentsToMirrorLayer(layerID);
 }
 
 void RemoteLayerTreeDrawingAreaProxy::acceleratedAnimationDidStart(WebCore::PlatformLayerIdentifier layerID, const String& key, MonotonicTime startTime)
@@ -706,6 +751,108 @@ void RemoteLayerTreeDrawingAreaProxy::initializeDebugIndicator()
     }
 }
 
+void RemoteLayerTreeDrawingAreaProxy::copyBackingStoreContentsToMirrorLayer(WebCore::PlatformLayerIdentifier layerID)
+{
+    if (!m_captureMirrorLayerTreeHost)
+        return;
+    RetainPtr primaryLayer = m_remoteLayerTreeHost->layerForID(layerID);
+    RetainPtr mirrorLayer = m_captureMirrorLayerTreeHost->layerForID(layerID);
+    if (!primaryLayer || !mirrorLayer)
+        return;
+    [mirrorLayer setContents:[primaryLayer contents]];
+    [mirrorLayer setContentsRect:[primaryLayer contentsRect]];
+    [mirrorLayer setContentsScale:[primaryLayer contentsScale]];
+    [mirrorLayer setContentsGravity:[primaryLayer contentsGravity]];
+    [mirrorLayer setContentsOpaque:[primaryLayer isOpaque]];
+}
+
+void RemoteLayerTreeDrawingAreaProxy::syncMirrorLayerGeometryFromPrimary(MirrorGeometrySyncSource source)
+{
+    if (!m_captureMirrorLayerTreeHost)
+        return;
+
+    RefPtr mirrorRootNode = m_captureMirrorLayerTreeHost->rootNode();
+    auto mirrorRootID = mirrorRootNode ? std::optional { mirrorRootNode->layerID() } : std::nullopt;
+
+    // Force the mirror root to fill the container it's parented into (the offscreen contentView's
+    // layer). The primary's rootLayer position/bounds live in WKFlippedView's coordinate space, which
+    // differs from our offscreen contentView (anchor point, extra scroll offset); copying them would
+    // shift the whole tree. We own the mirror root's framing, so overwrite it here.
+    if (source == MirrorGeometrySyncSource::PresentationLayer) {
+        RetainPtr mirrorRootLayer = m_captureMirrorLayerTreeHost->rootLayer();
+        RetainPtr rootSuperlayer = [mirrorRootLayer superlayer];
+        if (mirrorRootLayer && rootSuperlayer) {
+            NSRect containerBounds = [rootSuperlayer bounds];
+            [mirrorRootLayer setAnchorPoint:CGPointMake(0, 0)];
+            [mirrorRootLayer setPosition:CGPointMake(0, 0)];
+            [mirrorRootLayer setBounds:containerBounds];
+        }
+    }
+
+    for (auto& [layerID, mirrorNode] : m_captureMirrorLayerTreeHost->nodes()) {
+        if (mirrorRootID && layerID == *mirrorRootID)
+            continue;
+        RetainPtr primaryLayer = m_remoteLayerTreeHost->layerForID(layerID);
+        RetainPtr mirrorLayer = mirrorNode->layer();
+        if (!primaryLayer || !mirrorLayer)
+            continue;
+        RetainPtr source_ = primaryLayer;
+        if (source == MirrorGeometrySyncSource::PresentationLayer) {
+            if (RetainPtr presentation = [primaryLayer presentationLayer])
+                source_ = presentation;
+        }
+        [mirrorLayer setPosition:[source_ position]];
+        [mirrorLayer setBounds:[source_ bounds]];
+        [mirrorLayer setTransform:[source_ transform]];
+        [mirrorLayer setSublayerTransform:[source_ sublayerTransform]];
+    }
+}
+
+void RemoteLayerTreeDrawingAreaProxy::enableCaptureMirrorLayerTree(CompletionHandler<void(RetainPtr<CALayer>)>&& completion)
+{
+    if (m_captureMirrorLayerTreeHost) {
+        // Mirror already attached — if its root is populated, fire immediately; otherwise queue.
+        RetainPtr root = m_captureMirrorLayerTreeHost->rootLayer();
+        if (root) {
+            completion(root);
+            return;
+        }
+        if (m_pendingCaptureMirrorAttach) {
+            auto previous = std::exchange(m_pendingCaptureMirrorAttach, nullptr);
+            previous({ });
+        }
+        m_pendingCaptureMirrorAttach = WTF::move(completion);
+        return;
+    }
+
+    m_captureMirrorLayerTreeHost = makeUnique<MirrorRemoteLayerTreeHost>(*this);
+    m_pendingCaptureMirrorAttach = WTF::move(completion);
+    RELEASE_LOG(WebRTC, "RemoteLayerTreeDrawingAreaProxy::enableCaptureMirrorLayerTree - mirror host installed; requesting seed.");
+
+    // Ask WebContent to resend every live layer in the next transaction so the mirror host can build
+    // a complete tree. The attach completion fires from commitLayerTreeTransaction once that commit lands.
+    if (RefPtr page = this->page())
+        page->seedFullLayerTreeInNextTransaction();
+}
+
+void RemoteLayerTreeDrawingAreaProxy::disableCaptureMirrorLayerTree()
+{
+    if (m_pendingCaptureMirrorAttach) {
+        auto completion = std::exchange(m_pendingCaptureMirrorAttach, nullptr);
+        completion({ });
+    }
+    if (!m_captureMirrorLayerTreeHost)
+        return;
+    m_captureMirrorLayerTreeHost->detachRootLayer();
+    m_captureMirrorLayerTreeHost = nullptr;
+    RELEASE_LOG(WebRTC, "RemoteLayerTreeDrawingAreaProxy::disableCaptureMirrorLayerTree - mirror host removed.");
+}
+
+RetainPtr<CALayer> RemoteLayerTreeDrawingAreaProxy::captureMirrorRootLayer() const
+{
+    return m_captureMirrorLayerTreeHost ? m_captureMirrorLayerTreeHost->rootLayer() : RetainPtr<CALayer> { };
+}
+
 void RemoteLayerTreeDrawingAreaProxy::initializeSlowFrameIndicator()
 {
     lazyInitialize(m_slowFrameIndicatorLayer, adoptNS([[_WKSlowFrameHUDLayer alloc] initWithDrawingArea:this]));
@@ -766,6 +913,13 @@ bool RemoteLayerTreeDrawingAreaProxy::maybePauseDisplayRefreshCallbacks()
 void RemoteLayerTreeDrawingAreaProxy::didRefreshDisplay()
 {
     didRefreshDisplay(nullptr);
+
+    // Scroll-tree fix for the mirror: between commits, the scrolling tree keeps mutating primary
+    // layer positions directly (display-link driven, wheel-event handling, fixed/sticky adjustments).
+    // Those mutations never show up as transactions, so without a per-refresh resync the mirror lags
+    // noticeably on fast scrolls. Read from -presentationLayer because some scroll-driven geometry is
+    // delivered via implicit CA animations whose current displayed value isn't the model value.
+    syncMirrorLayerGeometryFromPrimary(MirrorGeometrySyncSource::PresentationLayer);
 }
 
 TextStream& operator<<(TextStream& ts, const PendingCommitMessage& state)

@@ -1803,6 +1803,11 @@ public:
     void getAccessibilityTreeData(CompletionHandler<void(API::Data*)>&&);
     void updateRenderingWithForcedRepaint(CompletionHandler<void()>&&);
 
+    // Tab-capture support: tells WebContent to re-emit creation entries and all-ever-set properties for
+    // every live layer in the next transaction, so a newly-attached mirror RemoteLayerTreeHost can build
+    // a full tree in one shot. Fire-and-forget; the mirror picks the state up when that commit arrives.
+    void seedFullLayerTreeInNextTransaction();
+
     float headerHeightForPrinting(WebFrameProxy&);
     float footerHeightForPrinting(WebFrameProxy&);
     void drawHeaderForPrinting(WebFrameProxy&, WebCore::FloatRect&&);

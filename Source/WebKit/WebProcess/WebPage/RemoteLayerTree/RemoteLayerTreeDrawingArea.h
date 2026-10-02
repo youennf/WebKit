@@ -111,6 +111,13 @@ private:
     void updateRenderingWithForcedRepaint() final;
     void updateRenderingWithForcedRepaintAsync(WebPage&, CompletionHandler<void()>&&) final;
 
+public:
+    // Tab-capture: called from the UI process (via WebPage IPC) when a mirror RemoteLayerTreeHost is
+    // installed mid-session. Marks every live layer for re-creation + full property resend in the
+    // next transaction so the mirror host can build a complete tree.
+    void seedFullLayerTreeInNextTransaction();
+private:
+
     void setViewExposedRect(std::optional<WebCore::FloatRect>) final;
     std::optional<WebCore::FloatRect> viewExposedRect() const final { return m_viewExposedRect; }
 

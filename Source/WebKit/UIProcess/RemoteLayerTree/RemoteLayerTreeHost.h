@@ -60,10 +60,11 @@ class RemoteLayerTreeHost {
     WTF_MAKE_TZONE_ALLOCATED(RemoteLayerTreeHost);
 public:
     explicit RemoteLayerTreeHost(RemoteLayerTreeDrawingAreaProxy&);
-    ~RemoteLayerTreeHost();
+    virtual ~RemoteLayerTreeHost();
 
     RemoteLayerTreeNode* nodeForID(std::optional<WebCore::PlatformLayerIdentifier>) const;
     RefPtr<RemoteLayerTreeNode> rootNode() const { return m_rootNode.get(); }
+    const HashMap<WebCore::PlatformLayerIdentifier, Ref<RemoteLayerTreeNode>>& nodes() const LIFETIME_BOUND { return m_nodes; }
 
     RetainPtr<CALayer> layerForID(std::optional<WebCore::PlatformLayerIdentifier>) const;
     RetainPtr<CALayer> rootLayer() const;
@@ -76,6 +77,13 @@ public:
 
     void setIsDebugLayerTreeHost(bool flag) { m_isDebugLayerTreeHost = flag; }
     bool isDebugLayerTreeHost() const { return m_isDebugLayerTreeHost; }
+
+    // Per-side-effect hooks a mirror host overrides. Deliberately not a single is-mirror boolean —
+    // adding a new side effect means adding a new hook here (and auditing the call sites), which is
+    // visibly local, instead of silently leaking the effect into every mirror.
+    virtual bool shouldRegisterWithVideoPresentationManager() const { return true; }
+    virtual bool shouldRegisterWithPortalPresentationManager() const { return true; }
+    virtual bool shouldDispatchAnimationCallbacks() const { return true; }
 
     typedef HashMap<WebCore::PlatformLayerIdentifier, RetainPtr<WKAnimationDelegate>> LayerAnimationDelegateMap;
     LayerAnimationDelegateMap& animationDelegates() LIFETIME_BOUND { return m_animationDelegates; }
@@ -128,6 +136,22 @@ private:
     HashSet<WebCore::PlatformLayerIdentifier> m_modelLayers;
 #endif
     bool m_isDebugLayerTreeHost { false };
+};
+
+// A RemoteLayerTreeHost that consumes the primary host's transaction stream to build a parallel
+// CALayer tree for tab capture. Overrides the side-effect hooks so registrations with page-wide
+// state (video presentation, animation callbacks, etc.) only run from the primary host. Future side
+// effects added to RemoteLayerTreeHost should expose a hook here and override it to opt out.
+class MirrorRemoteLayerTreeHost final : public RemoteLayerTreeHost {
+    WTF_MAKE_TZONE_ALLOCATED(MirrorRemoteLayerTreeHost);
+public:
+    explicit MirrorRemoteLayerTreeHost(RemoteLayerTreeDrawingAreaProxy& drawingArea)
+        : RemoteLayerTreeHost(drawingArea) { }
+
+private:
+    bool shouldRegisterWithVideoPresentationManager() const final { return false; }
+    bool shouldRegisterWithPortalPresentationManager() const final { return false; }
+    bool shouldDispatchAnimationCallbacks() const final { return false; }
 };
 
 } // namespace WebKit
