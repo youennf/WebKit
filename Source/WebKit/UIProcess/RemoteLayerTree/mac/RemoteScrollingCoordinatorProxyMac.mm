@@ -271,14 +271,14 @@ void RemoteScrollingCoordinatorProxyMac::applyScrollingTreeLayerPositionsAfterCo
 }
 
 #if ENABLE(THREADED_ANIMATIONS)
-void RemoteScrollingCoordinatorProxyMac::animationsWereAddedToNode(RemoteLayerTreeNode& node)
+void RemoteScrollingCoordinatorProxyMac::animationsWereAddedToNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
-    m_eventDispatcher->animationsWereAddedToNode(node);
+    m_eventDispatcher->animationsWereAddedToNode(host, node);
 }
 
-void RemoteScrollingCoordinatorProxyMac::animationsWereRemovedFromNode(RemoteLayerTreeNode& node)
+void RemoteScrollingCoordinatorProxyMac::animationsWereRemovedFromNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
-    m_eventDispatcher->animationsWereRemovedFromNode(node);
+    m_eventDispatcher->animationsWereRemovedFromNode(host, node);
 }
 
 void RemoteScrollingCoordinatorProxyMac::updateTimelinesRegistration(WebCore::ProcessIdentifier processIdentifier, const WebCore::AcceleratedTimelinesUpdate& timelinesUpdate, MonotonicTime now)

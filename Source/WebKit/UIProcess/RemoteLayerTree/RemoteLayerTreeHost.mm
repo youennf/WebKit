@@ -210,7 +210,7 @@ bool RemoteLayerTreeHost::updateLayerTree(const IPC::Connection& connection, con
 #if ENABLE(THREADED_ANIMATIONS)
     // FIXME: with site isolation, a single process can send multiple transactions.
     // https://bugs.webkit.org/show_bug.cgi?id=301261
-    if (threadedAnimationsEnabled() && !transaction.timelinesUpdate().isEmpty())
+    if (threadedAnimationsEnabled() && !transaction.timelinesUpdate().isEmpty() && shouldUpdateTimelinesRegistration())
         protect(*m_drawingArea)->updateTimelinesRegistration(processIdentifier, transaction.timelinesUpdate(), MonotonicTime::now());
 #endif
 
@@ -530,12 +530,12 @@ void RemoteLayerTreeHost::detachRootLayer()
 #if ENABLE(THREADED_ANIMATIONS)
 void RemoteLayerTreeHost::animationsWereAddedToNode(RemoteLayerTreeNode& node)
 {
-    protect(drawingArea())->animationsWereAddedToNode(node);
+    protect(drawingArea())->animationsWereAddedToNode(*this, node);
 }
 
 void RemoteLayerTreeHost::animationsWereRemovedFromNode(RemoteLayerTreeNode& node)
 {
-    protect(drawingArea())->animationsWereRemovedFromNode(node);
+    protect(drawingArea())->animationsWereRemovedFromNode(*this, node);
 }
 
 RefPtr<const RemoteAnimationTimeline> RemoteLayerTreeHost::timeline(const TimelineID& timelineID) const

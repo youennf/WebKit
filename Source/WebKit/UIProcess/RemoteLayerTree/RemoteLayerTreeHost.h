@@ -84,6 +84,11 @@ public:
     virtual bool shouldRegisterWithVideoPresentationManager() const { return true; }
     virtual bool shouldRegisterWithPortalPresentationManager() const { return true; }
     virtual bool shouldDispatchAnimationCallbacks() const { return true; }
+    // Forward the per-transaction threaded-animation timeline updates to the shared
+    // scrollingCoordinatorProxy / event dispatcher. Only one host per page should do this: the
+    // registry is keyed by WebContent process identifier, not by host, and a duplicate forward from
+    // a mirror host for the same timelines disrupts the primary's registry entries on reload.
+    virtual bool shouldUpdateTimelinesRegistration() const { return true; }
 
     typedef HashMap<WebCore::PlatformLayerIdentifier, RetainPtr<WKAnimationDelegate>> LayerAnimationDelegateMap;
     LayerAnimationDelegateMap& animationDelegates() LIFETIME_BOUND { return m_animationDelegates; }
@@ -152,6 +157,7 @@ private:
     bool shouldRegisterWithVideoPresentationManager() const final { return false; }
     bool shouldRegisterWithPortalPresentationManager() const final { return false; }
     bool shouldDispatchAnimationCallbacks() const final { return false; }
+    bool shouldUpdateTimelinesRegistration() const final { return false; }
 };
 
 } // namespace WebKit

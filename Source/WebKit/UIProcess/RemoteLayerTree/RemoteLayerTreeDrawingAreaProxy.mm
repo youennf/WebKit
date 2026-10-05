@@ -1105,16 +1105,16 @@ void RemoteLayerTreeDrawingAreaProxy::sizeToContentAutoSizeMaximumSizeDidChange(
 }
 
 #if ENABLE(THREADED_ANIMATIONS)
-void RemoteLayerTreeDrawingAreaProxy::animationsWereAddedToNode(RemoteLayerTreeNode& node)
+void RemoteLayerTreeDrawingAreaProxy::animationsWereAddedToNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
     if (RefPtr page = this->page())
-        protect(page->scrollingCoordinatorProxy())->animationsWereAddedToNode(node);
+        protect(page->scrollingCoordinatorProxy())->animationsWereAddedToNode(host, node);
 }
 
-void RemoteLayerTreeDrawingAreaProxy::animationsWereRemovedFromNode(RemoteLayerTreeNode& node)
+void RemoteLayerTreeDrawingAreaProxy::animationsWereRemovedFromNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
     if (RefPtr page = this->page())
-        protect(page->scrollingCoordinatorProxy())->animationsWereRemovedFromNode(node);
+        protect(page->scrollingCoordinatorProxy())->animationsWereRemovedFromNode(host, node);
 }
 
 void RemoteLayerTreeDrawingAreaProxy::updateTimelinesRegistration(WebCore::ProcessIdentifier processIdentifier, const WebCore::AcceleratedTimelinesUpdate& timelinesUpdate, MonotonicTime now)

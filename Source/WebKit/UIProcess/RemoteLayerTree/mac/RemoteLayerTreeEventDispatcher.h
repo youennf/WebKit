@@ -71,6 +71,7 @@ class RemoteProgressBasedTimeline;
 class RemoteScrollingCoordinatorProxyMac;
 class RemoteLayerTreeDrawingAreaProxyMac;
 class RemoteLayerTreeNode;
+class RemoteLayerTreeHost;
 class RemoteScrollingTree;
 class RemoteLayerTreeEventDispatcherDisplayLinkClient;
 class WebProcessPool;
@@ -111,8 +112,8 @@ public:
 #if ENABLE(THREADED_ANIMATIONS)
     void lockForAnimationChanges() WTF_ACQUIRES_LOCK(m_animationLock);
     void unlockForAnimationChanges() WTF_RELEASES_LOCK(m_animationLock);
-    void animationsWereAddedToNode(RemoteLayerTreeNode&);
-    void animationsWereRemovedFromNode(RemoteLayerTreeNode&);
+    void animationsWereAddedToNode(const RemoteLayerTreeHost&, RemoteLayerTreeNode&);
+    void animationsWereRemovedFromNode(const RemoteLayerTreeHost&, RemoteLayerTreeNode&);
     void updateTimelinesRegistration(WebCore::ProcessIdentifier, const WebCore::AcceleratedTimelinesUpdate&, MonotonicTime);
     void removeTimelines(WebCore::ProcessIdentifier);
     RefPtr<const RemoteAnimationTimeline> timeline(const TimelineID&);
@@ -216,7 +217,10 @@ private:
     // For WTF_ACQUIRES_LOCK
     friend class RemoteScrollingCoordinatorProxyMac;
     Lock m_animationLock;
-    HashMap<WebCore::PlatformLayerIdentifier, Ref<RemoteAnimationStack>> m_animationStacks WTF_GUARDED_BY_LOCK(m_animationLock);
+    // Host-aware so a mirror RemoteLayerTreeHost's stacks don't collide with the primary's under the
+    // same PlatformLayerIdentifier (and vice versa). The display-link tick iterates every value and
+    // doesn't need the key.
+    HashMap<std::pair<WebCore::PlatformLayerIdentifier, const RemoteLayerTreeHost*>, Ref<RemoteAnimationStack>> m_animationStacks WTF_GUARDED_BY_LOCK(m_animationLock);
     std::unique_ptr<RemoteMonotonicTimelineRegistry> m_monotonicTimelineRegistry WTF_GUARDED_BY_LOCK(m_animationLock);
 #endif
 
