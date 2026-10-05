@@ -11,7 +11,9 @@
 #ifndef INCLUDE_LIBYUV_COMPARE_ROW_H_
 #define INCLUDE_LIBYUV_COMPARE_ROW_H_
 
-#include "libyuv/basic_types.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "libyuv/cpu_support.h"
 
 #ifdef __cplusplus
@@ -61,10 +63,8 @@ extern "C" {
 #if !defined(LIBYUV_DISABLE_NEON) && defined(__aarch64__)
 #define HAS_HASHDJB2_NEON
 
-#if !defined(WEBRTC_WEBKIT_BUILD)
 #define HAS_HAMMINGDISTANCE_NEON_DOTPROD
 #define HAS_SUMSQUAREERROR_NEON_DOTPROD
-#endif
 #endif
 
 uint32_t HammingDistance_C(const uint8_t* src_a,
