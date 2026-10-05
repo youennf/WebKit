@@ -376,11 +376,7 @@ TCPConnection::TCPConnection(const Environment& env,
     RTC_LOG(LS_VERBOSE) << ToString() << ": socket ipaddr: "
                         << socket_->GetLocalAddress().ToSensitiveString()
                         << ", port() Network:" << port()->Network()->ToString();
-#if defined(WEBRTC_WEBKIT_BUILD)
-    RTC_DCHECK(socket->GetLocalAddress().IsLoopbackIP() || absl::c_any_of(
-#else
     RTC_DCHECK(absl::c_any_of(
-#endif
         port()->Network()->GetIPs(), [this](const InterfaceAddress& addr) {
           return socket_->GetLocalAddress().ipaddr() == addr;
         }));
@@ -580,14 +576,6 @@ void TCPConnection::OnReadPacket(AsyncPacketSocket* socket,
                                  const ReceivedIpPacket& packet) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(socket, socket_.get());
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (!port()) {
-    RTC_LOG(LS_WARNING) << "TCPConnection: Port has been deleted.";
-    return;
-  }
-#endif
-
   Connection::OnReadPacket(packet);
 }
 

@@ -39,20 +39,6 @@
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
-#if WEBRTC_WEBKIT_BUILD
-// Rename the four fixture classes to avoid ODR collision with
-// peer_connection_integrationtest.cc when both translation units link into
-// the unified webrtc_unittests binary.  Upstream Chromium builds these as
-// separate gtest binaries (peerconnection_unittests vs slow_peer_connection_unittests),
-// so the collision only happens in WebKit's combined target.
-#define PeerConnectionIntegrationTest SlowPeerConnectionIntegrationTest
-#define PeerConnectionIntegrationTestWithFakeClock SlowPeerConnectionIntegrationTestWithFakeClock
-#define PeerConnectionIntegrationTestPlanB SlowPeerConnectionIntegrationTestPlanB
-#define PeerConnectionIntegrationTestUnifiedPlan SlowPeerConnectionIntegrationTestUnifiedPlan
-#define PeerConnectionIntegrationIceStatesTest SlowPeerConnectionIntegrationIceStatesTest
-#define PeerConnectionIntegrationIceStatesTestWithFakeClock SlowPeerConnectionIntegrationIceStatesTestWithFakeClock
-#endif
-
 namespace webrtc {
 
 namespace {
@@ -413,10 +399,13 @@ TEST_P(PeerConnectionIntegrationTest, CallTransferredForCaller) {
   // directly above.
   original_peer->pc()->Close();
 
-  ConnectFakeSignaling();
+  // Only signal SDP initially to avoid delivering ICE candidates to the new
+  // callee before it has received the remote offer.
+  ConnectFakeSignalingForSdpOnly();
   callee()->AddAudioVideoTracks();
   caller()->SetOfferAnswerOptions(IceRestartOfferAnswerOptions());
   caller()->CreateAndSetAndSignalOffer();
+  SetSignalIceCandidates(true);
   ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Wait for some additional frames to be transmitted end-to-end.
   MediaExpectations media_expectations;

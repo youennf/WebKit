@@ -63,7 +63,6 @@ bool H264IsSamePacketizationMode(const CodecParameterMap& left,
 }
 
 #ifdef RTC_ENABLE_H265
-#ifdef RTC_ENABLE_H265_TIGHT_CHECKS
 std::string GetH265TxModeOrDefault(const CodecParameterMap& params) {
   // If TxMode is not present, a value of "SRST" must be inferred.
   // https://tools.ietf.org/html/rfc7798@section-7.1
@@ -75,7 +74,6 @@ bool IsSameH265TxMode(const CodecParameterMap& left,
   return absl::EqualsIgnoreCase(GetH265TxModeOrDefault(left),
                                 GetH265TxModeOrDefault(right));
 }
-#endif
 #endif
 
 // Some (video) codecs are actually families of codecs and rely on parameters
@@ -104,13 +102,9 @@ bool IsSameCodecSpecific(const std::string& name1,
       return AV1IsSameProfile(params1, params2);
 #ifdef RTC_ENABLE_H265
     case kVideoCodecH265:
-#ifdef RTC_ENABLE_H265_TIGHT_CHECKS
       return H265IsSameProfile(params1, params2) &&
              H265IsSameTier(params1, params2) &&
              IsSameH265TxMode(params1, params2);
-#else
-      return true;
-#endif
 #endif
     default:
       return true;
@@ -125,6 +119,10 @@ SdpVideoFormat::SdpVideoFormat(absl::string_view name,
                                const CodecParameterMap& parameters)
     : name(name), parameters(parameters) {}
 
+SdpVideoFormat::SdpVideoFormat(absl::string_view name,
+                               CodecParameterMap&& parameters)
+    : name(name), parameters(std::move(parameters)) {}
+
 SdpVideoFormat::SdpVideoFormat(
     absl::string_view name,
     std::initializer_list<std::pair<absl::string_view, absl::string_view>>
@@ -137,6 +135,14 @@ SdpVideoFormat::SdpVideoFormat(
     std::span<const ScalabilityMode> scalability_modes)
     : name(name),
       parameters(parameters),
+      scalability_modes(scalability_modes.begin(), scalability_modes.end()) {}
+
+SdpVideoFormat::SdpVideoFormat(
+    absl::string_view name,
+    CodecParameterMap&& parameters,
+    std::span<const ScalabilityMode> scalability_modes)
+    : name(name),
+      parameters(std::move(parameters)),
       scalability_modes(scalability_modes.begin(), scalability_modes.end()) {}
 
 SdpVideoFormat::SdpVideoFormat(

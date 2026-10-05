@@ -80,10 +80,7 @@ class DefaultLocalAddressProvider {
   // The default local address is the local address used in multi-homed endpoint
   // when the any address (0.0.0.0 or ::) is used as the local address. It's
   // important to check the return value as a IP family may not be enabled.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   virtual bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const = 0;
-#pragma clang diagnostic pop
 };
 
 class MdnsResponderProvider {
@@ -180,15 +177,6 @@ class RTC_EXPORT NetworkManager : public DefaultLocalAddressProvider,
   // Dumps the current list of networks in the network manager.
   virtual void DumpNetworks() {}
   bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const override;
-
-  struct Stats {
-    int ipv4_network_count;
-    int ipv6_network_count;
-    Stats() {
-      ipv4_network_count = 0;
-      ipv6_network_count = 0;
-    }
-  };
 
   // MdnsResponderProvider interface.
   MdnsResponderInterface* GetMdnsResponder() const override;
@@ -311,7 +299,7 @@ class RTC_EXPORT Network {
 
   // `key_` has unique value per network interface. Used in sorting network
   // interfaces. Key is derived from interface name and it's prefix.
-  std::string key() const { return key_; }
+  const std::string& key() const { return key_; }
 
   // Returns the Network's current idea of the 'best' IP it has.
   // Or return an unset IP if this network has no active addresses.
@@ -481,7 +469,6 @@ class RTC_EXPORT Network {
   friend class NetworkManager;
 };
 
-#if WEBRTC_WEBKIT_BUILD // Move NetworkManagerBase and BasicNetworkManager definitions after Network.
 // Base class for NetworkManager implementations.
 class RTC_EXPORT NetworkManagerBase : public NetworkManager {
  public:
@@ -507,11 +494,6 @@ class RTC_EXPORT NetworkManagerBase : public NetworkManager {
   // any change in the network list.
   void MergeNetworkList(std::vector<std::unique_ptr<Network>> list,
                         bool* changed);
-
-  // `stats` will be populated even if |*changed| is false.
-  void MergeNetworkList(std::vector<std::unique_ptr<Network>> list,
-                        bool* changed,
-                        NetworkManager::Stats* stats);
 
   void set_enumeration_permission(EnumerationPermission state) {
     enumeration_permission_ = state;
@@ -602,8 +584,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 
  protected:
 #if defined(WEBRTC_POSIX)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   // Separated from CreateNetworks for tests.
   void ConvertIfAddrs(ifaddrs* interfaces,
                       IfAddrsConverter* converter,
@@ -612,7 +592,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
       RTC_RUN_ON(thread_);
   NetworkMonitorInterface::InterfaceInfo GetInterfaceInfo(
       struct ifaddrs* cursor) const RTC_RUN_ON(thread_);
-#pragma clang diagnostic pop
 #endif  // defined(WEBRTC_POSIX)
 
   // Creates a network object for each network available on the machine.
@@ -659,7 +638,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   std::vector<NetworkMask> vpn_;
   scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
-#endif // WEBRTC_WEBKIT_BUILD
 
 }  //  namespace webrtc
 

@@ -199,7 +199,7 @@ static int const kKbpsMultiplier = 1000;
               [strongSelf.peerConnection
                   statisticsWithCompletionHandler:^(
                       RTC_OBJC_TYPE(RTCStatisticsReport) * stats) {
-                    dispatch_async(mainDispatchQueueSingleton(), ^{
+                    dispatch_async(dispatch_get_main_queue(), ^{
                       ARDAppClient *strongerSelf = weakSelf;
                       [strongerSelf.delegate appClient:strongerSelf
                                            didGetStats:stats];
@@ -413,7 +413,7 @@ static int const kKbpsMultiplier = 1000;
 - (void)peerConnection:(RTC_OBJC_TYPE(RTCPeerConnection) *)peerConnection
     didChangeIceConnectionState:(RTCIceConnectionState)newState {
   RTCLog(@"ICE state changed: %ld", (long)newState);
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     [self.delegate appClient:self didChangeConnectionState:newState];
   });
 }
@@ -430,7 +430,7 @@ static int const kKbpsMultiplier = 1000;
 
 - (void)peerConnection:(RTC_OBJC_TYPE(RTCPeerConnection) *)peerConnection
     didGenerateIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     ARDICECandidateMessage *message =
         [[ARDICECandidateMessage alloc] initWithCandidate:candidate];
     [self sendSignalingMessage:message];
@@ -453,7 +453,7 @@ static int const kKbpsMultiplier = 1000;
 - (void)peerConnection:(RTC_OBJC_TYPE(RTCPeerConnection) *)peerConnection
     didRemoveIceCandidates:
         (NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)candidates {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     ARDICECandidateRemovalMessage *message =
         [[ARDICECandidateRemovalMessage alloc]
             initWithRemovedCandidates:candidates];
@@ -480,7 +480,7 @@ static int const kKbpsMultiplier = 1000;
 - (void)peerConnection:(RTC_OBJC_TYPE(RTCPeerConnection) *)peerConnection
     didCreateSessionDescription:(RTC_OBJC_TYPE(RTCSessionDescription) *)sdp
                           error:(NSError *)error {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     if (error) {
       RTCLogError(@"Failed to create session description. Error: %@", error);
       [self disconnect];
@@ -511,7 +511,7 @@ static int const kKbpsMultiplier = 1000;
 
 - (void)peerConnection:(RTC_OBJC_TYPE(RTCPeerConnection) *)peerConnection
     didSetSessionDescriptionWithError:(NSError *)error {
-  dispatch_async(mainDispatchQueueSingleton(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     if (error) {
       RTCLogError(@"Failed to set session description. Error: %@", error);
       [self disconnect];
