@@ -2740,7 +2740,6 @@ struct RgbUVConstants {
   int8_t kRGBToV[4];
 };
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 // 8x1 pixels.
 void ARGBToUV444MatrixRow_NEON(const uint8_t* src_argb,
                                uint8_t* dst_u,
@@ -2856,6 +2855,7 @@ void RGBToUV444MatrixRow_NEON(const uint8_t* src_rgb,
         "v27");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToUV444MatrixRow_NEON_I8MM(const uint8_t* src_argb,
                                     uint8_t* dst_u,
                                     uint8_t* dst_v,
@@ -3498,6 +3498,7 @@ void ARGBToYMatrixRow_NEON(const uint8_t* src_argb,
         "v19", "v20", "v21", "v22");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToYMatrixRow_NEON_DotProd(const uint8_t* src_argb,
                                    uint8_t* dst_y,
                                    int width,
@@ -3575,6 +3576,7 @@ void RGBToYMatrixRow_NEON_DotProd(const uint8_t* src_rgb,
         "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
         "v27");
 }
+#endif
 
 // RGBA expects first value to be A and ignored, then 3 values to contain RGB.
 void RGBToYMatrixRow_NEON(const uint8_t* src_rgb,
@@ -3963,6 +3965,7 @@ void ARGBGrayRow_NEON(const uint8_t* src_argb, uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v24", "v25", "v26");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBGrayRowCoeffs = {29, 150, 77, 0};
 static const uvec8 kARGBGrayRowIndices = {0, 0, 0, 19, 2, 2, 2, 23,
                                           4, 4, 4, 27, 6, 6, 6, 31};
@@ -3994,7 +3997,7 @@ void ARGBGrayRow_NEON_DotProd(const uint8_t* src_argb,
         [indices] "r"(&kARGBGrayRowIndices)  // %[indices]
       : "cc", "memory", "v0", "v1", "v2", "v3", "v24", "v25");
 }
-
+#endif
 // Convert 8 ARGB pixels (32 bytes) to 8 Sepia ARGB pixels.
 //    b = (r * 35 + g * 68 + b * 17) >> 7
 //    g = (r * 45 + g * 88 + b * 22) >> 7
@@ -4036,6 +4039,7 @@ void ARGBSepiaRow_NEON(uint8_t* dst_argb, int width) {
         "v21", "v22", "v24", "v25", "v26", "v28", "v29", "v30");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBSepiaRowCoeffs = {17, 68, 35, 0,  22, 88,
                                           45, 0,  24, 98, 50, 0};
 static const uvec8 kARGBSepiaRowAlphaIndices = {3, 7, 11, 15, 19, 23, 27, 31};
@@ -4076,6 +4080,7 @@ void ARGBSepiaRow_NEON_DotProd(uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v20",
         "v21", "v22", "v23", "v24", "v25", "v26", "v28", "v29", "v30");
 }
+#endif
 
 // Tranform 8 ARGB pixels (32 bytes) with color matrix.
 // TODO(fbarchard): Was same as Sepia except matrix is provided.  This function
