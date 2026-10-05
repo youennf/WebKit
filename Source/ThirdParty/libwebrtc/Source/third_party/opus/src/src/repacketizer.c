@@ -306,16 +306,9 @@ opus_int32 opus_repacketizer_out_range_impl(OpusRepacketizer *rp, int begin, int
       ptr += len[i];
    }
    if (ext_len > 0) {
-#if WEBRTC_WEBKIT_BUILD
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
       int ret = opus_packet_extensions_generate(&data[ext_begin], ext_len,
        all_extensions, ext_count, count, 0);
       celt_assert(ret == ext_len);
-#if WEBRTC_WEBKIT_BUILD
-#pragma clang diagnostic pop
-#endif
    }
    for (i=ones_begin;i<ones_end;i++)
       data[i] = 0x01;
