@@ -395,12 +395,18 @@ void DisplayCaptureSessionManager::pollPickerOverlays()
         NSWindow *win = [overlay window];
         NSView *superview = [overlay superview];
         RetainPtr<NSView> desired = win ? pickerVisibleWKWebViewInWindow(win) : nullptr;
-        if (!win || !desired || superview != desired.get() || ![overlay superview]) {
+        // Overlay is attached to the WKWebView's superview (so empty-tab WKWebViews, which are
+        // hidden but still in the hierarchy, remain pickable). Fall back to the window's content
+        // view if the WKWebView ever has no superview.
+        RetainPtr<NSView> desiredHost = desired ? [desired superview] : nullptr;
+        if (!desiredHost)
+            desiredHost = win ? [win contentView] : nullptr;
+        if (!win || !desired || !desiredHost || superview != desiredHost.get()) {
             [stale addObject:overlay];
             continue;
         }
         // Keep overlay on top of any sibling that Safari may have inserted.
-        [desired addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
+        [desiredHost addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
         [windowsWithOverlays addObject:win];
     }
     for (WKTabCapturePickerOverlay *overlay in stale.get())
@@ -436,11 +442,25 @@ void DisplayCaptureSessionManager::installPickerOverlayInWindow(NSWindow *window
     if (!webView)
         return;
 
+    // Attach the overlay to the WKWebView's superview rather than the WKWebView itself. On empty
+    // Safari tabs (Start Page / Favorites / Top Sites) the WKWebView is still present in the view
+    // hierarchy but with hidden=YES — a subview overlay would be hidden along with it, so empty
+    // tabs could not be picked. Attaching to the superview makes the overlay a sibling of the
+    // WKWebView and keeps it visible regardless of the WKWebView's hidden state. We still bind the
+    // picker to the (possibly hidden) WKWebView's WebPageProxy, so selecting an empty tab starts
+    // capture on that page — frames come out blank until the user navigates somewhere, at which
+    // point the same WKWebView becomes visible and the mirror picks up the content automatically.
+    RetainPtr<NSView> overlayHost = [webView superview];
+    if (!overlayHost)
+        overlayHost = [window contentView];
+    if (!overlayHost)
+        return;
+
     // Clip overlay to the intersection of the WKWebView with the window's contentLayoutRect so it
     // doesn't cover Safari's title/tab bar area (Safari uses FullSizeContentView).
     NSRect webViewInWindow = [webView convertRect:[webView bounds] toView:nil];
     NSRect visibleContentInWindow = NSIntersectionRect(webViewInWindow, [window contentLayoutRect]);
-    NSRect overlayFrame = [webView convertRect:visibleContentInWindow fromView:nil];
+    NSRect overlayFrame = [overlayHost convertRect:visibleContentInWindow fromView:nil];
 
     RetainPtr window_ = window;
     auto shareBlock = ^{
@@ -468,7 +488,7 @@ void DisplayCaptureSessionManager::installPickerOverlayInWindow(NSWindow *window
 
     RetainPtr overlay = adoptNS([[WKTabCapturePickerOverlay alloc] initWithFrame:overlayFrame shareBlock:shareBlock cancelBlock:cancelBlock]);
     [overlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [webView addSubview:overlay.get() positioned:NSWindowAbove relativeTo:nil];
+    [overlayHost addSubview:overlay.get() positioned:NSWindowAbove relativeTo:nil];
     [m_pickerOverlays addObject:overlay.get()];
 }
 
