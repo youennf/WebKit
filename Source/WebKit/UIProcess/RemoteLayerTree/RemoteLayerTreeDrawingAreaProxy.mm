@@ -1177,19 +1177,19 @@ void RemoteLayerTreeDrawingAreaProxy::sizeToContentAutoSizeMaximumSizeDidChange(
 }
 
 #if ENABLE(THREADED_ANIMATIONS)
-void RemoteLayerTreeDrawingAreaProxy::animationsWereAddedToNode(RemoteLayerTreeNode& node)
+void RemoteLayerTreeDrawingAreaProxy::animationsWereAddedToNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
     if (RefPtr page = this->page()) {
         if (RefPtr scrollingCoordinatorProxy = page->scrollingCoordinatorProxy())
-            scrollingCoordinatorProxy->animationsWereAddedToNode(node);
+            scrollingCoordinatorProxy->animationsWereAddedToNode(host, node);
     }
 }
 
-void RemoteLayerTreeDrawingAreaProxy::animationsWereRemovedFromNode(RemoteLayerTreeNode& node)
+void RemoteLayerTreeDrawingAreaProxy::animationsWereRemovedFromNode(const RemoteLayerTreeHost& host, RemoteLayerTreeNode& node)
 {
     if (RefPtr page = this->page()) {
         if (RefPtr scrollingCoordinatorProxy = page->scrollingCoordinatorProxy())
-            scrollingCoordinatorProxy->animationsWereRemovedFromNode(node);
+            scrollingCoordinatorProxy->animationsWereRemovedFromNode(host, node);
     }
 }
 
