@@ -110,10 +110,7 @@ class MemoryAccessSampler {
     for (unsigned i = 0; i < num_samples_; i++) {
       // The lower bits of an LCG tend to fall into short cycles and so are
       // discarded here.
-#pragma clang diagnostic push // WEBRTC_WEBKIT_BUILD
-#pragma clang diagnostic ignored "-Wdeprecated-volatile"
       array_[(lcg_.Next() >> 6) & (array_size_ - 1)] += 1;
-#pragma clang diagnostic pop // WEBRTC_WEBKIT_BUILD
     }
 
     *out = GetTimestamp();
@@ -284,7 +281,7 @@ constexpr unsigned CritBinom(unsigned trials, double probability_s,
   return trials;
 }
 
-// ExpTaylor calculates e^x using the Taylor series: e^x = 1 + x + x²/2! +
+// ExpTaylor calculates eˣ using the Taylor series: eˣ = 1 + x + x²/2! +
 // x³/3! + ...
 constexpr double ExpTaylor(double x) {
   double sum = 1.0;
