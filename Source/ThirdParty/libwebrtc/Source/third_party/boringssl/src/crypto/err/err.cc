@@ -75,18 +75,6 @@ extern const char kOpenSSLReasonStringData[];
 
 BSSL_NAMESPACE_END
 
-#if defined(WEBRTC_WEBKIT_BUILD)
-// Use libc strdup directly (which itself wraps malloc + memcpy). The
-// upstream comment below explains why upstream avoids strdup -- MSVC
-// deprecation warnings and glibc/musl feature-macro gating -- but those
-// concerns do not apply to libwebrtc on Apple platforms, where strdup is
-// universally available. Defining strdup_libc_malloc as a function-like
-// macro lets the compiler apply Typed Memory Operations type inference at
-// each call site without needing to wrap the function in _MALLOC_TYPED
-// (which is not feasible here -- the wrapper has no size_t parameter for
-// the index anchor). See rdar://170138232.
-#define strdup_libc_malloc(str) strdup(str)
-#else
 static char *strdup_libc_malloc(const char *str) {
   // `strdup` is not in C until C23, so MSVC triggers deprecation warnings, and
   // glibc and musl gate it on a feature macro. Reimplementing it is easier.
@@ -97,7 +85,6 @@ static char *strdup_libc_malloc(const char *str) {
   }
   return ret;
 }
-#endif
 
 // err_clear clears the given queued error.
 static void err_clear(struct err_error_st *error) {
@@ -683,10 +670,11 @@ void ERR_add_error_dataf(const char *format, ...) {
   va_list ap;
 
   va_start(ap, format);
-  if (OPENSSL_vasprintf_internal(&buf, format, ap, /*system_malloc=*/1) == -1) {
+  int len = OPENSSL_vasprintf_internal(&buf, format, ap, /*system_malloc=*/1);
+  va_end(ap);
+  if (len == -1) {
     return;
   }
-  va_end(ap);
 
   err_set_error_data(buf);
 }
