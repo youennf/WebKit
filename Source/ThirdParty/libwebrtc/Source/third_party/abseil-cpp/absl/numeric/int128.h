@@ -35,6 +35,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
@@ -1211,7 +1212,7 @@ constexpr int64_t BitCastToSigned(uint64_t v) {
 }  // namespace int128_internal
 
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
-#include "absl/numeric/int128_have_intrinsic.inc.h"  // IWYU pragma: export, WEBRTC_WEBKIT_BUILD
+#include "absl/numeric/int128_have_intrinsic.inc"  // IWYU pragma: export
 #else  // ABSL_HAVE_INTRINSIC_INT128
 #include "absl/numeric/int128_no_intrinsic.inc"  // IWYU pragma: export
 #endif  // ABSL_HAVE_INTRINSIC_INT128
