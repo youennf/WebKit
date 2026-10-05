@@ -2172,6 +2172,8 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
     vp9_free_context_buffers(cm);
     vp9_free_pc_tree(&cpi->td);
     vpx_free(cpi->mbmi_ext_base);
+    vpx_free(cpi->content_state_sb_fd);
+    cpi->content_state_sb_fd = NULL;
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
     cpi->initial_width = cm->width;
@@ -6022,11 +6024,7 @@ static void update_level_info(VP9_COMP *cpi, size_t size, int arf_src_index) {
 
   // update compression_ratio
   level_spec->compression_ratio = (double)level_stats->total_uncompressed_size *
-#if WEBRTC_WEBKIT_BUILD
-                                  (double)cm->bit_depth /
-#else
                                   cm->bit_depth /
-#endif
                                   level_stats->total_compressed_size / 8.0;
 
   // update max_col_tiles
