@@ -53,12 +53,8 @@
 #include "api/video_codecs/scalability_mode.h"
 #include "call/call.h"
 #include "common_video/include/quality_limitation_reason.h"
-#if defined(WEBRTC_WEBKIT_BUILD)
-#include "json/json.h"
-#else
 #include "json/reader.h"
 #include "json/value.h"
-#endif
 #include "media/base/fake_media_engine.h"
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
@@ -279,7 +275,7 @@ scoped_refptr<MockRtpReceiverInternal> CreateMockReceiver(
     int attachment_id) {
   auto receiver = make_ref_counted<MockRtpReceiverInternal>();
   EXPECT_CALL(*receiver, track()).WillRepeatedly(Return(track));
-  EXPECT_CALL(*receiver, ssrc()).WillRepeatedly([ssrc]() { return ssrc; });
+  EXPECT_CALL(*receiver, ssrc_s()).WillRepeatedly([ssrc]() { return ssrc; });
   EXPECT_CALL(*receiver, streams())
       .WillRepeatedly(
           Return(std::vector<scoped_refptr<MediaStreamInterface>>({})));
@@ -4255,7 +4251,7 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
 
   auto env = CreateTestEnvironment();
   auto pc = make_ref_counted<FakePeerConnectionForStats>(
-      env, worker_and_network.get(), worker_and_network.get());
+      env, worker_and_network.get());
   RTCStatsCollectorWrapper wrapper(pc, env);
   auto callback = make_ref_counted<MockStatsCollectorCallback>();
 

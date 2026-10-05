@@ -338,11 +338,11 @@ void TurnPort::SetTurnLoggingId(absl::string_view turn_logging_id) {
   turn_logging_id_ = std::string(turn_logging_id);
 }
 
-std::vector<std::string> TurnPort::GetTlsAlpnProtocols() const {
+const std::vector<std::string>& TurnPort::GetTlsAlpnProtocols() const {
   return tls_alpn_protocols_;
 }
 
-std::vector<std::string> TurnPort::GetTlsEllipticCurves() const {
+const std::vector<std::string>& TurnPort::GetTlsEllipticCurves() const {
   return tls_elliptic_curves_;
 }
 
@@ -878,32 +878,19 @@ void TurnPort::ResolveTurnAddress(const SocketAddress& address) {
                    << address.ToSensitiveString();
   resolver_ = socket_factory()->CreateAsyncDnsResolver();
   auto callback = [this] {
-#if WEBRTC_WEBKIT_BUILD
-    // If DNS resolve is failed when trying to connect to the server,
-#else
     // If DNS resolve is failed when trying to connect to the server using TCP,
-#endif
     // one of the reason could be due to DNS queries blocked by firewall.
     // In such cases we will try to connect to the server with hostname,
     // assuming socket layer will resolve the hostname through a HTTP proxy (if
     // any).
     auto& result = resolver_->result();
     if (result.GetError() != 0 && (server_address_.proto == PROTO_TCP ||
-#if WEBRTC_WEBKIT_BUILD
-                                   server_address_.proto == PROTO_UDP ||
-#endif
                                    server_address_.proto == PROTO_TLS ||
                                    server_address_.proto == PROTO_DTLS)) {
       if (!CreateTurnClientSocket()) {
         OnAllocateError(STUN_ERROR_SERVER_NOT_REACHABLE,
                         "TURN host lookup received error.");
       }
-#if WEBRTC_WEBKIT_BUILD
-      if (server_address_.proto == PROTO_UDP) {
-        // Send request if UDP, for TCP & TLS, this will be sent by OnSocketConnect.
-        SendRequest(new TurnAllocateRequest(this), 0);
-      }
-#endif
       return;
     }
 
@@ -997,7 +984,7 @@ void TurnPort::HandleRefreshError() {
   request_manager_.Clear();
   state_ = STATE_RECEIVEONLY;
   // Fail and prune all connections; stop sending data.
-  for (auto kv : connections()) {
+  for (auto& kv : connections()) {
     kv.second->FailAndPrune();
   }
 }

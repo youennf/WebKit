@@ -9,6 +9,8 @@
  *
  */
 
+#include "api/units/time_delta.h"
+#include "modules/video_coding/utility/frame_sampler.h"
 #ifdef RTC_ENABLE_VP9
 
 #include "modules/video_coding/codecs/vp9/libvpx_vp9_encoder.h"
@@ -66,7 +68,6 @@
 #include "rtc_base/containers/flat_map.h"
 #include "rtc_base/experiments/field_trial_list.h"
 #include "rtc_base/experiments/field_trial_parser.h"
-#include "rtc_base/experiments/psnr_experiment.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -293,8 +294,7 @@ LibvpxVp9Encoder::LibvpxVp9Encoder(const Environment& env,
       num_steady_state_frames_(0),
       config_changed_(true),
       encoder_info_override_(env.field_trials()),
-      psnr_experiment_(env.field_trials()),
-      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()),
+      psnr_frame_sampler_(FrameSampler::kDefaultPsnrFrameSamplingInterval),
       post_encode_frame_drop_(!env.field_trials().IsDisabled(
           "WebRTC-LibvpxVp9Encoder-PostEncodeFrameDrop")) {
   codec_ = {};
@@ -1034,39 +1034,6 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     }
   }
 
-#if WEBRTC_WEBKIT_BUILD
-  if (input_image.color_space() && current_color_space_ != input_image.color_space()) {
-    current_color_space_ = input_image.color_space();
-    force_key_frame_ = true;
-
-    vpx_color_range_t vpxColorRange = current_color_space_ && current_color_space_->range() == ColorSpace::RangeID::kFull ? VPX_CR_FULL_RANGE : VPX_CR_STUDIO_RANGE;
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_RANGE, vpxColorRange);
-    vpx_color_space_t vpxColorSpace = VPX_CS_UNKNOWN;
-    if (current_color_space_) {
-      switch (current_color_space_->primaries()) {
-        case ColorSpace::PrimaryID::kBT709:
-          vpxColorSpace = current_color_space_->matrix() == ColorSpace::MatrixID::kRGB ? VPX_CS_SRGB : VPX_CS_BT_709;
-          break;
-        case ColorSpace::PrimaryID::kBT470BG:
-          vpxColorSpace = VPX_CS_BT_601;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE170M:
-          vpxColorSpace = VPX_CS_SMPTE_170;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE240M:
-          vpxColorSpace = VPX_CS_SMPTE_240;
-          break;
-        case ColorSpace::PrimaryID::kBT2020:
-          vpxColorSpace = VPX_CS_BT_2020;
-          break;
-        default:
-          break;
-      }
-    }
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_SPACE, vpxColorSpace);
-  }
-#endif
-
   vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   if (!force_key_frame_) {
     const size_t gof_idx = (pics_since_key_ + 1) % gof_.num_frames_in_gof;
@@ -1286,8 +1253,7 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     flags = VPX_EFLAG_FORCE_KF;
   }
 #if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(VPX_EFLAG_CALCULATE_PSNR)
-  if (psnr_experiment_.IsEnabled() &&
-      psnr_frame_sampler_.ShouldBeSampled(input_image)) {
+  if (psnr_frame_sampler_.ShouldBeSampled(input_image)) {
     flags |= VPX_EFLAG_CALCULATE_PSNR;
   }
 #endif

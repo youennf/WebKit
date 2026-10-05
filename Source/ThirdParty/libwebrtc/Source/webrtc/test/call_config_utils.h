@@ -11,8 +11,6 @@
 #ifndef TEST_CALL_CONFIG_UTILS_H_
 #define TEST_CALL_CONFIG_UTILS_H_
 
-#if !WEBRTC_WEBKIT_BUILD
-
 #include "api/call/transport.h"
 #include "call/video_receive_stream.h"
 #include "rtc_base/strings/json.h"
@@ -35,5 +33,3 @@ Json::Value GenerateVideoReceiveStreamJsonConfig(
 }  // namespace webrtc
 
 #endif  // TEST_CALL_CONFIG_UTILS_H_
-
-#endif

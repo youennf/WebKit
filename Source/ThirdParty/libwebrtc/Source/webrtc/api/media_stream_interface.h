@@ -37,6 +37,8 @@
 
 namespace webrtc {
 
+class RtpPacketInfos;
+
 // Generic observer interface.
 class ObserverInterface {
  public:
@@ -203,6 +205,7 @@ class RTC_EXPORT VideoTrackInterface : public MediaStreamTrackInterface,
 // Interface for receiving audio data from a AudioTrack.
 class AudioTrackSinkInterface {
  public:
+  // Deprecated: Implement the 7-parameter version instead.
   virtual void OnData(const void* /* audio_data */,
                       int /* bits_per_sample */,
                       int /* sample_rate */,
@@ -226,6 +229,20 @@ class AudioTrackSinkInterface {
     // pure virtual.
     return OnData(audio_data, bits_per_sample, sample_rate, number_of_channels,
                   number_of_frames);
+  }
+
+  // In this method, `packet_infos` delivers information about the packets
+  // used to assemble this audio frame (such as contributing sources/CSRC,
+  // audio levels, etc.).
+  virtual void OnData(const void* audio_data,
+                      int bits_per_sample,
+                      int sample_rate,
+                      size_t number_of_channels,
+                      size_t number_of_frames,
+                      std::optional<int64_t> absolute_capture_timestamp_ms,
+                      const RtpPacketInfos& /* packet_infos */) {
+    OnData(audio_data, bits_per_sample, sample_rate, number_of_channels,
+           number_of_frames, absolute_capture_timestamp_ms);
   }
 
   // Returns the number of channels encoded by the sink. This can be less than
@@ -343,29 +360,17 @@ class MediaStreamInterface : public RefCountInterface,
   // Note: Default implementations are for avoiding link time errors in
   // implementations that mock this API.
   // TODO(bugs.webrtc.org/13980): Remove default implementations.
-  virtual bool AddTrack(webrtc::scoped_refptr<AudioTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
+  virtual bool AddTrack(scoped_refptr<AudioTrackInterface> /* track */) {
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool AddTrack(scoped_refptr<VideoTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<AudioTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
   virtual bool RemoveTrack(scoped_refptr<VideoTrackInterface> /* track */) {
-#if !defined(WEBRTC_WEBKIT_BUILD)
     RTC_CHECK_NOTREACHED();
-#endif
-    return false;
   }
 
  protected:
