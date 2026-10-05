@@ -549,6 +549,13 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
         return;
     }
 
+    // Bring the picked tab's Safari window to the foreground so the user can see what they're
+    // about to share. The picker overlay only installs itself on the visible WKWebView of each
+    // Safari window, so the picked WKWebView is already its window's current tab — making the
+    // window key is enough.
+    if (NSWindow *webViewWindow = [webView window])
+        [webViewWindow makeKeyAndOrderFront:nil];
+
     m_capturedPage = page;
 
     // Force the captured page's activity state to stay visible / in-window even when Safari moves it
