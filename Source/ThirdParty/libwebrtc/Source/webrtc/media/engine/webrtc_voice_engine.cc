@@ -2670,8 +2670,17 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
 
   call_->Receiver()->DeliverRtpPacket(
       MediaType::AUDIO, std::move(packet),
+#if defined(WEBRTC_WEBKIT_BUILD)
+      [this, safety = task_safety_.flag()](const RtpPacketReceived& packet) {
+        if (!safety->alive())
+          return false;
+        RTC_DCHECK_RUN_ON(worker_thread_);
+        return MaybeCreateDefaultReceiveStream(packet);
+      });
+#else
       absl::bind_front(
           &WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream, this));
+#endif
 }
 
 bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(
