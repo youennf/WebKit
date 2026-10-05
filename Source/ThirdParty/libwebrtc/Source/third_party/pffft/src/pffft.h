@@ -78,9 +78,6 @@
 #define PFFFT_H
 
 #include <stddef.h> // for size_t
-#if defined(WEBRTC_WEBKIT_BUILD)
-#include <stdlib.h> // for _MALLOC_TYPED and malloc_type_id_t
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,7 +85,7 @@ extern "C" {
 
 #ifndef PFFFT_SIMD_DISABLE
 // Detects compiler bugs with respect to simd instruction.
-void validate_pffft_simd(void);
+void validate_pffft_simd();
 #endif
 
 /* opaque struct holding internal stuff (precomputed twiddle factors)
@@ -187,17 +184,12 @@ void pffft_zconvolve_accumulate(PFFFT_Setup* setup,
   on intel and powerpc). This function may be used to obtain such
   correctly aligned buffers.
 */
-#if defined(WEBRTC_WEBKIT_BUILD) && defined(_MALLOC_TYPE_ENABLED) && _MALLOC_TYPE_ENABLED
-void* pffft_aligned_malloc_typed(size_t nb_bytes, malloc_type_id_t type_id);
-void* pffft_aligned_malloc(size_t nb_bytes) _MALLOC_TYPED(pffft_aligned_malloc_typed, 1);
-#else
 void* pffft_aligned_malloc(size_t nb_bytes);
-#endif
 void pffft_aligned_free(void*);
 
 /* return 4 or 1 wether support SSE/Altivec instructions was enable when
  * building pffft.c */
-int pffft_simd_size(void);
+int pffft_simd_size();
 
 #ifdef __cplusplus
 }
