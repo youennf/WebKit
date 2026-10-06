@@ -78,13 +78,11 @@ std::string GetH265TxModeOrDefault(const CodecParameterMap& params) {
   return GetFmtpParameterOrDefault(params, kH265FmtpTxMode, "SRST");
 }
 
-#ifdef RTC_ENABLE_H265_TIGHT_CHECKS
 bool IsSameH265TxMode(const CodecParameterMap& left,
                       const CodecParameterMap& right) {
   return absl::EqualsIgnoreCase(GetH265TxModeOrDefault(left),
                                 GetH265TxModeOrDefault(right));
 }
-#endif
 #endif
 
 // Some (video) codecs are actually families of codecs and rely on parameters
@@ -111,13 +109,11 @@ bool IsSameCodecSpecific(const std::string& name1,
   if (either_name_matches(kAv1CodecName))
     return AV1IsSameProfile(params1, params2);
 #ifdef RTC_ENABLE_H265
-#ifdef RTC_ENABLE_H265_TIGHT_CHECKS
-  if (either_name_matches(cricket::kH265CodecName)) {
+  if (either_name_matches(kH265CodecName)) {
     return H265IsSameProfile(params1, params2) &&
            H265IsSameTier(params1, params2) &&
            IsSameH265TxMode(params1, params2);
   }
-#endif
 #endif
   return true;
 }

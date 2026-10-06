@@ -51,6 +51,7 @@
 #include "api/test/mock_async_dns_resolver.h"
 #include "api/test/mock_encoder_selector.h"
 #include "api/test/rtc_error_matchers.h"
+#include "api/transport/bitrate_settings.h"
 #include "api/transport/rtp/rtp_source.h"
 #include "api/uma_metrics.h"
 #include "api/units/data_rate.h"
@@ -2556,14 +2557,6 @@ TEST_F(PeerConnectionIntegrationTestPlanB, CanSendRemoteVideoTrack) {
 //                  the first of which should have arrived before the answer.
 TEST_P(PeerConnectionIntegrationTestWithFakeClock,
        EndToEndConnectionTimeWithTurnTurnPair) {
-#if defined(WEBRTC_WEBKIT_BUILD)
-  // WebKit's libwebrtc DTLS handshake over a TURN<->TURN relay pair does not
-  // complete within the fake-clock connection-time budget, so this test fails
-  // deterministically in the WebKit build (verified failing on every run).
-  // Skip until the WebKit DTLS-over-TURN timing is addressed.
-  GTEST_SKIP() << "DTLS over TURN<->TURN does not connect within the "
-                  "fake-clock budget in WebKit's libwebrtc build";
-#endif
   static constexpr int media_hop_delay_ms = 50;
   static constexpr int signaling_trip_delay_ms = 500;
   // For explanation of these values, see comment above.
@@ -3160,13 +3153,6 @@ TEST_F(PeerConnectionIntegrationTestPlanB, RemoveAndAddTrackWithNewStreamId) {
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalled) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  // `RtcEventLogFactory::Create()` returns `RtcEventLogNull`, whose
-  // `StartLogging()` always returns false (see
-  // `api/rtc_event_log/rtc_event_log.cc`).  This test cannot be exercised
-  // until `WEBRTC_ENABLE_RTC_EVENT_LOG` is defined in the build.
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
 
@@ -3180,13 +3166,9 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalled) {
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnStop) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   // This test uses check point to ensure log is written before peer connection
   // is destroyed.
   // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
@@ -3211,13 +3193,9 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnStop) {
 
   caller()->pc()->StopRtcEventLog();
   test_is_complete.Call();
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnClose) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   // This test uses check point to ensure log is written before peer connection
   // is destroyed.
   // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
@@ -3242,7 +3220,6 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnClose) {
 
   caller()->pc()->Close();
   test_is_complete.Call();
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 // Test that if candidates are only signaled by applying full session
@@ -3563,6 +3540,38 @@ TEST_P(PeerConnectionIntegrationTest, OnIceCandidateErrorWithEmptyAddress) {
   EXPECT_EQ(caller()->error_event().address, "");
 }
 
+TEST_P(PeerConnectionIntegrationTest,
+       OnIceCandidateErrorWithEmptyAddressForTurns) {
+  PeerConnectionInterface::IceServer ice_server;
+  ice_server.urls.push_back("turns:127.0.0.1:3478?transport=tcp");
+  ice_server.username = "test";
+  ice_server.password = "test";
+
+  PeerConnectionInterface::RTCConfiguration caller_config;
+  caller_config.servers.push_back(ice_server);
+  caller_config.type = PeerConnectionInterface::kRelay;
+  caller_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
+
+  PeerConnectionInterface::RTCConfiguration callee_config;
+  callee_config.servers.push_back(ice_server);
+  callee_config.type = PeerConnectionInterface::kRelay;
+  callee_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
+
+  ASSERT_TRUE(
+      CreatePeerConnectionWrappersWithConfig(caller_config, callee_config));
+
+  // Do normal offer/answer and wait for ICE to complete.
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->error_event().error_code; }, Eq(701)),
+      IsRtcOk());
+  EXPECT_EQ(caller()->error_event().address, "");
+}
+
 // TODO(https://crbug.com/webrtc/14947): Investigate why this is flaking and
 // find a way to re-enable the test.
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
@@ -3667,6 +3676,10 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
+  BitrateSettings bitrate;
+  bitrate.start_bitrate_bps = 1'000'000;
+  caller()->pc()->SetBitrate(bitrate);
+  callee()->pc()->SetBitrate(bitrate);
   caller()->pc()->AddTransceiver(MediaType::AUDIO);
 
   caller()->CreateAndSetAndSignalOffer();

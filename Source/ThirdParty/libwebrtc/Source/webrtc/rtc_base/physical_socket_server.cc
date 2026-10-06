@@ -884,12 +884,6 @@ SocketDispatcher::~SocketDispatcher() {
 
 bool SocketDispatcher::Initialize() {
   RTC_DCHECK(s_ != INVALID_SOCKET);
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (s_ < 0 || s_ >= FD_SETSIZE) {
-    RTC_LOG_ERR(LS_ERROR) << "SocketDispatcher::Initialize, file descriptor is invalid";
-    return false;
-  }
-#endif
 // Must be a non-blocking
 #if defined(WEBRTC_WIN)
   u_long argp = 1;
@@ -903,7 +897,7 @@ bool SocketDispatcher::Initialize() {
   }
 #endif
 
-#if defined(WEBRTC_IOS) || (defined(WEBRTC_MAC) && defined(WEBRTC_WEBKIT_BUILD))
+#if defined(WEBRTC_IOS)
   // iOS may kill sockets when the app is moved to the background
   // (specifically, if the app doesn't use the "voip" UIBackgroundMode). When
   // we attempt to write to such a socket, SIGPIPE will be raised, which by
@@ -1592,14 +1586,6 @@ bool PhysicalSocketServer::WaitSelect(TimeDelta timeout, bool process_io) {
         // "select"ing a file descriptor that is equal to or larger than
         // FD_SETSIZE will result in undefined behavior.
         RTC_DCHECK_LT(fd, FD_SETSIZE);
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-        if (fd < 0 || fd >= FD_SETSIZE) {
-          RTC_LOG_ERR(LS_ERROR) << "PhysicalSocketServer::WaitSelect, selecting a file descriptor that is invalid";
-          continue;
-        }
-#endif
-
         if (fd > fdmax)
           fdmax = fd;
 
@@ -1642,13 +1628,6 @@ bool PhysicalSocketServer::WaitSelect(TimeDelta timeout, bool process_io) {
         Dispatcher* pdispatcher = dispatcher_by_key_.at(key);
 
         int fd = pdispatcher->GetDescriptor();
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-        if (fd < 0 || fd >= FD_SETSIZE) {
-          RTC_LOG_ERR(LS_ERROR) << "PhysicalSocketServer::WaitSelect, signaled file descriptor is invalid";
-          continue;
-        }
-#endif
 
         bool readable = FD_ISSET(fd, &fdsRead);
         if (readable) {

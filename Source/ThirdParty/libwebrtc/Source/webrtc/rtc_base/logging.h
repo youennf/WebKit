@@ -238,11 +238,7 @@ class LoggingConfig {
 
  private:
   LoggingSeverity min_severity_ = LS_INFO;
-#if !defined(NDEBUG) && !defined(WEBRTC_WEBKIT_BUILD)
   LoggingSeverity debug_severity_ = LS_INFO;
-#else
-  LoggingSeverity debug_severity_ = LS_NONE;
-#endif
   bool log_thread_ = false;
   bool log_timestamp_ = false;
   bool log_queue_name_ = false;
@@ -291,7 +287,7 @@ class LogMetadata {
   // both with a single instruction.)
   uint32_t line_and_sev_;
 };
-static_assert(std::is_trivially_copyable_v<LogMetadata> && std::is_trivially_default_constructible_v<LogMetadata>, "");
+static_assert(std::is_trivial<LogMetadata>::value, "");
 
 struct LogMetadataErr {
   LogMetadata meta;
@@ -576,7 +572,6 @@ class LogMessage {
   //  Debug: Debug console on Windows, otherwise stderr
   static void LogToDebug(LoggingSeverity min_sev);
   static LoggingSeverity GetLogToDebug();
-
   // Sets whether logs will be directed to stderr in debug mode.
   static void SetLogToStderr(bool log_to_stderr);
   // Stream: Any non-blocking stream interface.

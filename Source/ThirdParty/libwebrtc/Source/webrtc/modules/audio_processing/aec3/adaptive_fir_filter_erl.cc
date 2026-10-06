@@ -90,11 +90,9 @@ void ComputeErl(const Aec3Optimization& optimization,
     case Aec3Optimization::kSse2:
       ErlComputer_SSE2(H2, erl);
       break;
-#if !defined(WEBRTC_WEBKIT_BUILD)
     case Aec3Optimization::kAvx2:
       ErlComputer_AVX2(H2, erl);
       break;
-#endif
 #endif
 #if defined(WEBRTC_HAS_NEON)
     case Aec3Optimization::kNeon:

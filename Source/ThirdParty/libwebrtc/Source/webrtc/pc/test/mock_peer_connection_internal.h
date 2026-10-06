@@ -140,14 +140,11 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (override));
 #pragma clang diagnostic pop
   MOCK_METHOD(void, GetStats, (RTCStatsCollectorCallback*), (override));
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
   MOCK_METHOD(void,
               GetStats,
               (webrtc::scoped_refptr<RtpSenderInterface>,
                webrtc::scoped_refptr<RTCStatsCollectorCallback>),
               (override));
-#pragma clang diagnostic pop
   MOCK_METHOD(void,
               GetStats,
               (webrtc::scoped_refptr<RtpReceiverInterface>,
@@ -393,6 +390,7 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (int channel_id, DataChannelInterface::DataState),
               (override));
   MOCK_METHOD(PayloadTypePicker&, payload_type_picker, (), (override));
+  MOCK_METHOD(bool, CanAttemptDtlsStunPiggybacking, (), (const, override));
 };
 
 }  // namespace webrtc

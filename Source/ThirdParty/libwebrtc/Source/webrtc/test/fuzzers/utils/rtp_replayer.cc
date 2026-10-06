@@ -22,22 +22,21 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
-#include "api/task_queue/task_queue_base.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/test/time_controller.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "call/call.h"
 #include "call/call_config.h"
 #include "call/video_receive_stream.h"
+#include "media/base/fake_video_renderer.h"
 #include "media/engine/internal_decoder_factory.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/logging.h"
-#if !WEBRTC_WEBKIT_BUILD
 #include "rtc_base/strings/json.h"
-#endif
 #include "system_wrappers/include/clock.h"
 #include "test/call_config_utils.h"
 #include "test/create_test_environment.h"
@@ -45,12 +44,10 @@
 #include "test/rtp_file_reader.h"
 #include "test/run_loop.h"
 #include "test/time_controller/simulated_time_controller.h"
-#include "test/video_renderer.h"
 
 namespace webrtc {
 namespace test {
 
-#if !WEBRTC_WEBKIT_BUILD
 void RtpReplayer::Replay(const std::string& replay_config_filepath,
                          const uint8_t* rtp_dump_data,
                          size_t rtp_dump_size) {
@@ -60,7 +57,6 @@ void RtpReplayer::Replay(const std::string& replay_config_filepath,
   return Replay(std::move(stream_state), std::move(receive_stream_configs),
                 rtp_dump_data, rtp_dump_size);
 }
-#endif
 
 void RtpReplayer::Replay(
     std::unique_ptr<StreamState> stream_state,
@@ -111,7 +107,6 @@ void RtpReplayer::Replay(
   }
 }
 
-#if !WEBRTC_WEBKIT_BUILD
 std::vector<VideoReceiveStreamInterface::Config>
 RtpReplayer::ReadConfigFromFile(const std::string& replay_config,
                                 Transport* transport) {
@@ -136,7 +131,6 @@ RtpReplayer::ReadConfigFromFile(const std::string& replay_config,
   }
   return receive_stream_configs;
 }
-#endif
 
 void RtpReplayer::SetupVideoStreams(
     std::vector<VideoReceiveStreamInterface::Config>* receive_stream_configs,
@@ -151,8 +145,7 @@ void RtpReplayer::SetupVideoStreams(
     }
 
     // Create the window to display the rendered video.
-    stream_state->sinks.emplace_back(
-        test::VideoRenderer::Create("Fuzzing WebRTC Video Config", 640, 480));
+    stream_state->sinks.push_back(std::make_unique<FakeVideoRenderer>());
     // Create a receive stream for this config.
     receive_config.renderer = stream_state->sinks.back().get();
     receive_config.decoder_factory = stream_state->decoder_factory.get();
@@ -205,15 +198,8 @@ void RtpReplayer::ReplayPackets(
       RTC_LOG(LS_ERROR) << "Packet error, corrupt packets or incorrect setup?";
       break;
     }
-#ifdef WEBRTC_WEBKIT_BUILD
-    // Set the clock rate if zero - always 90K for video
-    if (received_packet.payload_type_frequency() == 0) {
-        received_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-    }
-#else
     // Set the clock rate - always 90K for video
     received_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-#endif
 
     call.Receiver()->DeliverRtpPacket(
         MediaType::VIDEO, std::move(received_packet),
