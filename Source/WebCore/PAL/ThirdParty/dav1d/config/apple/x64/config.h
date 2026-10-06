@@ -39,7 +39,9 @@
 
 #define HAVE_ALIGNED_ALLOC 1
 
+#if !defined(HAVE_ASM)
 #define HAVE_ASM 1
+#endif
 
 #define HAVE_AS_ARCHEXT_DOTPROD_DIRECTIVE 0
 
