@@ -594,7 +594,8 @@ void ScreenCaptureKitCaptureSource::streamDidOutputVideoSampleBuffer(RetainPtr<C
     // and promote track settings (m_width/m_height) that were latched in point dimensions before the
     // first frame revealed the real scale — otherwise SCK downsamples retina content on retina
     // displays. SCK's SCStreamFrameInfoScaleFactor is the authoritative source: SCContentFilter's
-    // own pointPixelScale is unreliable in the GPU process for off-screen tab-capture windows.
+    // own pointPixelScale is unreliable even when the captured window lives on a HiDPI virtual
+    // display (filter reports points regardless of the window's screen context).
     if (scaleFactor > 0)
         m_pointPixelScale = static_cast<float>(scaleFactor);
 

@@ -138,7 +138,8 @@ private:
     // Point→pixel scale read from SCK's per-frame SCStreamFrameInfoScaleFactor attachment. Used by
     // streamConfiguration() to promote track-settings width/height from points to pixels when a
     // settings snapshot was built before the first frame revealed the real scale (otherwise SCK
-    // downsamples retina content on retina displays).
+    // downsamples retina content on retina displays). Needed even when the captured window lives on
+    // a HiDPI virtual display: SCContentFilter / SCWindow report sizes in points regardless.
     float m_pointPixelScale { 1 };
     float m_frameRate { 0 };
     bool m_isRunning { false };

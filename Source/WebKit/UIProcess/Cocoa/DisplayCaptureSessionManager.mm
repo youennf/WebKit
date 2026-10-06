@@ -57,6 +57,42 @@
 #import <pal/spi/cg/CoreGraphicsSPI.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 
+// Forward declarations of the private CGVirtualDisplay API. The header lives at
+// CoreGraphics.framework/PrivateHeaders/CGVirtualDisplay.h in the Internal SDK, but the module map
+// doesn't export it so <CoreGraphics/CGVirtualDisplay.h> doesn't resolve under modular import. The
+// symbols themselves are exported by CoreGraphics.framework at runtime, so declaring the interfaces
+// we touch is enough — no header, no __has_include dance.
+typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
+    CGVirtualDisplayHiDPIModeDisable = 0,
+    CGVirtualDisplayHiDPIModeEnable  = 1,
+    CGVirtualDisplayHiDPIModeAuto    = 2,
+};
+
+@interface CGVirtualDisplayDescriptor : NSObject
+@property (readwrite, assign, nonatomic) uint32_t vendorID;
+@property (readwrite, assign, nonatomic) uint32_t productID;
+@property (readwrite, assign, nonatomic) uint32_t serialNumber;
+@property (readwrite, strong, nullable, nonatomic) NSString *name;
+@property (readwrite, assign, nonatomic) CGSize sizeInMillimeters;
+@property (readwrite, assign, nonatomic) uint32_t maxPixelsWide;
+@property (readwrite, assign, nonatomic) uint32_t maxPixelsHigh;
+@end
+
+@interface CGVirtualDisplayMode : NSObject
+- (nonnull instancetype)initWithWidth:(uint32_t)width height:(uint32_t)height refreshRate:(double)refreshRate;
+@end
+
+@interface CGVirtualDisplaySettings : NSObject
+@property (readwrite, strong, nullable, nonatomic) NSArray<CGVirtualDisplayMode *> *modes;
+@property (readwrite, assign, nonatomic) CGVirtualDisplayHiDPIMode hiDPI;
+@end
+
+@interface CGVirtualDisplay : NSObject
+- (nullable instancetype)initWithDescriptor:(CGVirtualDisplayDescriptor * _Nonnull)descriptor;
+- (BOOL)applySettings:(CGVirtualDisplaySettings * _Nonnull)settings;
+@property (readonly, assign, nonatomic) CGDirectDisplayID displayID;
+@end
+
 @interface WKTabCaptureMirrorFlippedView : NSView
 @end
 @implementation WKTabCaptureMirrorFlippedView
@@ -561,6 +597,111 @@ UNUSED_FUNCTION static std::optional<WebCore::FloatRect> safariWindowCropForWebV
     };
 }
 
+// Create an off-screen virtual display sized to the WKWebView we are capturing. The display is at
+// 2x density so SCK's point→pixel scale is correct and content stays sharp. Returns the display
+// (which the caller must keep alive for the lifetime of the capture) along with the backing
+// `CGDirectDisplayID`.
+static RetainPtr<CGVirtualDisplay> createTabCaptureVirtualDisplay(uint32_t pointsWide, uint32_t pointsHigh, uint32_t& displayIDOut)
+{
+    displayIDOut = 0;
+
+    RetainPtr descriptor = adoptNS([[CGVirtualDisplayDescriptor alloc] init]);
+    [descriptor setName:@"Safari Tab Capture Mirror"];
+    [descriptor setVendorID:0x610 /* ASCII 'a' */];
+    [descriptor setProductID:0x746361 /* ASCII 'tca' */];
+    [descriptor setSerialNumber:0];
+    // Give the display plenty of pixel headroom. CG installs its own standard mode sizes (800×600,
+    // 1024×768, 1280×960, …) up to `maxPixelsWide/High`, and only installs a HiDPI (2x) variant for a
+    // standard mode when both dimensions fit in half of max. If max is close to our content size,
+    // the HiDPI variants top out well below our content and the only mode that fits is a 1x one.
+    // 4000×3000 ensures HiDPI variants exist for all standard sizes up to 2000×1500 points, which
+    // covers any plausible WKWebView.
+    [descriptor setMaxPixelsWide:4000];
+    [descriptor setMaxPixelsHigh:3000];
+    // Fake an unambiguously HiDPI physical panel so the OS picks the HiDPI (2x) variant of the mode
+    // rather than the 1x variant. hiDPI = Enable installs both; the chooser is density-based and
+    // only picks HiDPI when pixels/inch is high enough. ~290 ppi (what you'd get from treating
+    // 1 point ≈ 25.4/144 mm) turns out to NOT be enough on this hardware — the OS still picks the
+    // 1x variant. Shrink the fake physical size dramatically so density is beyond any plausible
+    // threshold: pointsWide/20 mm → ~1000 ppi at 2x, which has reliably picked HiDPI.
+    [descriptor setSizeInMillimeters:CGSizeMake(pointsWide / 20.0, pointsHigh / 20.0)];
+
+    RetainPtr settings = adoptNS([[CGVirtualDisplaySettings alloc] init]);
+    [settings setHiDPI:CGVirtualDisplayHiDPIModeEnable];
+    RetainPtr mode = adoptNS([[CGVirtualDisplayMode alloc] initWithWidth:pointsWide height:pointsHigh refreshRate:60]);
+    [settings setModes:@[mode.get()]];
+
+    RetainPtr display = adoptNS([[CGVirtualDisplay alloc] initWithDescriptor:descriptor.get()]);
+    if (!display) {
+        RELEASE_LOG_ERROR(WebRTC, "createTabCaptureVirtualDisplay - initWithDescriptor returned nil.");
+        return nullptr;
+    }
+    if (![display applySettings:settings.get()]) {
+        RELEASE_LOG_ERROR(WebRTC, "createTabCaptureVirtualDisplay - applySettings failed.");
+        return nullptr;
+    }
+
+    displayIDOut = [display displayID];
+    RELEASE_LOG(WebRTC, "createTabCaptureVirtualDisplay - created %ux%u (points) display, displayID=%u.", pointsWide, pointsHigh, displayIDOut);
+    return display;
+}
+
+// Returns the NSScreen whose CGDirectDisplayID matches the given value, or nil. Virtual displays
+// may not appear in [NSScreen screens] on the exact run-loop turn they're created; a short poll
+// is reasonable before giving up.
+static NSScreen *screenForDisplayID(uint32_t displayID)
+{
+    for (NSScreen *screen in [NSScreen screens]) {
+        NSNumber *idNumber = [[screen deviceDescription] objectForKey:@"NSScreenNumber"];
+        if ([idNumber unsignedIntValue] == displayID)
+            return screen;
+    }
+    return nil;
+}
+
+// Wait for the newly-created virtual display to appear in [NSScreen screens]. Uses CoreGraphics'
+// display-reconfiguration notification instead of a blind poll: the callback fires on the main
+// thread the moment the display is registered, so we return within a run-loop turn of the add
+// rather than at the next poll tick. A short deadline guards against the (unexpected) case where
+// the notification never arrives.
+struct VirtualDisplayWaitContext {
+    uint32_t displayID { 0 };
+    std::atomic<bool> appeared { false };
+};
+
+static void virtualDisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags, void *userInfo)
+{
+    auto *context = static_cast<VirtualDisplayWaitContext*>(userInfo);
+    if (static_cast<uint32_t>(display) == context->displayID && (flags & kCGDisplayAddFlag))
+        context->appeared.store(true, std::memory_order_release);
+}
+
+static NSScreen *waitForVirtualDisplayScreen(uint32_t displayID, NSTimeInterval maxWait)
+{
+    if (NSScreen *screen = screenForDisplayID(displayID))
+        return screen;
+
+    VirtualDisplayWaitContext context;
+    context.displayID = displayID;
+    CGError err = CGDisplayRegisterReconfigurationCallback(virtualDisplayReconfigurationCallback, &context);
+    if (err != kCGErrorSuccess)
+        RELEASE_LOG_ERROR(WebRTC, "waitForVirtualDisplayScreen - CGDisplayRegisterReconfigurationCallback failed (%d); falling back to polling only.", err);
+    // Spin the run loop so the Add-flag callback can fire, but also keep polling [NSScreen screens]
+    // directly. The two signals can race: the callback may fire slightly before NSScreen's cache
+    // updates (so appeared=true but screenForDisplayID still returns nil), or the callback can be
+    // missed entirely and polling is the only way to notice.
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:maxWait];
+    NSScreen *screen = nil;
+    while (!screen && [[NSDate date] compare:deadline] == NSOrderedAscending) {
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
+        screen = screenForDisplayID(displayID);
+    }
+    if (err == kCGErrorSuccess)
+        CGDisplayRemoveReconfigurationCallback(virtualDisplayReconfigurationCallback, &context);
+    return screen;
+}
+
+
 void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
 {
 #if HAVE(WINDOW_CAPTURE)
@@ -594,21 +735,73 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
     NSRect webViewFrame = [webView frame];
     auto topInset = page.obscuredContentInsets().top();
     NSSize contentSize = NSMakeSize(NSWidth(webViewFrame) ?: 800, std::max<CGFloat>(1, (NSHeight(webViewFrame) ?: 600) - topInset));
+
+    // Create a dedicated virtual display sized to the WKWebView and move the off-screen mirror
+    // window onto it. The point of the virtual display is to give the window a proper screen
+    // context — specifically a known 2x backing scale — so SCK's own capture-source machinery
+    // (SCContentFilter.pointPixelScale and friends) returns the right value. SCK capture itself
+    // still targets just our window via its windowID; the window contains the full captured
+    // content so there's no menu bar / desktop / etc. in the output. Falls back to the far-off
+    // placement if virtual-display creation isn't available or fails.
+    //
+    // Explicitly release any previous virtual display before creating a new one. CoreGraphics
+    // appears to cap the number of concurrently live app-owned virtual displays very low (if the
+    // previous one is still retained when a second `initWithDescriptor:` is called, the second
+    // call returns nil). We want each capture session to get its own freshly-sized display.
+    m_tabCaptureVirtualDisplay = nullptr;
+    m_tabCaptureVirtualDisplayID = 0;
     NSRect offscreenFrame = NSMakeRect(-100000, -100000, contentSize.width, contentSize.height);
+    uint32_t virtualDisplayID = 0;
+    RetainPtr virtualDisplay = createTabCaptureVirtualDisplay(static_cast<uint32_t>(contentSize.width), static_cast<uint32_t>(contentSize.height), virtualDisplayID);
+    if (virtualDisplay && virtualDisplayID) {
+        if (NSScreen *virtualScreen = waitForVirtualDisplayScreen(virtualDisplayID, 1.0)) {
+            // We do NOT try to switch the virtual display to a HiDPI mode. CoreGraphics rejects
+            // CGDisplaySetDisplayMode on our virtual displays (err=1001), and even when the HiDPI
+            // mode is installed CG's auto-pick keeps the 1x variant. Instead, we accept the 1x
+            // display and compensate by sizing the window to 2× the content and scaling the mirror
+            // layer tree 2× via sublayerTransform. On a 1x display, a point equals a pixel, so a
+            // 2×-sized window gives us exactly the pixel count a retina display would provide at
+            // native size — the mirror's retina (contentsScale=2) bitmaps then land 1:1 on the
+            // window's pixel grid. See `m_tabCaptureMirrorScale` below.
+            virtualScreen = screenForDisplayID(virtualDisplayID) ?: virtualScreen;
+            NSRect virtualFrame = [virtualScreen frame];
+            m_tabCaptureMirrorScale = 2.0;
+            NSSize windowSize = NSMakeSize(contentSize.width * m_tabCaptureMirrorScale, contentSize.height * m_tabCaptureMirrorScale);
+            offscreenFrame = NSMakeRect(NSMinX(virtualFrame), NSMinY(virtualFrame), windowSize.width, windowSize.height);
+            m_tabCaptureVirtualDisplay = virtualDisplay;
+            m_tabCaptureVirtualDisplayID = virtualDisplayID;
+            RELEASE_LOG(WebRTC, "startTabCapture - virtual display %u at (%g,%g,%gx%g); mirrorScale=%g, window at (%g,%g,%gx%g).",
+                virtualDisplayID, NSMinX(virtualFrame), NSMinY(virtualFrame), NSWidth(virtualFrame), NSHeight(virtualFrame),
+                m_tabCaptureMirrorScale,
+                NSMinX(offscreenFrame), NSMinY(offscreenFrame), NSWidth(offscreenFrame), NSHeight(offscreenFrame));
+        } else {
+            RELEASE_LOG_ERROR(WebRTC, "startTabCapture - virtual display %u created but NSScreen never appeared; falling back to off-screen placement.", virtualDisplayID);
+            m_tabCaptureMirrorScale = 1.0;
+        }
+    } else
+        m_tabCaptureMirrorScale = 1.0;
     RetainPtr window = adoptNS([[NSWindow alloc] initWithContentRect:offscreenFrame styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO]);
     [window setReleasedWhenClosed:NO];
     [window setOpaque:YES];
     [window setHasShadow:NO];
     [window setBackgroundColor:[NSColor whiteColor]];
     [window setLevel:NSNormalWindowLevel];
-    RetainPtr contentView = adoptNS([[WKTabCaptureMirrorFlippedView alloc] initWithFrame:NSMakeRect(0, 0, contentSize.width, contentSize.height)]);
+    // contentView matches window dims (= contentSize × mirrorScale). Mirror layers are at native
+    // content-point dims (742×565 etc.); we scale them 2× via sublayerTransform so they fill a
+    // 2×-sized window and render at 1 bitmap-pixel per 1 window-pixel on a 1x display.
+    RetainPtr contentView = adoptNS([[WKTabCaptureMirrorFlippedView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(offscreenFrame), NSHeight(offscreenFrame))]);
     [contentView setWantsLayer:YES];
     [[contentView layer] setBackgroundColor:[NSColor whiteColor].CGColor];
-    // Shift reparented sublayers up by topInset so content starts at Y=0 of the mirror.
+    // sublayerTransform combines: scale by mirrorScale, then translate by -topInset (in child
+    // coord space, applied before scale). Order constructed via CATransform3DTranslate on a scale
+    // matrix gives: scale × translate (translate applied first to child points, then scale).
+    CATransform3D sublayerXform = CATransform3DMakeScale(m_tabCaptureMirrorScale, m_tabCaptureMirrorScale, 1.0);
     if (topInset > 0)
-        [[contentView layer] setSublayerTransform:CATransform3DMakeTranslation(0, -topInset, 0)];
-    RELEASE_LOG(WebRTC, "startTabCapture - obscuredContentInsets top=%g webViewFrame=%gx%g.", topInset, NSWidth(webViewFrame), NSHeight(webViewFrame));
+        sublayerXform = CATransform3DTranslate(sublayerXform, 0, -topInset, 0);
+    [[contentView layer] setSublayerTransform:sublayerXform];
+    RELEASE_LOG(WebRTC, "startTabCapture - obscuredContentInsets top=%g webViewFrame=%gx%g mirrorScale=%g.", topInset, NSWidth(webViewFrame), NSHeight(webViewFrame), m_tabCaptureMirrorScale);
     [window setContentView:contentView.get()];
+
     [window orderFrontRegardless];
     m_tabCaptureOffscreenWindow = window;
 
@@ -640,9 +833,14 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
     // Cursor mirror layer: sibling of the (soon-to-arrive) mirror root. Also under sublayerTransform's
     // -topInset shift, so updateTabCaptureCursorMirror pre-adds topInset to the layer's Y position so
     // the hotspot lands on the correct content-area coordinate once the transform is applied.
+    //
+    // contentsScale accounts for BOTH the window's native backing scale AND the 2× mirrorScale
+    // transform. On a 1x VD, backingScale=1 and mirrorScale=2 → contentsScale=2 so the @2x cursor
+    // bitmap lands 1:1 on window pixels after being scaled up by the sublayerTransform. On the
+    // retina-main-screen fallback, backingScale=2 and mirrorScale=1 → contentsScale=2, same effect.
     RetainPtr cursorLayer = adoptNS([[CALayer alloc] init]);
     [cursorLayer setAnchorPoint:CGPointMake(0, 0)];
-    [cursorLayer setContentsScale:[window backingScaleFactor]];
+    [cursorLayer setContentsScale:[window backingScaleFactor] * m_tabCaptureMirrorScale];
     [cursorLayer setZPosition:1000];
     [cursorLayer setHidden:YES];
     [[contentView layer] addSublayer:cursorLayer.get()];
@@ -674,19 +872,35 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& page, Completio
         RefPtr strongPage = weakPage.get();
         if (!strongWebView || !strongWindow || !strongPage)
             return;
+        auto& mgr = DisplayCaptureSessionManager::singleton();
+        CGFloat mirrorScale = mgr.m_tabCaptureMirrorScale;
         NSRect newFrame = [strongWebView frame];
         CGFloat inset = strongPage->obscuredContentInsets().top();
-        NSSize newSize = NSMakeSize(NSWidth(newFrame) ?: 1, std::max<CGFloat>(1, (NSHeight(newFrame) ?: 1) - inset));
+        NSSize newContentSize = NSMakeSize(NSWidth(newFrame) ?: 1, std::max<CGFloat>(1, (NSHeight(newFrame) ?: 1) - inset));
+        NSSize newWindowSize = NSMakeSize(newContentSize.width * mirrorScale, newContentSize.height * mirrorScale);
         NSRect currentWindowFrame = [strongWindow frame];
-        if (NSWidth(currentWindowFrame) == newSize.width && NSHeight(currentWindowFrame) == newSize.height)
+        if (NSWidth(currentWindowFrame) == newWindowSize.width && NSHeight(currentWindowFrame) == newWindowSize.height)
             return;
-        [strongWindow setFrame:NSMakeRect(NSMinX(currentWindowFrame), NSMinY(currentWindowFrame), newSize.width, newSize.height) display:NO];
-        [[strongWindow contentView] setFrame:NSMakeRect(0, 0, newSize.width, newSize.height)];
+
+        // Keep the virtual display's mode in sync with the window size (in points on the 1x VD).
+        // applySettings: reuses the existing displayID — the matching NSScreen's frame just updates
+        // in place.
+        NSRect targetFrame = NSMakeRect(NSMinX(currentWindowFrame), NSMinY(currentWindowFrame), newWindowSize.width, newWindowSize.height);
+        if (mgr.m_tabCaptureVirtualDisplay && mgr.m_tabCaptureVirtualDisplayID) {
+            RetainPtr settings = adoptNS([[CGVirtualDisplaySettings alloc] init]);
+            [settings setHiDPI:CGVirtualDisplayHiDPIModeEnable];
+            RetainPtr mode = adoptNS([[CGVirtualDisplayMode alloc] initWithWidth:static_cast<uint32_t>(newWindowSize.width) height:static_cast<uint32_t>(newWindowSize.height) refreshRate:60]);
+            [settings setModes:@[mode.get()]];
+            if (![mgr.m_tabCaptureVirtualDisplay applySettings:settings.get()])
+                RELEASE_LOG_ERROR(WebRTC, "startTabCapture frameObserver - applySettings failed on virtual display %u.", mgr.m_tabCaptureVirtualDisplayID);
+        }
+        [strongWindow setFrame:targetFrame display:NO];
+        [[strongWindow contentView] setFrame:NSMakeRect(0, 0, newWindowSize.width, newWindowSize.height)];
+        CATransform3D xform = CATransform3DMakeScale(mirrorScale, mirrorScale, 1.0);
         if (inset > 0)
-            [[[strongWindow contentView] layer] setSublayerTransform:CATransform3DMakeTranslation(0, -inset, 0)];
-        else
-            [[[strongWindow contentView] layer] setSublayerTransform:CATransform3DIdentity];
-        RELEASE_LOG(WebRTC, "startTabCapture - resized offscreen window to %gx%g (inset=%g).", newSize.width, newSize.height, inset);
+            xform = CATransform3DTranslate(xform, 0, -inset, 0);
+        [[[strongWindow contentView] layer] setSublayerTransform:xform];
+        RELEASE_LOG(WebRTC, "startTabCapture - resized offscreen window to %gx%g (contentSize=%gx%g inset=%g mirrorScale=%g).", newWindowSize.width, newWindowSize.height, newContentSize.width, newContentSize.height, inset, mirrorScale);
     }];
 
     // Install NSEvent monitors to drive the cursor mirror. Local for events within our app's windows,

@@ -36,6 +36,7 @@
 #include <wtf/WeakPtr.h>
 
 OBJC_CLASS CALayer;
+OBJC_CLASS CGVirtualDisplay;
 OBJC_CLASS NSMutableArray;
 OBJC_CLASS NSObject;
 OBJC_CLASS NSTimer;
@@ -108,6 +109,13 @@ private:
     // Tab-capture state.
     enum class CaptureMode { None, SafariWindow, OffscreenReparent };
     CaptureMode m_tabCaptureMode { CaptureMode::None };
+    RetainPtr<CGVirtualDisplay> m_tabCaptureVirtualDisplay;
+    uint32_t m_tabCaptureVirtualDisplayID { 0 };
+    // When the mirror window is on the (1x) virtual display, we size it 2× the WKWebView's content
+    // size and apply a 2× sublayerTransform so the retina mirror layers render into a window whose
+    // 1x point grid matches native pixel dimensions. 1.0 when there's no virtual display (window
+    // falls back to -100000,-100000 and inherits the main screen's backing scale).
+    CGFloat m_tabCaptureMirrorScale { 1.0 };
     RetainPtr<NSWindow> m_tabCaptureOffscreenWindow;
     RetainPtr<CALayer> m_tabCaptureCursorLayer;
     RetainPtr<NSTimer> m_tabCaptureModePoll;

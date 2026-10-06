@@ -5196,7 +5196,6 @@ static RetainPtr<NSArray> wkTextManipulationErrors(NSArray<_WKTextManipulationIt
 
 - (void)_willReplace:(WKWebView *)previousWebView
 {
-    WTFLogAlways("_willReplace is called");
     THROW_IF_SUSPENDED;
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
     if (!previousWebView)
