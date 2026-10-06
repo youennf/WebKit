@@ -873,6 +873,7 @@ void vp9_highbd_apply_temporal_filter_neon(
       y_dist_ptr, u_dist_ptr, v_dist_ptr);
 }
 
+#if !CONFIG_REALTIME_ONLY // WEBRTC_WEBKIT_BUILD
 static INLINE uint16x8_t highbd_convolve12_8(
     const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
     const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
@@ -1074,3 +1075,5 @@ void vpx_highbd_convolve12_neon(const uint16_t *src, ptrdiff_t src_stride,
                                   im_stride, dst, dst_stride, filter, x0_q4,
                                   x_step_q4, y0_q4, y_step_q4, w, h, bd);
 }
+
+#endif // !CONFIG_REALTIME_ONLY for WEBRTC_WEBKIT_BUILD
