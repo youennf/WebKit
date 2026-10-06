@@ -724,9 +724,11 @@ static int decode_b(Dav1dTaskContext *const t,
                     r[x].bs = bs;
                 }
                 refmvs_block *const *rr = &t->rt.r[(t->by & 31) + 5];
+                const int bx = t->bx + bw4 - 1;
                 for (int y = 0; y < bh4 - 1; y++) {
-                    rr[y][t->bx + bw4 - 1].ref.ref[0] = 0;
-                    rr[y][t->bx + bw4 - 1].bs = bs;
+                    refmvs_block *d = &rr[y][bx];
+                    d->ref.ref[0] = 0;
+                    d->bs = bs;
                 }
             }
 
@@ -791,10 +793,12 @@ static int decode_b(Dav1dTaskContext *const t,
                     r[x].bs = bs;
                 }
                 refmvs_block *const *rr = &t->rt.r[(t->by & 31) + 5];
+                const int bx = t->bx + bw4 - 1;
                 for (int y = 0; y < bh4 - 1; y++) {
-                    rr[y][t->bx + bw4 - 1].ref.ref[0] = ref1;
-                    rr[y][t->bx + bw4 - 1].mv.mv[0] = mv1;
-                    rr[y][t->bx + bw4 - 1].bs = bs;
+                    refmvs_block* d = &rr[y][bx];
+                    d->ref.ref[0] = ref1;
+                    d->mv.mv[0] = mv1;
+                    d->bs = bs;
                 }
             }
 
@@ -1884,7 +1888,7 @@ static int decode_b(Dav1dTaskContext *const t,
             f->frame_hdr->loopfilter.level_y[1])
         {
             const int is_globalmv =
-                is_comp ? (b->inter_mode == GLOBALMV_GLOBALMV) : (b->inter_mode == GLOBALMV);
+                b->inter_mode == (is_comp ? GLOBALMV_GLOBALMV : GLOBALMV);
             const uint8_t (*const lf_lvls)[8][2] = (const uint8_t (*)[8][2])
                 &ts->lflvl[b->seg_id][0][b->ref[0] + 1][!is_globalmv];
             const uint16_t tx_split[2] = { b->tx_split0, b->tx_split1 };
