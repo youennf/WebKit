@@ -145,7 +145,13 @@ DatagramConnectionInternal::DatagramConnectionInternal(
 
   internal_transport_->ice_transport()->SubscribeCandidateGathered(
       this,
+#if WEBRTC_WEBKIT_BUILD
+      [this](IceTransportInternal* ice_transport, const Candidate& candidate) {
+        OnCandidateGathered(ice_transport, candidate);
+      });
+#else
       std::bind_front(&DatagramConnectionInternal::OnCandidateGathered, this));
+#endif
 
   if (wire_protocol_ == WireProtocol::kDtls ||
       wire_protocol_ == WireProtocol::kDtlsWithFeedback) {
