@@ -70,19 +70,6 @@
 
 namespace WebCore {
 
-// https://w3c.github.io/webcodecs/#videoframe-parse-rotation
-static VideoFrame::Rotation parseRotation(double rotation)
-{
-    if (!std::isfinite(rotation))
-        return VideoFrame::Rotation::None;
-
-    // fmod is exact, which keeps the computation below accurate even for very large values.
-    // Rounding to the nearest multiple of 90 degrees, ties towards positive infinity, does not depend on full turns.
-    auto remainder = std::fmod(rotation, 360);
-    int alignedRotation = static_cast<int>(std::floor((remainder + 45) / 90)) * 90;
-    return static_cast<VideoFrame::Rotation>(((alignedRotation % 360) + 360) % 360);
-}
-
 struct VideoFrameOrientation {
     VideoFrame::Rotation rotation;
     bool isMirrored;
@@ -94,7 +81,7 @@ static VideoFrameOrientation combineOrientation(const VideoFrame& baseFrame, dou
 {
     int baseRotation = static_cast<int>(baseFrame.rotation());
     bool baseFlip = baseFrame.isMirrored();
-    int rotation = static_cast<int>(parseRotation(initRotation));
+    int rotation = static_cast<int>(parseVideoFrameRotation(initRotation));
 
     int combinedRotation = baseFlip ? baseRotation - rotation : baseRotation + rotation;
     return { static_cast<VideoFrame::Rotation>(((combinedRotation % 360) + 360) % 360), baseFlip != initFlip };
@@ -340,7 +327,7 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(ScriptExecutio
         return Exception { ExceptionCode::TypeError, makeString("Data is too small "_s, data.byteLength(), " / "_s, layout.allocationSize) };
 
     auto colorSpace = videoFramePickColorSpace(init.colorSpace, pixelFormat);
-    auto rotation = parseRotation(init.rotation);
+    auto rotation = parseVideoFrameRotation(init.rotation);
     RefPtr<VideoFrame> videoFrame;
     switch (pixelFormat) {
     case VideoPixelFormat::NV12:

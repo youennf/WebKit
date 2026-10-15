@@ -301,6 +301,19 @@ ExceptionOr<CombinedPlaneLayout> parseVideoFrameCopyToOptions(const WebCodecsVid
     return computeLayoutAndAllocationSize(parsedRect.returnValue(), options.layout, *frame.format());
 }
 
+// https://w3c.github.io/webcodecs/#videoframe-parse-rotation
+VideoFrame::Rotation parseVideoFrameRotation(double rotation)
+{
+    if (!std::isfinite(rotation))
+        return VideoFrame::Rotation::None;
+
+    // fmod is exact, which keeps the computation below accurate even for very large values.
+    // Rounding to the nearest multiple of 90 degrees, ties towards positive infinity, does not depend on full turns.
+    auto remainder = std::fmod(rotation, 360);
+    int alignedRotation = static_cast<int>(std::floor((remainder + 45) / 90)) * 90;
+    return static_cast<VideoFrame::Rotation>(((alignedRotation % 360) + 360) % 360);
+}
+
 // https://w3c.github.io/webcodecs/#videoframe-initialize-visible-rect-and-display-size
 void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame& frame, const WebCodecsVideoFrame::Init& init, VideoFrame::Rotation baseRotation, VideoFrame::Rotation rotation, const DOMRectInit& defaultVisibleRect, size_t defaultDisplayWidth, size_t defaultDisplayHeight)
 {

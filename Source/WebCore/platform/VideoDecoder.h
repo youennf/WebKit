@@ -27,6 +27,7 @@
 
 #include <WebCore/PlatformVideoColorSpace.h>
 #include <WebCore/ProcessIdentity.h>
+#include <WebCore/VideoFrame.h>
 #include <WebCore/VideoEncodedData.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/NativePromise.h>
@@ -51,6 +52,9 @@ public:
         HardwareBuffer pixelBuffer { HardwareBuffer::No };
         TreatNoOutputAsError noOutputAsError { TreatNoOutputAsError::Yes };
         ProcessIdentity resourceOwner { };
+        // Applied to the decoded frames.
+        VideoFrameRotation rotation { VideoFrameRotation::None };
+        bool isMirrored { false };
     };
 
     struct DecodedFrame {

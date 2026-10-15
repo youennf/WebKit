@@ -91,6 +91,8 @@ private:
     bool m_isClosed { false };
     GRefPtr<GstCaps> m_inputCaps;
     std::optional<VideoFrameGStreamer::Info> m_videoInfo;
+    const VideoFrame::Rotation m_rotation;
+    const bool m_isMirrored { false };
 };
 
 void GStreamerVideoDecoder::create(const String& codecName, const Config& config, CreateCallback&& callback, OutputCallback&& outputCallback)
@@ -178,6 +180,8 @@ void GStreamerVideoDecoder::close()
 
 GStreamerInternalVideoDecoder::GStreamerInternalVideoDecoder(const String& codecName, const VideoDecoder::Config& config, VideoDecoder::OutputCallback&& outputCallback, GRefPtr<GstElement>&& element)
     : m_outputCallback(WTF::move(outputCallback))
+    , m_rotation(config.rotation)
+    , m_isMirrored(config.isMirrored)
 {
     GST_DEBUG_OBJECT(element.get(), "Configuring decoder for codec %s", codecName.ascii().data());
     configureVideoDecoderForHarnessing(element);
@@ -283,6 +287,8 @@ GStreamerInternalVideoDecoder::GStreamerInternalVideoDecoder(const String& codec
         VideoFrameGStreamer::CreateOptions options(IntSize(m_presentationSize), { *m_videoInfo });
         options.presentationTime = fromGstClockTime(timestamp);
         options.contentHint = VideoFrameContentHint::WebCodecs;
+        options.rotation = m_rotation;
+        options.isMirrored = m_isMirrored;
         auto videoFrame = VideoFrameGStreamer::create(WTF::move(outputSample), options);
         m_outputCallback(VideoDecoder::DecodedFrame { WTF::move(videoFrame), timestamp, duration });
     }, std::nullopt, WTF::move(allowedSinkCaps)));
