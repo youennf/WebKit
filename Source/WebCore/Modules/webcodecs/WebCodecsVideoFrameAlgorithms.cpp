@@ -302,16 +302,22 @@ ExceptionOr<CombinedPlaneLayout> parseVideoFrameCopyToOptions(const WebCodecsVid
 }
 
 // https://w3c.github.io/webcodecs/#videoframe-initialize-visible-rect-and-display-size
-void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame& frame, const WebCodecsVideoFrame::Init& init, const DOMRectInit& defaultVisibleRect, size_t defaultDisplayWidth, size_t defaultDisplayHeight)
+void initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame& frame, const WebCodecsVideoFrame::Init& init, VideoFrame::Rotation baseRotation, VideoFrame::Rotation rotation, const DOMRectInit& defaultVisibleRect, size_t defaultDisplayWidth, size_t defaultDisplayHeight)
 {
     auto visibleRect = init.visibleRect.value_or(defaultVisibleRect);
     frame.setVisibleRect(visibleRect);
     if (init.displayWidth && init.displayHeight)
         frame.setDisplaySize(*init.displayWidth, *init.displayHeight);
     else {
-        auto widthScale = defaultDisplayWidth / defaultVisibleRect.width;
-        auto heightScale = defaultDisplayHeight / defaultVisibleRect.height;
-        frame.setDisplaySize(visibleRect.width * widthScale, visibleRect.height * heightScale);
+        // The default display size is relative to the orientation of the base frame.
+        bool isBaseRotated = baseRotation == VideoFrame::Rotation::Left || baseRotation == VideoFrame::Rotation::Right;
+        auto widthScale = (isBaseRotated ? defaultDisplayHeight : defaultDisplayWidth) / defaultVisibleRect.width;
+        auto heightScale = (isBaseRotated ? defaultDisplayWidth : defaultDisplayHeight) / defaultVisibleRect.height;
+        size_t displayWidth = std::round(visibleRect.width * widthScale);
+        size_t displayHeight = std::round(visibleRect.height * heightScale);
+        if (rotation == VideoFrame::Rotation::Left || rotation == VideoFrame::Rotation::Right)
+            std::swap(displayWidth, displayHeight);
+        frame.setDisplaySize(displayWidth, displayHeight);
     }
 }
 

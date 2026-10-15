@@ -78,13 +78,13 @@ public:
 
     static RefPtr<VideoFrame> fromNativeImage(NativeImage&);
     static RefPtr<VideoFrame> createFromPixelBuffer(Ref<PixelBuffer>&&, PlatformVideoColorSpace&& = { });
-    static RefPtr<VideoFrame> createNV12(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createRGBA(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createRGBX(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createBGRA(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createBGRX(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createI420(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
-    static RefPtr<VideoFrame> createI420A(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createNV12(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createRGBA(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createRGBX(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createBGRA(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createBGRX(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createI420(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
+    static RefPtr<VideoFrame> createI420A(std::span<const uint8_t>, size_t width, size_t height, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, const ComputedPlaneLayout&, VideoFrameRotation, PlatformVideoColorSpace&&);
 
     using Rotation = VideoFrameRotation;
 
@@ -97,8 +97,9 @@ public:
 #endif
 
     enum class ShouldClone : bool { No, Yes };
-    // updateTimestamp and updateShouldIgnoreAlpha should be called before being used by VideoFrame consumers.
+    // updateTimestamp, updateRotation and updateShouldIgnoreAlpha should be called before being used by VideoFrame consumers.
     Ref<VideoFrame> updateTimestamp(MediaTime, ShouldClone);
+    Ref<VideoFrame> updateRotation(Rotation, ShouldClone);
     Ref<VideoFrame> updateShouldIgnoreAlpha(bool, ShouldClone);
 
     using CopyCallback = CompletionHandler<void(std::optional<Vector<PlaneLayout>>&&)>;

@@ -48,7 +48,7 @@ ExceptionOr<CombinedPlaneLayout> computeLayoutAndAllocationSize(const DOMRectIni
 
 ExceptionOr<CombinedPlaneLayout> parseVideoFrameCopyToOptions(const WebCodecsVideoFrame&, const WebCodecsVideoFrame::CopyToOptions&);
 
-void LEGACY_NODELETE initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame&, const WebCodecsVideoFrame::Init&, const DOMRectInit&, size_t defaultDisplayWidth, size_t defaultDisplayHeight);
+void LEGACY_NODELETE initializeVisibleRectAndDisplaySize(WebCodecsVideoFrame&, const WebCodecsVideoFrame::Init&, VideoFrame::Rotation baseRotation, VideoFrame::Rotation, const DOMRectInit&, size_t defaultDisplayWidth, size_t defaultDisplayHeight);
 
 VideoColorSpaceInit LEGACY_NODELETE videoFramePickColorSpace(const std::optional<VideoColorSpaceInit>&, VideoPixelFormat);
 
