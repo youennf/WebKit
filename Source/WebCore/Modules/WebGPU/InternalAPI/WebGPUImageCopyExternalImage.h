@@ -49,7 +49,7 @@ struct ImageCopyExternalImage {
     std::optional<VideoSourceIdentifier> videoSource;
 #if ENABLE(VIDEO)
     // How that frame has to be transformed to be presented, which its pixels are not stored with:
-    // a horizontal mirror if videoSourceIsMirrored, then a clockwise rotation. A frame a media
+    // a clockwise rotation, then a horizontal mirror if videoSourceIsMirrored. A frame a media
     // player decoded has already been transformed, so both are inert for one; a WebCodecs frame
     // carries its transform as state instead.
     VideoFrameRotation videoSourceRotation { VideoFrameRotation::None };

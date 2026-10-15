@@ -81,15 +81,17 @@ Ref<VideoFrame> VideoFrame::updateOrientation(Rotation rotation, bool isMirrored
 
 ImageOrientation VideoFrame::orientation() const
 {
+    // The frame is rotated clockwise, then mirrored horizontally. An EXIF orientation mirrors before it rotates,
+    // which is why mirrored 90 and 270 degrees frames map to the transposed orientations.
     switch (m_rotation) {
     case Rotation::None:
         return m_isMirrored ? ImageOrientation::Orientation::OriginTopRight : ImageOrientation::Orientation::OriginTopLeft;
     case Rotation::Right:
-        return m_isMirrored ? ImageOrientation::Orientation::OriginRightBottom : ImageOrientation::Orientation::OriginRightTop;
+        return m_isMirrored ? ImageOrientation::Orientation::OriginLeftTop : ImageOrientation::Orientation::OriginRightTop;
     case Rotation::UpsideDown:
         return m_isMirrored ? ImageOrientation::Orientation::OriginBottomLeft : ImageOrientation::Orientation::OriginBottomRight;
     case Rotation::Left:
-        return m_isMirrored ? ImageOrientation::Orientation::OriginLeftTop : ImageOrientation::Orientation::OriginLeftBottom;
+        return m_isMirrored ? ImageOrientation::Orientation::OriginRightBottom : ImageOrientation::Orientation::OriginLeftBottom;
     }
     ASSERT_NOT_REACHED();
     return ImageOrientation::Orientation::OriginTopLeft;

@@ -142,7 +142,7 @@ typedef struct WGPUImageCopyExternalImage {
     // and the frame is treated as opaque, the way an external texture is.
     SUPPRESS_UNRETAINED_MEMBER CVPixelBufferRef pixelBuffer;
     // The frame's display transform, applied to the pixel buffer to obtain the image script sees:
-    // a horizontal mirror if pixelBufferIsMirrored, then a clockwise rotation. Unused without
+    // a clockwise rotation, then a horizontal mirror if pixelBufferIsMirrored. Unused without
     // pixelBuffer.
     WGPUVideoFrameRotation pixelBufferRotation;
     WGPUBool pixelBufferIsMirrored;

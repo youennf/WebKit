@@ -1526,8 +1526,8 @@ static constexpr std::array<float, 6> identityUVRemapMatrix { 1, 0, 0, 1, 0, 0 }
 
 // The inverse of a frame's display transform, in normalized coordinates and flattened the same way
 // the crop matrix is: a coordinate in the presented image maps back to the frame pixel which holds
-// it. The forward transform mirrors x, when the frame is mirrored, and then rotates clockwise, so the
-// inverse un-rotates and then un-mirrors.
+// it. The forward transform rotates clockwise and then mirrors x, when the frame is mirrored, so the
+// inverse un-mirrors and then un-rotates.
 static std::array<float, 6> inverseDisplayTransformMatrix(WGPUVideoFrameRotation rotation, bool isMirrored)
 {
     std::array<float, 6> matrix = identityUVRemapMatrix;
@@ -1546,10 +1546,11 @@ static std::array<float, 6> inverseDisplayTransformMatrix(WGPUVideoFrameRotation
     }
 
     if (isMirrored) {
-        // Reflect only the coordinate the mirror moved, about the middle of the frame.
+        // Reflect the x coordinate of the presented image about its middle, before it is un-rotated.
+        matrix[4] += matrix[0];
+        matrix[5] += matrix[1];
         matrix[0] = -matrix[0];
-        matrix[2] = -matrix[2];
-        matrix[4] = 1 - matrix[4];
+        matrix[1] = -matrix[1];
     }
 
     return matrix;

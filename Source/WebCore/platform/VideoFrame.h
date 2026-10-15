@@ -92,7 +92,7 @@ public:
     MediaTime presentationTime() const { return m_presentationTime; }
     Rotation rotation() const { return m_rotation; }
     bool isMirrored() const { return m_isMirrored; }
-    // The frame is mirrored first, then rotated.
+    // The frame is rotated clockwise first, then mirrored horizontally.
     ImageOrientation orientation() const;
 
 #if PLATFORM(COCOA) && USE(AVFOUNDATION)

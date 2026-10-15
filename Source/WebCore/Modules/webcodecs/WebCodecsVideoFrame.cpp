@@ -83,39 +83,21 @@ static VideoFrame::Rotation parseRotation(double rotation)
     return static_cast<VideoFrame::Rotation>(((alignedRotation % 360) + 360) % 360);
 }
 
-// VideoFrame mirrors then rotates, while WebCodecs rotates then flips.
-// A flipped WebCodecs frame rotated by R is a mirrored VideoFrame rotated by -R.
-static VideoFrame::Rotation negateRotation(VideoFrame::Rotation rotation)
-{
-    return static_cast<VideoFrame::Rotation>((360 - static_cast<int>(rotation)) % 360);
-}
-
-static VideoFrame::Rotation toVideoFrameRotation(VideoFrame::Rotation rotation, bool flip)
-{
-    return flip ? negateRotation(rotation) : rotation;
-}
-
-static VideoFrame::Rotation toWebCodecsRotation(const VideoFrame& frame)
-{
-    return toVideoFrameRotation(frame.rotation(), frame.isMirrored());
-}
-
 struct VideoFrameOrientation {
     VideoFrame::Rotation rotation;
     bool isMirrored;
 };
 
 // https://w3c.github.io/webcodecs/#videoframe-add-rotations
+// A VideoFrame is rotated then flipped, like in WebCodecs.
 static VideoFrameOrientation combineOrientation(const VideoFrame& baseFrame, double initRotation, bool initFlip)
 {
-    int baseRotation = static_cast<int>(toWebCodecsRotation(baseFrame));
+    int baseRotation = static_cast<int>(baseFrame.rotation());
     bool baseFlip = baseFrame.isMirrored();
     int rotation = static_cast<int>(parseRotation(initRotation));
 
     int combinedRotation = baseFlip ? baseRotation - rotation : baseRotation + rotation;
-    auto webCodecsRotation = static_cast<VideoFrame::Rotation>(((combinedRotation % 360) + 360) % 360);
-    bool flip = baseFlip != initFlip;
-    return { toVideoFrameRotation(webCodecsRotation, flip), flip };
+    return { static_cast<VideoFrame::Rotation>(((combinedRotation % 360) + 360) % 360), baseFlip != initFlip };
 }
 
 static MediaTime LEGACY_NODELETE timestampToMediaTime(int64_t timestamp)
@@ -358,7 +340,7 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(ScriptExecutio
         return Exception { ExceptionCode::TypeError, makeString("Data is too small "_s, data.byteLength(), " / "_s, layout.allocationSize) };
 
     auto colorSpace = videoFramePickColorSpace(init.colorSpace, pixelFormat);
-    auto rotation = toVideoFrameRotation(parseRotation(init.rotation), init.flip);
+    auto rotation = parseRotation(init.rotation);
     RefPtr<VideoFrame> videoFrame;
     switch (pixelFormat) {
     case VideoPixelFormat::NV12:
@@ -679,7 +661,7 @@ double WebCodecsVideoFrame::rotation() const
 {
     if (m_isDetached || !m_data.internalFrame)
         return 0;
-    return static_cast<double>(toWebCodecsRotation(*m_data.internalFrame));
+    return static_cast<double>(m_data.internalFrame->rotation());
 }
 
 bool WebCodecsVideoFrame::flip() const
