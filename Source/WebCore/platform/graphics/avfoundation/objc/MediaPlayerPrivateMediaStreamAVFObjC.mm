@@ -1107,6 +1107,7 @@ void MediaPlayerPrivateMediaStreamAVFObjC::updateCurrentFrameImage()
     if (!m_imagePainter.pixelBufferConformer)
         return;
 
+    m_imagePainter.isCGImageOriented = false;
     if (RetainPtr pixelBuffer = protect(m_imagePainter.videoFrame)->pixelBuffer())
         m_imagePainter.cgImage = m_imagePainter.pixelBufferConformer->createImageFromPixelBuffer(pixelBuffer);
 }
@@ -1143,8 +1144,13 @@ void MediaPlayerPrivateMediaStreamAVFObjC::paintCurrentFrameInContext(GraphicsCo
     if (!m_imagePainter.cgImage || !m_imagePainter.videoFrame)
         return;
 
-    auto& image = m_imagePainter.cgImage;
+    RefPtr image = m_imagePainter.cgImage;
     FloatRect imageRect { FloatPoint::zero(), image->size() };
+    if (!m_imagePainter.isCGImageOriented) {
+        context.drawNativeImage(*image, destRect, imageRect);
+        return;
+    }
+
     AffineTransform videoTransform = videoTransformationMatrix(Ref { *m_imagePainter.videoFrame });
     FloatRect transformedDestRect = valueOrDefault(videoTransform.inverse()).mapRect(destRect);
     context.concatCTM(videoTransform);
@@ -1247,9 +1253,7 @@ void MediaPlayerPrivateMediaStreamAVFObjC::scheduleDeferredTask(Function<void ()
 
 void MediaPlayerPrivateMediaStreamAVFObjC::CurrentFramePainter::reset()
 {
-    cgImage = nullptr;
-    videoFrame = nullptr;
-    pixelBufferConformer = nullptr;
+    *this = { };
 }
 
 void MediaPlayerPrivateMediaStreamAVFObjC::rootLayerBoundsDidChange()

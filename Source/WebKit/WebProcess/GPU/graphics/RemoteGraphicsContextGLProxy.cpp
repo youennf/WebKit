@@ -278,7 +278,7 @@ RefPtr<NativeImage> RemoteGraphicsContextGLProxy::videoFrameToNativeImage(WebCor
 #if PLATFORM(COCOA)
     RefPtr<NativeImage> nativeImage;
     callOnMainRunLoopAndWait([&] {
-        nativeImage = m_videoFrameObjectHeapProxy->getNativeImage(frame, RemoteVideoFrameObjectHeapProxyProcessor::ShouldApplyOrientation::Yes);
+        nativeImage = m_videoFrameObjectHeapProxy->getNativeImage(frame);
     });
     return nativeImage;
 #else

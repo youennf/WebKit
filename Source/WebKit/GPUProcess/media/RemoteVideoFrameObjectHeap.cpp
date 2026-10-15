@@ -144,7 +144,7 @@ void RemoteVideoFrameObjectHeap::pixelBuffer(RemoteVideoFrameReadReference&& rea
     completionHandler(WTF::move(pixelBuffer));
 }
 
-void RemoteVideoFrameObjectHeap::convertFrameBuffer(SharedVideoFrame&& sharedVideoFrame, bool shouldApplyOrientation, CompletionHandler<void(WebCore::ColorSpace)>&& callback)
+void RemoteVideoFrameObjectHeap::convertFrameBuffer(SharedVideoFrame&& sharedVideoFrame, CompletionHandler<void(WebCore::ColorSpace)>&& callback)
 {
     ColorSpace destinationColorSpace { ColorSpace::SRGB().platformColorSpace() };
     auto scope = makeScopeExit([&callback, &destinationColorSpace] { callback(destinationColorSpace); });
@@ -162,7 +162,8 @@ void RemoteVideoFrameObjectHeap::convertFrameBuffer(SharedVideoFrame&& sharedVid
         return;
     }
 
-    if (shouldApplyOrientation && !frame->hasNoTransformation()) {
+    // The native image is oriented, callers must not apply the rotation and mirroring of the frame again.
+    if (!frame->hasNoTransformation()) {
         Locker locker { m_pixelBufferConformerLock };
         if (!m_imageRotationSession)
             m_imageRotationSession = makeUnique<WebCore::ImageRotationSessionVT>();

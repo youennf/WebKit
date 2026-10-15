@@ -128,9 +128,7 @@ static Ref<ImageBitmap> createImageBitmapFromNativeImage(Ref<ImageBuffer>&& imag
 
 static void createImageBitmap(VideoFrame& videoFrame, CompletionHandler<void(RefPtr<ImageBitmap>&&)>&& completionHandler)
 {
-    IntSize size { static_cast<int>(videoFrame.presentationSize().width()), static_cast<int>(videoFrame.presentationSize().height()) };
-    if (videoFrame.has90DegreeRotation())
-        size = { size.height(), size.width() };
+    auto size = videoFrame.rotatedSize();
     auto imageBuffer = ImageBuffer::create(size, RenderingMode::Unaccelerated, RenderingPurpose::Unspecified, 1, ColorSpace::SRGB(), PixelFormat::BGRA8);
     if (!imageBuffer) {
         completionHandler({ });

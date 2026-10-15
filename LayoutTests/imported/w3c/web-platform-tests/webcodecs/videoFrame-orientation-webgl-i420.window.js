@@ -3,9 +3,11 @@
 // On some platforms texImage2D() of a YUV VideoFrame is done on the GPU, without
 // converting the frame to RGB first. Check that the orientation is applied there too.
 //
-// A 4x4 I420 frame made of four 2x2 blocks, so that chroma subsampling does not blend colors:
+// An 8x8 I420 frame made of four 4x4 blocks:
 //   y r
 //   b g
+// The chroma planes are subsampled and upsampled with interpolation, which blends the colors
+// next to the edge of a block. Only the pixels away from the edges are checked.
 const kBlocks = [
   ['y', 'r'],
   ['b', 'g'],
@@ -20,24 +22,29 @@ function rgbToYuv([r, g, b]) {
   return [16 + 219 * y, 128 + 224 * u, 128 + 224 * v].map(Math.round);
 }
 
+const kSize = 8;
+const kBlockSize = kSize / 2;
+
 function makeI420Frame(rotation) {
-  const size = 4;
-  const data = new Uint8Array(size * size * 3 / 2);
-  for (let y = 0; y < size; ++y) {
-    for (let x = 0; x < size; ++x)
-      data[y * size + x] = rgbToYuv(kOrientationColors[kBlocks[y >> 1][x >> 1]])[0];
+  const chromaSize = kSize / 2;
+  const data = new Uint8Array(kSize * kSize + 2 * chromaSize * chromaSize);
+  for (let y = 0; y < kSize; ++y) {
+    for (let x = 0; x < kSize; ++x)
+      data[y * kSize + x] = rgbToYuv(kOrientationColors[kBlocks[Math.floor(y / kBlockSize)][Math.floor(x / kBlockSize)]])[0];
   }
-  for (let blockY = 0; blockY < 2; ++blockY) {
-    for (let blockX = 0; blockX < 2; ++blockX) {
-      const [, u, v] = rgbToYuv(kOrientationColors[kBlocks[blockY][blockX]]);
-      data[size * size + blockY * 2 + blockX] = u;
-      data[size * size + 4 + blockY * 2 + blockX] = v;
+  const uOffset = kSize * kSize;
+  const vOffset = uOffset + chromaSize * chromaSize;
+  for (let y = 0; y < chromaSize; ++y) {
+    for (let x = 0; x < chromaSize; ++x) {
+      const [, u, v] = rgbToYuv(kOrientationColors[kBlocks[Math.floor(y / (kBlockSize / 2))][Math.floor(x / (kBlockSize / 2))]]);
+      data[uOffset + y * chromaSize + x] = u;
+      data[vOffset + y * chromaSize + x] = v;
     }
   }
   return new VideoFrame(data, {
     format: 'I420',
-    codedWidth: size,
-    codedHeight: size,
+    codedWidth: kSize,
+    codedHeight: kSize,
     timestamp: 0,
     rotation,
   });
@@ -45,8 +52,8 @@ function makeI420Frame(rotation) {
 
 // The name of the color of the block rendered at the pixel (x, y), the blocks being rotated clockwise.
 function expectedBlockName(rotation, x, y) {
-  const blockX = x >> 1;
-  const blockY = y >> 1;
+  const blockX = Math.floor(x / kBlockSize);
+  const blockY = Math.floor(y / kBlockSize);
   switch (rotation) {
     case 0: return kBlocks[blockY][blockX];
     case 90: return kBlocks[1 - blockX][blockY];
@@ -61,15 +68,20 @@ for (const {rotation} of kOrientationCombinations) {
     const frame = makeI420Frame(rotation);
     t.add_cleanup(() => frame.close());
     assert_equals(frame.rotation, rotation, 'rotation');
-    assert_equals(frame.displayWidth, 4, 'displayWidth');
-    assert_equals(frame.displayHeight, 4, 'displayHeight');
+    assert_equals(frame.displayWidth, kSize, 'displayWidth');
+    assert_equals(frame.displayHeight, kSize, 'displayHeight');
 
-    const pixels = readTexturePixels(frame, 4, 4);
-    for (let y = 0; y < 4; ++y) {
-      for (let x = 0; x < 4; ++x) {
+    const pixels = readTexturePixels(frame, kSize, kSize);
+    // Skip the pixels next to the edges of the blocks.
+    const isAwayFromEdge = coordinate => [1, 2].includes(coordinate % kBlockSize);
+    for (let y = 0; y < kSize; ++y) {
+      for (let x = 0; x < kSize; ++x) {
+        if (!isAwayFromEdge(x) || !isAwayFromEdge(y))
+          continue;
         const name = expectedBlockName(rotation, x, y);
         const expected = kOrientationColors[name];
-        const actual = Array.from(pixels.subarray(4 * (y * 4 + x), 4 * (y * 4 + x) + 3));
+        const offset = 4 * (y * kSize + x);
+        const actual = Array.from(pixels.subarray(offset, offset + 3));
         for (let i = 0; i < 3; ++i) {
           assert_approx_equals(actual[i], expected[i], 8,
               `pixel (${x}, ${y}) should be ${name} [${expected}] but is [${actual}]`);

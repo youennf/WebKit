@@ -264,6 +264,7 @@ private:
         RefPtr<NativeImage> cgImage;
         RefPtr<VideoFrame> videoFrame;
         std::unique_ptr<PixelBufferConformerCV> pixelBufferConformer;
+        bool isCGImageOriented { true };
     };
     CurrentFramePainter m_imagePainter;
 

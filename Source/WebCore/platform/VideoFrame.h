@@ -30,6 +30,7 @@
 
 #include <JavaScriptCore/TypedArrays.h>
 #include <WebCore/FloatSize.h>
+#include <WebCore/IntSize.h>
 #include <WebCore/PlaneLayout.h>
 #include <WebCore/PlatformVideoColorSpace.h>
 #include <WebCore/VideoPixelFormat.h>
@@ -130,6 +131,8 @@ public:
 
     bool hasNoTransformation() const { return m_rotation == VideoFrameRotation::None && !m_isMirrored; }
     bool has90DegreeRotation() const { return m_rotation == VideoFrameRotation::Left || m_rotation == VideoFrameRotation::Right; }
+    // The size of the frame once rotated.
+    IntSize rotatedSize() const { return has90DegreeRotation() ? presentationSize().transposedSize() : presentationSize(); }
 
     // Whether the alpha component, if any, must be ignored, the frame being then fully opaque.
     virtual bool shouldIgnoreAlpha() const { return false; }

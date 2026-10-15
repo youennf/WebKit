@@ -62,9 +62,7 @@ public:
 
     using Callback = Function<void(RetainPtr<CVPixelBufferRef>&&)>;
     void getVideoFrameBuffer(const RemoteVideoFrameProxy&, bool canUseIOSurfce, Callback&&);
-    // The native image is by default not oriented: the caller is expected to apply the frame rotation and mirroring.
-    enum class ShouldApplyOrientation : bool { No, Yes };
-    RefPtr<WebCore::NativeImage> getNativeImage(const WebCore::VideoFrame&, ShouldApplyOrientation = ShouldApplyOrientation::No);
+    RefPtr<WebCore::NativeImage> getNativeImage(const WebCore::VideoFrame&);
 
     ThreadSafeWeakPtrControlBlock& controlBlock() const final { return IPC::WorkQueueMessageReceiver<WTF::DestructionThread::MainRunLoop>::controlBlock(); }
     uint32_t weakRefCount() const final { return IPC::WorkQueueMessageReceiver<WTF::DestructionThread::MainRunLoop>::weakRefCount(); }

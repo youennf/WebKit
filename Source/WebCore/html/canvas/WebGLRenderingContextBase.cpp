@@ -3663,9 +3663,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSource(TexImageFunctionID f
     auto internalFrame = source.internalFrame();
 
     // The texture has the size of the frame once rotated.
-    IntSize frameSize { static_cast<int>(internalFrame->presentationSize().width()), static_cast<int>(internalFrame->presentationSize().height()) };
-    if (internalFrame->has90DegreeRotation())
-        frameSize = frameSize.transposedSize();
+    auto frameSize = internalFrame->rotatedSize();
 
     // Go through the fast path doing a GPU-GPU textures copy without a readback to system memory if possible.
     // Otherwise, it will fall back to the normal SW path.
