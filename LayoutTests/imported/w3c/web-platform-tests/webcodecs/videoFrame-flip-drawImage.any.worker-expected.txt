@@ -1,0 +1,16 @@
+
+PASS Rendering of a VideoFrame with a rotation of 0 and flip false
+PASS Rendering of a VideoFrame with a rotation of 90 and flip false
+PASS Rendering of a VideoFrame with a rotation of 180 and flip false
+PASS Rendering of a VideoFrame with a rotation of 270 and flip false
+PASS Rendering of a VideoFrame with a rotation of 0 and flip true
+PASS Rendering of a VideoFrame with a rotation of 90 and flip true
+PASS Rendering of a VideoFrame with a rotation of 180 and flip true
+PASS Rendering of a VideoFrame with a rotation of 270 and flip true
+PASS Flip is applied after a rotation of 90
+PASS Flip is applied after a rotation of 270
+PASS A VideoFrame created from a flipped VideoFrame with an init rotation of 90 rotates the flipped image
+PASS A VideoFrame created from a VideoFrame rotated by 90 with an init flip flips the rotated image
+PASS A VideoFrame created from a flipped VideoFrame with an init rotation of 270 rotates the flipped image
+PASS A VideoFrame created from a VideoFrame rotated by 270 with an init flip flips the rotated image
+

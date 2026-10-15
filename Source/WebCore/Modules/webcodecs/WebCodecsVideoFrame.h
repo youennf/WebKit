@@ -74,6 +74,7 @@ public:
 
         std::optional<DOMRectInit> visibleRect;
         double rotation { 0 };
+        bool flip { false };
 
         std::optional<size_t> displayWidth;
         std::optional<size_t> displayHeight;
@@ -89,6 +90,7 @@ public:
 
         std::optional<DOMRectInit> visibleRect { };
         double rotation { 0 };
+        bool flip { false };
 
         std::optional<size_t> displayWidth { };
         std::optional<size_t> displayHeight { };
@@ -118,6 +120,7 @@ public:
     VideoColorSpace& colorSpace() const;
 
     double rotation() const;
+    bool flip() const;
 
     struct CopyToOptions {
         std::optional<DOMRectInit> rect;

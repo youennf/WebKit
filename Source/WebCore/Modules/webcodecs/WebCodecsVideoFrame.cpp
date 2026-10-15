@@ -83,16 +83,39 @@ static VideoFrame::Rotation parseRotation(double rotation)
     return static_cast<VideoFrame::Rotation>(((alignedRotation % 360) + 360) % 360);
 }
 
-// https://w3c.github.io/webcodecs/#videoframe-add-rotations
-static VideoFrame::Rotation addRotations(VideoFrame::Rotation baseRotation, bool baseFlip, VideoFrame::Rotation rotation)
+// VideoFrame mirrors then rotates, while WebCodecs rotates then flips.
+// A flipped WebCodecs frame rotated by R is a mirrored VideoFrame rotated by -R.
+static VideoFrame::Rotation negateRotation(VideoFrame::Rotation rotation)
 {
-    int combinedRotation = static_cast<int>(baseRotation) + (baseFlip ? -static_cast<int>(rotation) : static_cast<int>(rotation));
-    return static_cast<VideoFrame::Rotation>(((combinedRotation % 360) + 360) % 360);
+    return static_cast<VideoFrame::Rotation>((360 - static_cast<int>(rotation)) % 360);
 }
 
-static VideoFrame::Rotation combineRotations(const VideoFrame& frame, double initRotation)
+static VideoFrame::Rotation toVideoFrameRotation(VideoFrame::Rotation rotation, bool flip)
 {
-    return addRotations(frame.rotation(), frame.isMirrored(), parseRotation(initRotation));
+    return flip ? negateRotation(rotation) : rotation;
+}
+
+static VideoFrame::Rotation toWebCodecsRotation(const VideoFrame& frame)
+{
+    return toVideoFrameRotation(frame.rotation(), frame.isMirrored());
+}
+
+struct VideoFrameOrientation {
+    VideoFrame::Rotation rotation;
+    bool isMirrored;
+};
+
+// https://w3c.github.io/webcodecs/#videoframe-add-rotations
+static VideoFrameOrientation combineOrientation(const VideoFrame& baseFrame, double initRotation, bool initFlip)
+{
+    int baseRotation = static_cast<int>(toWebCodecsRotation(baseFrame));
+    bool baseFlip = baseFrame.isMirrored();
+    int rotation = static_cast<int>(parseRotation(initRotation));
+
+    int combinedRotation = baseFlip ? baseRotation - rotation : baseRotation + rotation;
+    auto webCodecsRotation = static_cast<VideoFrame::Rotation>(((combinedRotation % 360) + 360) % 360);
+    bool flip = baseFlip != initFlip;
+    return { toVideoFrameRotation(webCodecsRotation, flip), flip };
 }
 
 static MediaTime LEGACY_NODELETE timestampToMediaTime(int64_t timestamp)
@@ -335,7 +358,7 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(ScriptExecutio
         return Exception { ExceptionCode::TypeError, makeString("Data is too small "_s, data.byteLength(), " / "_s, layout.allocationSize) };
 
     auto colorSpace = videoFramePickColorSpace(init.colorSpace, pixelFormat);
-    auto rotation = parseRotation(init.rotation);
+    auto rotation = toVideoFrameRotation(parseRotation(init.rotation), init.flip);
     RefPtr<VideoFrame> videoFrame;
     switch (pixelFormat) {
     case VideoPixelFormat::NV12:
@@ -365,6 +388,9 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::create(ScriptExecutio
 
     if (!videoFrame)
         return Exception { ExceptionCode::TypeError, "Unable to create internal resource from data"_s };
+
+    if (init.flip)
+        videoFrame = videoFrame->updateOrientation(rotation, true, VideoFrame::ShouldClone::No);
 
     transferList.detachAll(context.vm());
 
@@ -463,13 +489,13 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::initializeFrameFromOt
     result->m_data.codedHeight = videoFrame->m_data.codedHeight;
 
     auto baseRotation = videoFrame->m_data.internalFrame->rotation();
-    auto rotation = combineRotations(*videoFrame->m_data.internalFrame, init.rotation);
-    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, rotation, DOMRectInit { static_cast<double>(videoFrame->m_data.visibleLeft), static_cast<double>(videoFrame->m_data.visibleTop), static_cast<double>(videoFrame->m_data.visibleWidth), static_cast<double>(videoFrame->m_data.visibleHeight) }, videoFrame->m_data.displayWidth, videoFrame->m_data.displayHeight);
+    auto orientation = combineOrientation(*videoFrame->m_data.internalFrame, init.rotation, init.flip);
+    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, orientation.rotation, DOMRectInit { static_cast<double>(videoFrame->m_data.visibleLeft), static_cast<double>(videoFrame->m_data.visibleTop), static_cast<double>(videoFrame->m_data.visibleWidth), static_cast<double>(videoFrame->m_data.visibleHeight) }, videoFrame->m_data.displayWidth, videoFrame->m_data.displayHeight);
 
     result->m_data.duration = init.duration ? init.duration : videoFrame->m_data.duration;
     if (init.timestamp)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateTimestamp(timestampToMediaTime(*init.timestamp), shouldCloneIfUpdating);
-    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateRotation(rotation, shouldCloneIfUpdating);
+    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateOrientation(orientation.rotation, orientation.isMirrored, shouldCloneIfUpdating);
     if (init.alpha == WebCodecsAlphaOption::Discard && format != initialFormat)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateShouldIgnoreAlpha(true, shouldCloneIfUpdating);
     result->m_data.timestamp = mediaTimeToTimestamp(result->m_data.internalFrame->presentationTime());
@@ -493,13 +519,13 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::initializeFrameFromOt
     result->m_data.codedHeight = codedHeight;
 
     auto baseRotation = result->m_data.internalFrame->rotation();
-    auto rotation = combineRotations(*result->m_data.internalFrame, init.rotation);
-    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, rotation, DOMRectInit { 0, 0 , static_cast<double>(result->m_data.codedWidth), static_cast<double>(result->m_data.codedHeight) }, result->m_data.codedWidth, result->m_data.codedHeight);
+    auto orientation = combineOrientation(*result->m_data.internalFrame, init.rotation, init.flip);
+    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, orientation.rotation, DOMRectInit { 0, 0 , static_cast<double>(result->m_data.codedWidth), static_cast<double>(result->m_data.codedHeight) }, result->m_data.codedWidth, result->m_data.codedHeight);
 
     result->m_data.duration = init.duration;
     if (init.timestamp)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateTimestamp(timestampToMediaTime(*init.timestamp), shouldCloneIfUpdating);
-    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateRotation(rotation, shouldCloneIfUpdating);
+    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateOrientation(orientation.rotation, orientation.isMirrored, shouldCloneIfUpdating);
     if (init.alpha == WebCodecsAlphaOption::Discard && format != initialFormat)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateShouldIgnoreAlpha(true, shouldCloneIfUpdating);
     result->m_data.timestamp = mediaTimeToTimestamp(result->m_data.internalFrame->presentationTime());
@@ -529,13 +555,13 @@ ExceptionOr<Ref<WebCodecsVideoFrame>> WebCodecsVideoFrame::initializeFrameWithRe
 
     auto displaySize = defaultDisplaySize.value_or(IntSize { static_cast<int>(codedWidth), static_cast<int>(codedHeight) });
     auto baseRotation = result->m_data.internalFrame->rotation();
-    auto rotation = combineRotations(*result->m_data.internalFrame, init.rotation);
-    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, rotation, DOMRectInit { 0, 0 , static_cast<double>(result->m_data.codedWidth), static_cast<double>(result->m_data.codedHeight) }, displaySize.width(), displaySize.height());
+    auto orientation = combineOrientation(*result->m_data.internalFrame, init.rotation, init.flip);
+    initializeVisibleRectAndDisplaySize(result.get(), init, baseRotation, orientation.rotation, DOMRectInit { 0, 0 , static_cast<double>(result->m_data.codedWidth), static_cast<double>(result->m_data.codedHeight) }, displaySize.width(), displaySize.height());
 
     result->m_data.duration = init.duration;
     if (init.timestamp)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateTimestamp(timestampToMediaTime(*init.timestamp), VideoFrame::ShouldClone::No);
-    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateRotation(rotation, VideoFrame::ShouldClone::No);
+    result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateOrientation(orientation.rotation, orientation.isMirrored, VideoFrame::ShouldClone::No);
     if (init.alpha == WebCodecsAlphaOption::Discard && format != initialFormat)
         result->m_data.internalFrame = protect(result->m_data.internalFrame)->updateShouldIgnoreAlpha(true, VideoFrame::ShouldClone::No);
     result->m_data.timestamp = mediaTimeToTimestamp(result->m_data.internalFrame->presentationTime());
@@ -653,7 +679,12 @@ double WebCodecsVideoFrame::rotation() const
 {
     if (m_isDetached || !m_data.internalFrame)
         return 0;
-    return static_cast<double>(m_data.internalFrame->rotation());
+    return static_cast<double>(toWebCodecsRotation(*m_data.internalFrame));
+}
+
+bool WebCodecsVideoFrame::flip() const
+{
+    return !m_isDetached && m_data.internalFrame && m_data.internalFrame->isMirrored();
 }
 
 void WebCodecsVideoFrame::setDisplaySize(size_t width, size_t height)

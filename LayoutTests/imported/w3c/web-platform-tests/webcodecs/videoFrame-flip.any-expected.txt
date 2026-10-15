@@ -1,0 +1,82 @@
+
+PASS A VideoFrame is not flipped by default
+PASS A VideoFrame created from data with a rotation of 0 and flip false
+PASS A VideoFrame created from data with a rotation of 90 and flip false
+PASS A VideoFrame created from data with a rotation of 180 and flip false
+PASS A VideoFrame created from data with a rotation of 270 and flip false
+PASS A VideoFrame created from data with a rotation of 0 and flip true
+PASS A VideoFrame created from data with a rotation of 90 and flip true
+PASS A VideoFrame created from data with a rotation of 180 and flip true
+PASS A VideoFrame created from data with a rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip false with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip false with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip false with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip false with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 0 and flip true with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 90 and flip true with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 180 and flip true with an init rotation of 270 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 0 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 90 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 180 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 270 and flip false
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 0 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 90 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 180 and flip true
+PASS A VideoFrame created from a VideoFrame with a rotation of 270 and flip true with an init rotation of 270 and flip true
+PASS A rotation of the init is applied before the flip of the base frame
+PASS A rotation of the init is added to the rotation of a non flipped base frame
+PASS Flipping a flipped VideoFrame removes the flip and keeps the rotation
+PASS A VideoFrame created from a flipped VideoFrame without init keeps rotation and flip
+PASS Cloning a flipped VideoFrame keeps its flip, and deriving from the clone does not change it
+PASS A closed VideoFrame has no rotation and no flip
+PASS copyTo() of a rotated and flipped VideoFrame is not affected by its rotation and flip
+
