@@ -84,7 +84,14 @@ private:
     ExceptionOr<void> resetEncoder(const Exception&);
     void setInternalEncoder(Ref<VideoEncoder>&&);
 
-    WebCodecsEncodedVideoChunkMetadata createEncodedChunkMetadata(std::optional<unsigned>);
+    struct Orientation {
+        double rotation { 0 };
+        bool flip { false };
+        friend bool operator==(const Orientation&, const Orientation&) = default;
+    };
+
+    WebCodecsEncodedVideoChunkMetadata createEncodedChunkMetadata(std::optional<unsigned> temporalIndex, int64_t timestamp);
+    Orientation orientationForOutput(int64_t timestamp);
     void updateRates(const WebCodecsVideoEncoderConfig&);
 
     const Ref<WebCodecsEncodedVideoChunkOutputCallback> m_output;
@@ -96,6 +103,11 @@ private:
     VideoEncoder::ActiveConfiguration m_activeConfiguration;
     bool m_hasNewActiveConfiguration { false };
     size_t m_encoderCount { 0 };
+    // The rotation and flip of the first frame given to encode() after configure().
+    std::optional<Orientation> m_activeOrientation;
+    // The orientation of the frames being encoded, to describe the outputs with the orientation of their frame.
+    Vector<std::pair<int64_t, Orientation>> m_pendingOrientations;
+    std::optional<Orientation> m_activeOutputOrientation;
 };
 
 } // namespace WebCore

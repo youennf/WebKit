@@ -177,6 +177,7 @@ ExceptionOr<void> WebCodecsVideoEncoder::configure(ScriptExecutionContext& conte
 
     setState(WebCodecsCodecState::Configured);
     m_isKeyChunkRequired = true;
+    m_activeOrientation = std::nullopt;
 
     if (m_internalEncoder) {
         queueControlMessageAndProcess({ *this, [this, protectedThis = Ref { *this }, config]() mutable {
@@ -245,7 +246,7 @@ ExceptionOr<void> WebCodecsVideoEncoder::configure(ScriptExecutionContext& conte
                     result.timestamp,
                     result.duration,
                     SharedBuffer::create(WTF::move(result.data)));
-                encoder.m_output->invoke(WTF::move(chunk), encoder.createEncodedChunkMetadata(result.temporalIndex));
+                encoder.m_output->invoke(WTF::move(chunk), encoder.createEncodedChunkMetadata(result.temporalIndex, result.timestamp));
             });
         });
 
@@ -269,15 +270,32 @@ ExceptionOr<void> WebCodecsVideoEncoder::configure(ScriptExecutionContext& conte
     return { };
 }
 
-WebCodecsEncodedVideoChunkMetadata WebCodecsVideoEncoder::createEncodedChunkMetadata(std::optional<unsigned> temporalIndex)
+WebCodecsVideoEncoder::Orientation WebCodecsVideoEncoder::orientationForOutput(int64_t timestamp)
+{
+    auto index = m_pendingOrientations.findIf([timestamp](auto& pair) {
+        return pair.first == timestamp;
+    });
+    if (index == notFound)
+        return m_activeOrientation.value_or(Orientation { });
+
+    // Outputs are produced in the order of the frames, the previous frames are no longer needed.
+    // The frame is kept since the encoder may output several chunks for a frame.
+    m_pendingOrientations.removeAt(0, index);
+    return m_pendingOrientations[0].second;
+}
+
+WebCodecsEncodedVideoChunkMetadata WebCodecsVideoEncoder::createEncodedChunkMetadata(std::optional<unsigned> temporalIndex, int64_t timestamp)
 {
     WebCodecsEncodedVideoChunkMetadata metadata;
 
-    if (m_hasNewActiveConfiguration) {
+    // The decoder config describes the frame of the output, a new one is needed if it differs from the previous one.
+    auto orientation = orientationForOutput(timestamp);
+    if (m_hasNewActiveConfiguration || m_activeOutputOrientation != orientation) {
         m_hasNewActiveConfiguration = false;
+        m_activeOutputOrientation = orientation;
         // FIXME: Provide more accurate decoder configuration
         metadata.decoderConfig = WebCodecsVideoDecoderConfig {
-            !m_activeConfiguration.codec.isEmpty() ? WTF::move(m_activeConfiguration.codec) : String { m_baseConfiguration.codec },
+            !m_activeConfiguration.codec.isEmpty() ? String { m_activeConfiguration.codec } : String { m_baseConfiguration.codec },
             { },
             m_activeConfiguration.visibleWidth ? m_activeConfiguration.visibleWidth : m_baseConfiguration.width,
             m_activeConfiguration.visibleHeight ? m_activeConfiguration.visibleHeight : m_baseConfiguration.height,
@@ -287,6 +305,9 @@ WebCodecsEncodedVideoChunkMetadata WebCodecsVideoEncoder::createEncodedChunkMeta
             HardwareAcceleration::NoPreference,
             { }
         };
+
+        metadata.decoderConfig->rotation = orientation.rotation;
+        metadata.decoderConfig->flip = orientation.flip;
 
         if (m_activeConfiguration.description && m_activeConfiguration.description->size()) {
             auto arrayBuffer = ArrayBuffer::tryCreateUninitialized(m_activeConfiguration.description->size(), 1);
@@ -316,6 +337,12 @@ ExceptionOr<void> WebCodecsVideoEncoder::encode(Ref<WebCodecsVideoFrame>&& frame
 
     if (state() != WebCodecsCodecState::Configured)
         return Exception { ExceptionCode::InvalidStateError, "VideoEncoder is not configured"_s };
+
+    Orientation orientation { frame->rotation(), frame->flip() };
+    if (m_activeOrientation && *m_activeOrientation != orientation)
+        return Exception { ExceptionCode::DataError, "VideoFrame rotation or flip does not match the previous frames"_s };
+    m_activeOrientation = orientation;
+    m_pendingOrientations.append({ frame->timestamp(), orientation });
 
     queueCodecControlMessageAndProcess({ *this, [this, protectedThis = Ref { *this }, internalFrame = internalFrame.releaseNonNull(), timestamp = frame->timestamp(), duration = frame->duration(), options = WTF::move(options)]() mutable {
         incrementCodecOperationCount();
@@ -408,6 +435,8 @@ ExceptionOr<void> WebCodecsVideoEncoder::resetEncoder(const Exception& exception
         return Exception { ExceptionCode::InvalidStateError, "VideoEncoder is closed"_s };
 
     setState(WebCodecsCodecState::Unconfigured);
+    m_activeOutputOrientation = std::nullopt;
+    m_pendingOrientations.clear();
     if (RefPtr internalEncoder = std::exchange(m_internalEncoder, { }))
         internalEncoder->reset();
     clearControlMessageQueueAndMaybeScheduleDequeueEvent();
