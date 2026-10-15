@@ -110,26 +110,9 @@ void ImageCapture::takePhoto(PhotoSettings&& settings, DOMPromiseDeferred<IDLInt
     });
 }
 
-// FIXME: Move this routine to VideoFrame.
-static ImageOrientation LEGACY_NODELETE videoFrameOrientation(const VideoFrame& videoFrame)
-{
-    switch (videoFrame.rotation()) {
-    case VideoFrame::Rotation::None:
-        return videoFrame.isMirrored() ? ImageOrientation::Orientation::OriginTopRight : ImageOrientation::Orientation::OriginTopLeft;
-    case VideoFrame::Rotation::Right:
-        return videoFrame.isMirrored() ? ImageOrientation::Orientation::OriginRightBottom : ImageOrientation::Orientation::OriginRightTop;
-    case VideoFrame::Rotation::UpsideDown:
-        return videoFrame.isMirrored() ? ImageOrientation::Orientation::OriginBottomLeft : ImageOrientation::Orientation::OriginBottomRight;
-    case VideoFrame::Rotation::Left:
-        return videoFrame.isMirrored() ? ImageOrientation::Orientation::OriginLeftTop : ImageOrientation::Orientation::OriginLeftBottom;
-    }
-    ASSERT_NOT_REACHED();
-    return ImageOrientation::Orientation::OriginTopLeft;
-}
-
 static Ref<ImageBitmap> createImageBitmapViaDrawing(Ref<ImageBuffer>&& imageBuffer, VideoFrame& videoFrame)
 {
-    imageBuffer->context().drawVideoFrame(videoFrame, { { }, imageBuffer->backendSize() }, ShouldDiscardAlpha::No, { videoFrameOrientation(videoFrame) });
+    imageBuffer->context().drawVideoFrame(videoFrame, { { }, imageBuffer->backendSize() }, ShouldDiscardAlpha::No, { videoFrame.orientation() });
 
     bool isOriginClean = true;
     return ImageBitmap::create(WTF::move(imageBuffer), isOriginClean);
@@ -167,7 +150,7 @@ static void createImageBitmap(VideoFrame& videoFrame, CompletionHandler<void(Ref
                 return;
             }
 
-            completionHandler(createImageBitmapFromNativeImage(WTF::move(imageBuffer), *image, videoFrameOrientation(videoFrame)));
+            completionHandler(createImageBitmapFromNativeImage(WTF::move(imageBuffer), *image, videoFrame->orientation()));
         });
         return;
     }

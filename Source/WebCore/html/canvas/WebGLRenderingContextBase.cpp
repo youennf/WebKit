@@ -3662,11 +3662,16 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSource(TexImageFunctionID f
 
     auto internalFrame = source.internalFrame();
 
+    // The texture has the size of the frame once rotated.
+    IntSize frameSize { static_cast<int>(internalFrame->presentationSize().width()), static_cast<int>(internalFrame->presentationSize().height()) };
+    if (internalFrame->has90DegreeRotation())
+        frameSize = frameSize.transposedSize();
+
     // Go through the fast path doing a GPU-GPU textures copy without a readback to system memory if possible.
     // Otherwise, it will fall back to the normal SW path.
     // FIXME: The current restrictions require that format shoud be RGB or RGBA,
     // type should be UNSIGNED_BYTE and level should be 0. It may be lifted in the future.
-    bool sourceImageRectIsDefault = inputSourceImageRect == sentinelEmptyRect() || inputSourceImageRect == IntRect(0, 0, static_cast<int>(internalFrame->presentationSize().width()), static_cast<int>(internalFrame->presentationSize().height()));
+    bool sourceImageRectIsDefault = inputSourceImageRect == sentinelEmptyRect() || inputSourceImageRect == IntRect(0, 0, frameSize.width(), frameSize.height());
     RefPtr context = m_context;
     if (isVideoFrameFormatEligibleToCopy(source) && functionID == TexImageFunctionID::TexImage2D && texture && (format == GraphicsContextGL::RGB || format == GraphicsContextGL::RGBA) && sourceImageRectIsDefault && type == GraphicsContextGL::UNSIGNED_BYTE && !level) {
         if (context->copyTextureFromVideoFrame(*internalFrame, texture->object(), target, level, internalformat, format, type, m_unpackPremultiplyAlpha, m_unpackFlipY))
@@ -3674,7 +3679,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSource(TexImageFunctionID f
     }
 
     // Fallback pure SW path.
-    auto image = context->videoFrameToNativeImage(*internalFrame);
+    RefPtr image = context->videoFrameToNativeImage(*internalFrame);
     if (!image)
         return { };
 

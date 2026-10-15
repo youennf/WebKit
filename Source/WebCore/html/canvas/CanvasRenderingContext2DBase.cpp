@@ -1797,6 +1797,7 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(WebCodecsVideoFrame& f
         willUpdateContents(normalizedDstRect);
 
     ImagePaintingOptions options = {
+        internalFrame->orientation(),
 #if ENABLE(PIXEL_FORMAT_RGBA16F)
         (isHDR() && usesITUR2100TF(internalFrame->colorSpace())) ? DrawsHDRContent::Yes : DrawsHDRContent::No
 #endif

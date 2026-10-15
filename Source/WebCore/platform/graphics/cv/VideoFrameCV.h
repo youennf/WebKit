@@ -52,7 +52,6 @@ public:
     WEBCORE_EXPORT ~VideoFrameCV();
 
     CVPixelBufferRef pixelBuffer() const final { return m_pixelBuffer.get(); }
-    ImageOrientation LEGACY_NODELETE orientation() const;
 
     // VideoFrame overrides.
     WEBCORE_EXPORT WebCore::IntSize presentationSize() const final;
