@@ -10,11 +10,16 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#ifdef WEBRTC_WEBKIT_BUILD
+#include <stdlib.h>
+#endif
 
 #include <memory>
 #include <string>
 #include <utility>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -26,6 +31,7 @@
 #include "test/fuzzers/fuzz_data_helper.h"
 #include "test/gmock.h"
 #include "test/wait_until.h"
+#pragma clang diagnostic pop
 
 namespace webrtc {
 
@@ -34,7 +40,11 @@ class FuzzerTest : public PeerConnectionIntegrationBaseTest {
   FuzzerTest()
       : PeerConnectionIntegrationBaseTest(SdpSemantics::kUnifiedPlan) {}
 
+#ifdef WEBRTC_WEBKIT_BUILD
+  void RunNegotiateCycle(SdpType sdpType, absl::string_view message) {
+#else
   void RunNegotiateCycle(absl::string_view message) {
+#endif
     CreatePeerConnectionWrappers();
     // Note - we do not do test.ConnectFakeSignaling(); all signals
     // generated are discarded.
@@ -42,9 +52,14 @@ class FuzzerTest : public PeerConnectionIntegrationBaseTest {
     auto srd_observer =
         webrtc::make_ref_counted<FakeSetRemoteDescriptionObserver>();
 
+#ifdef WEBRTC_WEBKIT_BUILD
+    std::unique_ptr<SessionDescriptionInterface> sdp(
+        CreateSessionDescription(sdpType, std::string(message)));
+#else
     SdpParseError error;
-    std::unique_ptr<SessionDescriptionInterface> sdp =
-        CreateSessionDescription(SdpType::kOffer, std::string(message), &error);
+    std::unique_ptr<SessionDescriptionInterface> sdp(
+        CreateSessionDescription("offer", std::string(message), &error));
+#endif
     caller()->pc()->SetRemoteDescription(std::move(sdp), srd_observer);
     // Wait a short time for observer to be called. Timeout is short
     // because the fuzzer should be trying many branches.
@@ -57,8 +72,10 @@ class FuzzerTest : public PeerConnectionIntegrationBaseTest {
       caller()->pc()->SetLocalDescription(sld_observer);
       EXPECT_TRUE(WaitUntil([&] { return sld_observer->called(); }));
     }
+#if !defined(WEBRTC_WEBKIT_BUILD)
     // If there is an EXPECT failure, die here.
     RTC_CHECK(!HasFailure());
+#endif // !defined(WEBRTC_WEBKIT_BUILD)
   }
 
   // This test isn't using the test definition macros, so we have to
@@ -67,12 +84,33 @@ class FuzzerTest : public PeerConnectionIntegrationBaseTest {
 };
 
 void FuzzOneInput(FuzzDataHelper fuzz_data) {
+#ifdef WEBRTC_WEBKIT_BUILD
+  uint8_t type;
+  if (const char* var = getenv("SDP_TYPE")) {
+    type = atoi(var);
+  } else {
+    type = fuzz_data.ReadOrDefaultValue<uint8_t>(0);
+  }
+  SdpType sdpType = SdpType::kOffer;
+  switch (type % 4) {
+    case 0: sdpType = SdpType::kOffer; break;
+    case 1: sdpType = SdpType::kPrAnswer; break;
+    case 2: sdpType = SdpType::kAnswer; break;
+    case 3: sdpType = SdpType::kRollback; break;
+  }
+#endif
   if (fuzz_data.size() > 16384) {
     return;
   }
 
   FuzzerTest test;
+#ifdef WEBRTC_WEBKIT_BUILD
+  test.RunNegotiateCycle(
+      sdpType,
+      fuzz_data.ReadString());
+#else
   test.RunNegotiateCycle(fuzz_data.ReadString());
+#endif
 }
 
 }  // namespace webrtc
