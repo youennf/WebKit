@@ -33,15 +33,15 @@
 
 #define CONFIG_8BPC 1
 
+#define CONFIG_ASM_DEBUG 0
+
 // #define CONFIG_LOG 1 -- Logging is controlled by Chromium
 
 #define ENDIANNESS_BIG 0
 
 #define HAVE_ALIGNED_ALLOC 1
 
-#if !defined(HAVE_ASM)
 #define HAVE_ASM 1
-#endif
 
 #define HAVE_AS_ARCHEXT_DOTPROD_DIRECTIVE 0
 
