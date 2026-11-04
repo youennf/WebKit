@@ -13,7 +13,9 @@
 
 #include <array>
 #include <cstddef>
+#if defined(WEBRTC_WEBKIT_BUILD)
 #include <memory>
+#endif
 #include <optional>
 #include <span>
 #include <vector>
