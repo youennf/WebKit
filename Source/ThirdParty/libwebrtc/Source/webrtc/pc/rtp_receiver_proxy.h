@@ -62,6 +62,9 @@ PROXY_METHOD2(RTCErrorOr<scoped_refptr<SframeDecryptorInterface>>,
               CreateSframeDecryptorOrError,
               SframeCipherSuite,
               SframeDecryptErrorCallback)
+#if defined(WEBRTC_WEBKIT_BUILD)
+PROXY_METHOD0(void, GenerateKeyFrame)
+#endif
 END_PROXY_MAP(RtpReceiver)
 
 }  // namespace webrtc
