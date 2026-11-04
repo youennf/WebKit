@@ -16,6 +16,13 @@ namespace libyuv {
 extern "C" {
 #endif
 
+// Note: every register written by an inline asm block (vector, general
+// purpose, mask/predicate, "cc" for flags and "memory" for stores) must be
+// listed in its clobber list, even when the ABI treats it as caller-saved.
+// With LTO/LTCG the compiler may keep values live in any register across the
+// asm statement, and other OS ABIs (e.g. Windows) differ in which registers
+// are callee-saved. List "memory" first, then "cc", then registers.
+
 #if !defined(LIBYUV_DISABLE_NEON) && defined(__aarch64__)
 
 // 256 bits at a time
@@ -151,7 +158,6 @@ uint32_t HashDjb2_NEON(const uint8_t* src, int count, uint32_t seed) {
   return hash;
 }
 
-#if defined(HAS_HAMMINGDISTANCE_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 uint32_t HammingDistance_NEON_DotProd(const uint8_t* src_a,
                                       const uint8_t* src_b,
                                       int count) {
@@ -183,9 +189,7 @@ uint32_t HammingDistance_NEON_DotProd(const uint8_t* src_a,
       : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
   return diff;
 }
-#endif
 
-#if defined(HAS_SUMSQUAREERROR_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 uint32_t SumSquareError_NEON_DotProd(const uint8_t* src_a,
                                      const uint8_t* src_b,
                                      int count) {
@@ -215,7 +219,7 @@ uint32_t SumSquareError_NEON_DotProd(const uint8_t* src_a,
       : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5");
   return sse;
 }
-#endif
+
 #endif  // !defined(LIBYUV_DISABLE_NEON) && defined(__aarch64__)
 
 #ifdef __cplusplus

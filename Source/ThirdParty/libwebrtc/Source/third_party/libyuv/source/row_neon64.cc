@@ -20,6 +20,13 @@ extern "C" {
 // STn over ZIP1+ST1
 // Exynos M1, M2, M3 are slow with ST2, ST3 and ST4 instructions.
 
+// Note: every register written by an inline asm block (vector, general
+// purpose, mask/predicate, "cc" for flags and "memory" for stores) must be
+// listed in its clobber list, even when the ABI treats it as caller-saved.
+// With LTO/LTCG the compiler may keep values live in any register across the
+// asm statement, and other OS ABIs (e.g. Windows) differ in which registers
+// are callee-saved. List "memory" first, then "cc", then registers.
+
 // This module is for GCC Neon armv8 64 bit.
 #if !defined(LIBYUV_DISABLE_NEON) && defined(__aarch64__)
 
@@ -2058,12 +2065,12 @@ void RAWToRGBARow_NEON(const uint8_t* src_raw, uint8_t* dst_rgba, int width) {
 void RAWToRGB24Row_NEON(const uint8_t* src_raw, uint8_t* dst_rgb24, int width) {
   asm volatile(
       "1:          \n"
-      "ld3         {v0.8b,v1.8b,v2.8b}, [%0], #24 \n"  // read r g b
-      "subs        %w2, %w2, #8                  \n"   // 8 processed per loop.
-      "mov         v3.8b, v1.8b                  \n"   // move g
+      "ld3         {v0.16b,v1.16b,v2.16b}, [%0], #48 \n"  // read 16 r g b
+      "subs        %w2, %w2, #16                 \n"      // 16 per loop.
+      "mov         v3.16b, v1.16b                \n"      // move g
       "prfm        pldl1keep, [%0, 448]          \n"
-      "mov         v4.8b, v0.8b                  \n"   // move r
-      "st3         {v2.8b,v3.8b,v4.8b}, [%1], #24 \n"  // store b g r
+      "mov         v4.16b, v0.16b                \n"      // move r
+      "st3         {v2.16b,v3.16b,v4.16b}, [%1], #48 \n"  // store 16 b g r
       "b.gt        1b                            \n"
       : "+r"(src_raw),    // %0
         "+r"(dst_rgb24),  // %1
@@ -2148,7 +2155,7 @@ void ARGB1555ToARGBRow_NEON(const uint8_t* src_argb1555,
         "+r"(dst_argb),      // %1
         "+r"(width)          // %2
       :
-      : "cc", "memory", "v0", "v1", "v2", "v3", "v29"  // Clobber List
+      : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v29"  // Clobber List
   );
 }
 
@@ -2721,10 +2728,15 @@ void ARGBExtractAlphaRow_NEON(const uint8_t* src_argb,
                               int width) {
   asm volatile(
       "1:          \n"
-      "ld4         {v0.16b,v1.16b,v2.16b,v3.16b}, [%0], #64 \n"  // load 16
+      "ldp         q0, q1, [%0]                  \n"  // load 8 ARGB pixels
+      "ldp         q2, q3, [%0, #32]             \n"  // load next 8 ARGB pixels
+      "add         %0, %0, #64                   \n"
       "prfm        pldl1keep, [%0, 448]          \n"
+      "uzp2        v0.8h, v0.8h, v1.8h           \n"
+      "uzp2        v2.8h, v2.8h, v3.8h           \n"
+      "uzp2        v0.16b, v0.16b, v2.16b        \n"
       "subs        %w2, %w2, #16                 \n"  // 16 processed per loop
-      "st1         {v3.16b}, [%1], #16           \n"  // store 16 A's.
+      "str         q0, [%1], #16                 \n"  // store 16 A's.
       "b.gt        1b                            \n"
       : "+r"(src_argb),  // %0
         "+r"(dst_a),     // %1
@@ -2732,6 +2744,36 @@ void ARGBExtractAlphaRow_NEON(const uint8_t* src_argb,
       :
       : "cc", "memory", "v0", "v1", "v2", "v3"  // Clobber List
   );
+}
+
+void ARGBCopyYToAlphaRow_NEON(const uint8_t* src, uint8_t* dst, int width) {
+  asm volatile(
+      "1:          \n"
+      "ldr         q4, [%0], #16                 \n"
+      "ldp         q0, q1, [%1]                  \n"
+      "ldp         q2, q3, [%1, #32]             \n"
+      "prfm        pldl1keep, [%0, 448]          \n"
+      "prfm        pldl1keep, [%1, 448]          \n"
+      "zip1        v6.16b, v4.16b, v4.16b        \n"
+      "zip2        v7.16b, v4.16b, v4.16b        \n"
+      "zip1        v4.8h, v6.8h, v6.8h           \n"
+      "zip2        v5.8h, v6.8h, v6.8h           \n"
+      "zip1        v6.8h, v7.8h, v7.8h           \n"
+      "zip2        v7.8h, v7.8h, v7.8h           \n"
+      "sli         v0.4s, v4.4s, #24             \n"
+      "sli         v1.4s, v5.4s, #24             \n"
+      "sli         v2.4s, v6.4s, #24             \n"
+      "sli         v3.4s, v7.4s, #24             \n"
+      "stp         q0, q1, [%1]                  \n"
+      "stp         q2, q3, [%1, #32]             \n"
+      "add         %1, %1, #64                   \n"
+      "subs        %w2, %w2, #16                 \n"
+      "b.gt        1b                            \n"
+      : "+r"(src),   // %0
+        "+r"(dst),   // %1
+        "+r"(width)  // %2
+      :
+      : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
 }
 
 // Coefficients expressed as negatives to allow 128
@@ -2854,7 +2896,6 @@ void RGBToUV444MatrixRow_NEON(const uint8_t* src_rgb,
         "v19", "v20", "v21", "v22", "v24", "v25", "v26", "v27");
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToUV444MatrixRow_NEON_I8MM(const uint8_t* src_argb,
                                     uint8_t* dst_u,
                                     uint8_t* dst_v,
@@ -2892,7 +2933,6 @@ void ARGBToUV444MatrixRow_NEON_I8MM(const uint8_t* src_argb,
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17",
         "v29");
 }
-#endif
 
 // RGB to BT601 coefficients
 // UB   0.875 coefficient = 112
@@ -3283,7 +3323,6 @@ void ARGB4444ToUVRow_NEON(const uint8_t* src_argb4444,
   );
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 // Process any of ARGB, ABGR, BGRA, RGBA, by adjusting the ArgbConstants layout.
 static void ARGBToUVMatrixRow_NEON_I8MM_Impl(const uint8_t* src,
                                              int src_stride,
@@ -3363,7 +3402,6 @@ void ARGBToUVMatrixRow_NEON_I8MM(const uint8_t* src_argb,
   ARGBToUVMatrixRow_NEON_I8MM_Impl(src_argb, src_stride_argb, dst_u, dst_v,
                                    width, c);
 }
-#endif
 
 void RGB565ToYRow_NEON(const uint8_t* src_rgb565, uint8_t* dst_y, int width) {
   asm volatile(
@@ -3458,7 +3496,8 @@ void ARGB4444ToYRow_NEON(const uint8_t* src_argb4444,
         "+r"(dst_y),         // %1
         "+r"(width)          // %2
       :
-      : "cc", "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27");
+      : "memory", "cc", "v0", "v1", "v2", "v3", "v16", "v17", "v24", "v25",
+        "v26", "v27");
 }
 
 // ARGB expects first 3 values to contain RGB and 4th value is ignored.
@@ -3498,7 +3537,6 @@ void ARGBToYMatrixRow_NEON(const uint8_t* src_argb,
         "v19", "v20", "v21", "v22");
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToYMatrixRow_NEON_DotProd(const uint8_t* src_argb,
                                    uint8_t* dst_y,
                                    int width,
@@ -3576,7 +3614,6 @@ void RGBToYMatrixRow_NEON_DotProd(const uint8_t* src_rgb,
         "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
         "v27");
 }
-#endif
 
 // RGBA expects first value to be A and ignored, then 3 values to contain RGB.
 void RGBToYMatrixRow_NEON(const uint8_t* src_rgb,
@@ -3965,7 +4002,6 @@ void ARGBGrayRow_NEON(const uint8_t* src_argb, uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v24", "v25", "v26");
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBGrayRowCoeffs = {29, 150, 77, 0};
 static const uvec8 kARGBGrayRowIndices = {0, 0, 0, 19, 2, 2, 2, 23,
                                           4, 4, 4, 27, 6, 6, 6, 31};
@@ -3997,7 +4033,7 @@ void ARGBGrayRow_NEON_DotProd(const uint8_t* src_argb,
         [indices] "r"(&kARGBGrayRowIndices)  // %[indices]
       : "cc", "memory", "v0", "v1", "v2", "v3", "v24", "v25");
 }
-#endif
+
 // Convert 8 ARGB pixels (32 bytes) to 8 Sepia ARGB pixels.
 //    b = (r * 35 + g * 68 + b * 17) >> 7
 //    g = (r * 45 + g * 88 + b * 22) >> 7
@@ -4039,7 +4075,6 @@ void ARGBSepiaRow_NEON(uint8_t* dst_argb, int width) {
         "v21", "v22", "v24", "v25", "v26", "v28", "v29", "v30");
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 static const uvec8 kARGBSepiaRowCoeffs = {17, 68, 35, 0,  22, 88,
                                           45, 0,  24, 98, 50, 0};
 static const uvec8 kARGBSepiaRowAlphaIndices = {3, 7, 11, 15, 19, 23, 27, 31};
@@ -4080,7 +4115,6 @@ void ARGBSepiaRow_NEON_DotProd(uint8_t* dst_argb, int width) {
       : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v20",
         "v21", "v22", "v23", "v24", "v25", "v26", "v28", "v29", "v30");
 }
-#endif
 
 // Tranform 8 ARGB pixels (32 bytes) with color matrix.
 // TODO(fbarchard): Was same as Sepia except matrix is provided.  This function
@@ -4144,7 +4178,6 @@ void ARGBColorMatrixRow_NEON(const uint8_t* src_argb,
         "v17", "v18", "v19", "v22", "v23", "v24", "v25");
 }
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBColorMatrixRow_NEON_I8MM(const uint8_t* src_argb,
                                   uint8_t* dst_argb,
                                   const int8_t* matrix_argb,
@@ -4200,7 +4233,6 @@ void ARGBColorMatrixRow_NEON_I8MM(const uint8_t* src_argb,
       : "cc", "memory", "v0", "v1", "v16", "v17", "v18", "v19", "v20", "v21",
         "v22", "v23", "v31");
 }
-#endif
 
 // Multiply 2 rows of ARGB pixels together, 8 pixels at a time.
 void ARGBMultiplyRow_NEON(const uint8_t* src_argb,
