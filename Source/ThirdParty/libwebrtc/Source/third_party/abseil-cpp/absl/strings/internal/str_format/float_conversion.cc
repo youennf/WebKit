@@ -1060,10 +1060,7 @@ bool FallbackToSnprintf(const Float v, const FormatConversionSpecImpl &conv,
   std::string space(512, '\0');
   absl::string_view result;
   while (true) {
-#pragma clang diagnostic push // WEBRTC_WEBKIT_BUILD
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
     int n = snprintf(&space[0], space.size(), fmt, w, p, v);
-#pragma clang diagnostic pop // WEBRTC_WEBKIT_BUILD
     if (n < 0) return false;
     if (static_cast<size_t>(n) < space.size()) {
       result = absl::string_view(space.data(), static_cast<size_t>(n));
@@ -1499,6 +1496,7 @@ void FormatENegativeExpSlow(uint128 mantissa, int exp, bool uppercase,
         if (state.sign_char != '\0') {
           state.sink->Append(1, state.sign_char);
         }
+        state.sink->Append(padding.zeros, '0');
 
         state.sink->Append(1, static_cast<char>(first_digit + '0'));
         if (precision > 0 || state.conv.has_alt_flag()) {
@@ -1602,6 +1600,7 @@ void FormatEPositiveExpSlow(uint128 mantissa, int exp, bool uppercase,
         if (state.sign_char != '\0') {
           state.sink->Append(1, state.sign_char);
         }
+        state.sink->Append(padding.zeros, '0');
         state.sink->Append(1, static_cast<char>(first_digit + '0'));
         --digits_to_go;
         if (print_dot) {
