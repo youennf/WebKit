@@ -59,7 +59,7 @@ class BufferT {
   // deallocate. And we want T to be trivially copyable, so that we can copy T
   // instances with std::memcpy. This is precisely the definition of a trivial
   // type.
-  static_assert(std::is_trivially_copyable_v<T> && std::is_trivially_default_constructible_v<T>, "T must be a trivial type.");
+  static_assert(std::is_trivial<T>::value, "T must be a trivial type.");
 
   // This class relies heavily on being able to mutate its data.
   static_assert(!std::is_const<T>::value, "T may not be const");
@@ -140,8 +140,9 @@ class BufferT {
 
   ~BufferT() { MaybeZeroCompleteBuffer(); }
 
-  // Implicit conversion to absl::string_view if T is compatible with char.
+  // Explicit conversion to absl::string_view if T is compatible with char.
   template <typename U = T>
+  explicit
   operator typename std::enable_if<internal::BufferCompat<U, char>::value,
                                    absl::string_view>::type() const {
     return absl::string_view(data<char>(), size());

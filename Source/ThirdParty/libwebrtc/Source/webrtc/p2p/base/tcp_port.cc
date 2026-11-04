@@ -102,11 +102,11 @@
 
 namespace webrtc {
 
-TCPPort::TCPPort(const PortParametersRef& args,
+TCPPort::TCPPort(PortParametersRef args,
                  uint16_t min_port,
                  uint16_t max_port,
                  bool allow_listen)
-    : Port(args, IceCandidateType::kHost, min_port, max_port),
+    : Port(std::move(args), IceCandidateType::kHost, min_port, max_port),
       allow_listen_(allow_listen),
       error_(0) {
   // TODO(mallinath) - Set preference value as per RFC 6544.
@@ -360,7 +360,7 @@ TCPConnection::TCPConnection(const Environment& env,
       outgoing_(socket == nullptr),
       connection_pending_(false),
       pretending_to_be_writable_(false),
-      reconnection_timeout_(kConnectionWriteConnectTimeout.ms()) {
+      reconnection_timeout_(kConnectionWriteConnectTimeout) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.
@@ -376,11 +376,7 @@ TCPConnection::TCPConnection(const Environment& env,
     RTC_LOG(LS_VERBOSE) << ToString() << ": socket ipaddr: "
                         << socket_->GetLocalAddress().ToSensitiveString()
                         << ", port() Network:" << port()->Network()->ToString();
-#if defined(WEBRTC_WEBKIT_BUILD)
-    RTC_DCHECK(socket->GetLocalAddress().IsLoopbackIP() || absl::c_any_of(
-#else
     RTC_DCHECK(absl::c_any_of(
-#endif
         port()->Network()->GetIPs(), [this](const InterfaceAddress& addr) {
           return socket_->GetLocalAddress().ipaddr() == addr;
         }));
@@ -545,11 +541,11 @@ void TCPConnection::OnClose(AsyncPacketSocket* socket, int error) {
     network_thread()->PostDelayedTask(
         SafeTask(network_safety_.flag(),
                  [this]() {
-                   if (pretending_to_be_writable_) {
+                   if (pretending_to_be_writable_ && port() != nullptr) {
                      Destroy();
                    }
                  }),
-        TimeDelta::Millis(reconnection_timeout()));
+        reconnection_timeout());
   } else if (!pretending_to_be_writable_) {
     // OnClose could be called when the underneath socket times out during the
     // initial connect() (i.e. `pretending_to_be_writable_` is false) . We have
@@ -580,14 +576,6 @@ void TCPConnection::OnReadPacket(AsyncPacketSocket* socket,
                                  const ReceivedIpPacket& packet) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(socket, socket_.get());
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (!port()) {
-    RTC_LOG(LS_WARNING) << "TCPConnection: Port has been deleted.";
-    return;
-  }
-#endif
-
   Connection::OnReadPacket(packet);
 }
 

@@ -17,11 +17,7 @@
 @interface CocoaWindow : NSObject {
  @private
   NSWindow *window_;
-#if WEBRTC_WEBKIT_BUILD
-  NSOpenGLView *view_;
-#else
   NSOpenGLContext *context_;
-#endif
   NSString *title_;
   int width_;
   int height_;
@@ -48,21 +44,7 @@ static NSInteger nextYOrigin_;
   return self;
 }
 
-#if WEBRTC_WEBKIT_BUILD
-- (void)dealloc {
-  @autoreleasepool {
-    [NSOpenGLContext clearCurrentContext];
-    [view_ clearGLContext];
-    [view_ removeFromSuperview];
-    [window_ orderOut:NSApp];
-  }
-}
-#endif
-
 - (void)createWindow:(NSObject *)ignored {
-#if WEBRTC_WEBKIT_BUILD
-  @autoreleasepool {
-#endif
   NSInteger xOrigin = nextXOrigin_;
   NSRect screenFrame = [[NSScreen mainScreen] frame];
   if (nextXOrigin_ + width_ < screenFrame.size.width) {
@@ -85,31 +67,17 @@ static NSInteger nextYOrigin_;
                                             defer:NO];
 
   NSRect viewFrame = NSMakeRect(0, 0, width_, height_);
-#if WEBRTC_WEBKIT_BUILD
-  view_ = [[NSOpenGLView alloc] initWithFrame:viewFrame pixelFormat:nil];
-
-  [[window_ contentView] addSubview:view_];
-#else
-  NSOpenGLView *view = [[NSOpenGLView alloc] initWithFrame:viewFrame pixelFormat:nil];
+  NSOpenGLView *view = [[NSOpenGLView alloc] initWithFrame:viewFrame
+                                               pixelFormat:nil];
   context_ = [view openGLContext];
 
   [[window_ contentView] addSubview:view];
-#endif
   [window_ setTitle:title_];
   [window_ makeKeyAndOrderFront:NSApp];
-#if WEBRTC_WEBKIT_BUILD
-  } // @autoreleasepool
-#endif
 }
 
 - (void)makeCurrentContext {
-#if WEBRTC_WEBKIT_BUILD
-  @autoreleasepool {
-    [[view_ openGLContext] makeCurrentContext];
-  }
-#else
   [context_ makeCurrentContext];
-#endif
 }
 
 @end
@@ -131,19 +99,10 @@ VideoRenderer *VideoRenderer::CreatePlatformRenderer(const char *window_title,
 MacRenderer::MacRenderer() : window_(NULL) {}
 
 MacRenderer::~MacRenderer() {
-#if WEBRTC_WEBKIT_BUILD
-  @autoreleasepool {
-#endif
   GlRenderer::Destroy();
-#if WEBRTC_WEBKIT_BUILD
-  } // @autoreleasepool
-#endif
 }
 
-bool MacRenderer::Init(const char* window_title, int width, int height) {
-#if WEBRTC_WEBKIT_BUILD
-  @autoreleasepool {
-#endif
+bool MacRenderer::Init(const char *window_title, int width, int height) {
   window_ = [[CocoaWindow alloc]
       initWithTitle:[NSString stringWithUTF8String:window_title]
               width:width
@@ -157,20 +116,11 @@ bool MacRenderer::Init(const char* window_title, int width, int height) {
   GlRenderer::Init();
   GlRenderer::ResizeViewport(width, height);
   return true;
-#if WEBRTC_WEBKIT_BUILD
-  } // @autoreleasepool
-#endif
 }
 
-void MacRenderer::OnFrame(const VideoFrame& frame) {
-#if WEBRTC_WEBKIT_BUILD
-  @autoreleasepool {
-#endif
+void MacRenderer::OnFrame(const VideoFrame &frame) {
   [window_ makeCurrentContext];
   GlRenderer::OnFrame(frame);
-#if WEBRTC_WEBKIT_BUILD
-  } // @autoreleasepool
-#endif
 }
 
 }  // namespace test

@@ -29,7 +29,6 @@
 
 #if !defined(RTC_USE_PERFETTO)
 #include <string>
-#include <cstdint>
 
 #include "rtc_base/event_tracer.h"
 

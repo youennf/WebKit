@@ -599,9 +599,18 @@ int PhysicalSocket::DoReadFromSocket(void* buffer,
     struct cmsghdr* cmsg;
     for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
       if (ecn) {
+#if defined(WEBRTC_MAC)
+        // When IP_RECVTOS is enabled on an IPv4 socket, macOS/iOS delivers the
+        // ancillary header with cmsg_type == IP_RECVTOS, whereas Linux uses
+        // cmsg_type == IP_TOS.
+        constexpr int kIpTosCmsgType = IP_RECVTOS;
+#else
+        constexpr int kIpTosCmsgType = IP_TOS;
+#endif
         if ((cmsg->cmsg_type == IPV6_TCLASS &&
              cmsg->cmsg_level == IPPROTO_IPV6) ||
-            (cmsg->cmsg_type == IP_TOS && cmsg->cmsg_level == IPPROTO_IP)) {
+            (cmsg->cmsg_type == kIpTosCmsgType &&
+             cmsg->cmsg_level == IPPROTO_IP)) {
           *ecn = EcnFromDs(CMSG_DATA(cmsg)[0]);
         }
       }
@@ -884,12 +893,6 @@ SocketDispatcher::~SocketDispatcher() {
 
 bool SocketDispatcher::Initialize() {
   RTC_DCHECK(s_ != INVALID_SOCKET);
-#if defined(WEBRTC_WEBKIT_BUILD)
-  if (s_ < 0 || s_ >= FD_SETSIZE) {
-    RTC_LOG_ERR(LS_ERROR) << "SocketDispatcher::Initialize, file descriptor is invalid";
-    return false;
-  }
-#endif
 // Must be a non-blocking
 #if defined(WEBRTC_WIN)
   u_long argp = 1;
@@ -903,7 +906,7 @@ bool SocketDispatcher::Initialize() {
   }
 #endif
 
-#if defined(WEBRTC_IOS) || (defined(WEBRTC_MAC) && defined(WEBRTC_WEBKIT_BUILD))
+#if defined(WEBRTC_IOS)
   // iOS may kill sockets when the app is moved to the background
   // (specifically, if the app doesn't use the "voip" UIBackgroundMode). When
   // we attempt to write to such a socket, SIGPIPE will be raised, which by
@@ -1592,14 +1595,6 @@ bool PhysicalSocketServer::WaitSelect(TimeDelta timeout, bool process_io) {
         // "select"ing a file descriptor that is equal to or larger than
         // FD_SETSIZE will result in undefined behavior.
         RTC_DCHECK_LT(fd, FD_SETSIZE);
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-        if (fd < 0 || fd >= FD_SETSIZE) {
-          RTC_LOG_ERR(LS_ERROR) << "PhysicalSocketServer::WaitSelect, selecting a file descriptor that is invalid";
-          continue;
-        }
-#endif
-
         if (fd > fdmax)
           fdmax = fd;
 
@@ -1642,13 +1637,6 @@ bool PhysicalSocketServer::WaitSelect(TimeDelta timeout, bool process_io) {
         Dispatcher* pdispatcher = dispatcher_by_key_.at(key);
 
         int fd = pdispatcher->GetDescriptor();
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-        if (fd < 0 || fd >= FD_SETSIZE) {
-          RTC_LOG_ERR(LS_ERROR) << "PhysicalSocketServer::WaitSelect, signaled file descriptor is invalid";
-          continue;
-        }
-#endif
 
         bool readable = FD_ISSET(fd, &fdsRead);
         if (readable) {

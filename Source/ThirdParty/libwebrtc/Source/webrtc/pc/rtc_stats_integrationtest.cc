@@ -836,8 +836,6 @@ class RTCStatsReportVerifier {
       verifier.TestAttributeIsDefined(outbound_stream.key_frames_encoded);
       verifier.TestAttributeIsNonNegative<double>(
           outbound_stream.total_encode_time);
-      verifier.TestAttributeIsNonNegative<uint64_t>(
-          outbound_stream.total_encoded_bytes_target);
       verifier.TestAttributeIsDefined(
           outbound_stream.quality_limitation_reason);
       verifier.TestAttributeIsDefined(
@@ -881,8 +879,6 @@ class RTCStatsReportVerifier {
       verifier.TestAttributeIsUndefined(outbound_stream.key_frames_encoded);
       verifier.TestAttributeIsUndefined(outbound_stream.total_encode_time);
       verifier.TestAttributeIsUndefined(
-          outbound_stream.total_encoded_bytes_target);
-      verifier.TestAttributeIsUndefined(
           outbound_stream.quality_limitation_reason);
       verifier.TestAttributeIsUndefined(
           outbound_stream.quality_limitation_durations);
@@ -921,11 +917,21 @@ class RTCStatsReportVerifier {
     verifier.TestAttributeIsIDReference(remote_inbound_stream.local_id,
                                         RTCOutboundRtpStreamStats::kType);
     verifier.TestAttributeIsNonNegative<double>(
-        remote_inbound_stream.round_trip_time);
-    verifier.TestAttributeIsNonNegative<double>(
         remote_inbound_stream.total_round_trip_time);
     verifier.TestAttributeIsNonNegative<int32_t>(
         remote_inbound_stream.round_trip_time_measurements);
+    // `round_trip_time_measurements` should always be defined since it's a
+    // counter and it is implemented, but if it isn't the only sensible
+    // interpretation for missing value is "no measurements", i.e. 0. If missing
+    // the `verifier` will mark the attribute as such above and fail the test.
+    if (remote_inbound_stream.round_trip_time_measurements.value_or(0) > 0) {
+      verifier.TestAttributeIsNonNegative<double>(
+          remote_inbound_stream.round_trip_time);
+    } else {
+      // It's possible to have an RTCP report without any round trip time
+      // measurements yet, in which case this value is undefined.
+      verifier.TestAttributeIsUndefined(remote_inbound_stream.round_trip_time);
+    }
     // TODO: bugs.webrtc.org/42225697 - move to RTCReceivedRtpStreamStats
     // when wiring the RFC 8888 feedback to stats.
     verifier.TestAttributeIsUndefined<int64_t>(
@@ -1323,38 +1329,6 @@ TEST_F(RTCStatsIntegrationTest, GetStatsAfterClose) {
   scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
   ASSERT_EQ(report->size(), 1u);
   EXPECT_EQ(report->begin()->type(), RTCPeerConnectionStats::kType);
-}
-
-TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
-#if !defined(WEBRTC_ENCODER_PSNR_STATS)
-  // PSNR sampling is gated on `WEBRTC_ENCODER_PSNR_STATS` in every
-  // encoder (see e.g. `modules/video_coding/codecs/h264/h264_encoder_impl.cc`
-  // and `modules/video_coding/codecs/av1/libaom_av1_encoder.cc`).  Without
-  // it, no encoder ever calls `EncodedImage::set_psnr()`, so the field-trial
-  // never produces `outbound-rtp.psnrSum` / `psnrMeasurements`.
-  GTEST_SKIP() << "Encoder PSNR stats disabled in this build";
-#else
-  StartCall("WebRTC-Video-CalculatePsnr/Enabled,sampling_interval:1000ms/");
-
-  // This assumes all other stats are ok and tests the stats which should be
-  // different under the field trial.
-  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
-  for (const RTCStats& stats : *report) {
-    if (stats.type() == RTCOutboundRtpStreamStats::kType) {
-      const RTCOutboundRtpStreamStats& outbound_stream(
-          stats.cast_to<RTCOutboundRtpStreamStats>());
-      RTCStatsVerifier verifier(report.get(), &outbound_stream);
-      if (outbound_stream.kind.has_value() &&
-          *outbound_stream.kind == "video") {
-        verifier.TestAttributeIsDefined(outbound_stream.psnr_sum);
-        verifier.TestAttributeIsNonNegative(outbound_stream.psnr_measurements);
-      } else {
-        verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
-        verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
-      }
-    }
-  }
-#endif  // !defined(WEBRTC_ENCODER_PSNR_STATS)
 }
 
 TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {

@@ -112,6 +112,13 @@ std::string RtpConfig::ToString() const {
       ss << ", ";
   }
   ss << "], mid: '" << mid << "'";
+  ss << ", csrcs: [";
+  for (size_t i = 0; i < csrcs.size(); ++i) {
+    ss << csrcs[i];
+    if (i != csrcs.size() - 1)
+      ss << ", ";
+  }
+  ss << ']';
   ss << ", rtcp_mode: "
      << (rtcp_mode == RtcpMode::kCompound ? "RtcpMode::kCompound"
                                           : "RtcpMode::kReducedSize");
@@ -131,6 +138,7 @@ std::string RtpConfig::ToString() const {
   ss << ", payload_name: " << payload_name;
   ss << ", payload_type: " << payload_type;
   ss << ", raw_payload: " << (raw_payload ? "true" : "false");
+  ss << ", sframe_required: " << (sframe_options.required ? "true" : "false");
 
   ss << ", stream_configs: [";
   for (size_t i = 0; i < stream_configs.size(); ++i) {
@@ -251,8 +259,7 @@ RtpStreamConfig RtpConfig::GetStreamConfig(size_t index) const {
   stream_config.raw_payload = raw_payload;
   if (!rtx.ssrcs.empty()) {
     RTC_DCHECK_EQ(ssrcs.size(), rtx.ssrcs.size());
-    auto& stream_config_rtx = stream_config.rtx.emplace(
-	    decltype(stream_config.rtx)::value_type());
+    auto& stream_config_rtx = stream_config.rtx.emplace();
     stream_config_rtx.ssrc = rtx.ssrcs[index];
     stream_config_rtx.payload_type = rtx.payload_type;
   }

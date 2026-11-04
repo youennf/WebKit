@@ -23,6 +23,7 @@
 
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -80,10 +81,7 @@ class DefaultLocalAddressProvider {
   // The default local address is the local address used in multi-homed endpoint
   // when the any address (0.0.0.0 or ::) is used as the local address. It's
   // important to check the return value as a IP family may not be enabled.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   virtual bool GetDefaultLocalAddress(int family, IPAddress* ipaddr) const = 0;
-#pragma clang diagnostic pop
 };
 
 class MdnsResponderProvider {
@@ -448,6 +446,28 @@ class RTC_EXPORT Network {
   // Debugging description of this network
   std::string ToString() const;
 
+  // Writes the same description as ToString() to `sink`, without creating a
+  // temporary string, e.g. when appending the description to a StringBuilder.
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const Network& network) {
+    // Print out the first space-terminated token of the network desc, plus
+    // the IP address.
+    absl::string_view description = network.description_;
+    absl::Format(&sink, "Net[%s:%v/%d:%s",
+                 description.substr(0, description.find(' ')),
+                 IPAddress::Sensitive(network.prefix_), network.prefix_length_,
+                 AdapterTypeToString(network.type_));
+    if (network.IsVpn()) {
+      sink.Append("/");
+      sink.Append(AdapterTypeToString(network.underlying_type_for_vpn_));
+    }
+    if (network.network_slice_ != NetworkSlice::NO_SLICE) {
+      sink.Append("/");
+      sink.Append(NetworkSliceToString(network.network_slice_));
+    }
+    absl::Format(&sink, ":id=%d]", network.id_);
+  }
+
  private:
   const DefaultLocalAddressProvider* default_local_address_provider_ = nullptr;
   const MdnsResponderProvider* mdns_responder_provider_ = nullptr;
@@ -472,7 +492,6 @@ class RTC_EXPORT Network {
   friend class NetworkManager;
 };
 
-#if WEBRTC_WEBKIT_BUILD // Move NetworkManagerBase and BasicNetworkManager definitions after Network.
 // Base class for NetworkManager implementations.
 class RTC_EXPORT NetworkManagerBase : public NetworkManager {
  public:
@@ -588,8 +607,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 
  protected:
 #if defined(WEBRTC_POSIX)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
   // Separated from CreateNetworks for tests.
   void ConvertIfAddrs(ifaddrs* interfaces,
                       IfAddrsConverter* converter,
@@ -598,7 +615,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
       RTC_RUN_ON(thread_);
   NetworkMonitorInterface::InterfaceInfo GetInterfaceInfo(
       struct ifaddrs* cursor) const RTC_RUN_ON(thread_);
-#pragma clang diagnostic pop
 #endif  // defined(WEBRTC_POSIX)
 
   // Creates a network object for each network available on the machine.
@@ -645,7 +661,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   std::vector<NetworkMask> vpn_;
   scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
-#endif // WEBRTC_WEBKIT_BUILD
 
 }  //  namespace webrtc
 

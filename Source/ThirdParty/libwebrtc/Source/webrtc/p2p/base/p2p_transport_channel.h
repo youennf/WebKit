@@ -263,15 +263,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   };
 
   struct CandidateAndPermission final {
-#if WEBRTC_WEBKIT_BUILD
-    CandidateAndPermission() = default;
-    CandidateAndPermission(Candidate candidate, std::unique_ptr<LocalNetworkAccessPermissionInterface>&& permission_query)
-      : candidate(candidate)
-      , permission_query(std::move(permission_query))
-    {
-    }
-#endif
-
     Candidate candidate;
     std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query;
   };

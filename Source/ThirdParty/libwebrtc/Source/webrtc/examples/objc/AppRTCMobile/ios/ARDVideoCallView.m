@@ -184,7 +184,7 @@ static CGFloat const kStatusBarHeight = 20;
   sender.enabled = false;
   [_delegate videoCallView:self
       shouldSwitchCameraWithCompletion:^(NSError *error) {
-        dispatch_async(mainDispatchQueueSingleton(), ^(void) {
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
           sender.enabled = true;
         });
       }];
@@ -197,7 +197,7 @@ static CGFloat const kStatusBarHeight = 20;
       shouldChangeRouteWithCompletion:^(void) {
         ARDVideoCallView *strongSelf = weakSelf;
         if (strongSelf) {
-          dispatch_async(mainDispatchQueueSingleton(), ^(void) {
+          dispatch_async(dispatch_get_main_queue(), ^(void) {
             sender.enabled = true;
           });
         }

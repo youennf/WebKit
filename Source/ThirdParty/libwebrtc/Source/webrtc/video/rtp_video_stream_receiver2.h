@@ -355,6 +355,13 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
       const RTPVideoHeader* absl_nullable video_header)
       RTC_RUN_ON(worker_queue_);
 
+  // Updates the newest media sequence number and RTP timestamp independently,
+  // so that a packet with a newer sequence number but an older RTP timestamp
+  // cannot make previously received media look newer.
+  void UpdateNewestMediaSeqNumAndTimestamp(int64_t unwrapped_seq_num,
+                                           uint32_t rtp_timestamp)
+      RTC_RUN_ON(worker_queue_);
+
   // Entry point doing non-stats work for a received packet. Called
   // for the same packet both before and after RED decapsulation.
   void ReceivePacket(const RtpPacketReceived& rtp_packet)
@@ -503,12 +510,6 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
 
   scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate>
       frame_transformer_delegate_;
-
-#if defined(WEBRTC_WEBKIT_BUILD)
-  std::deque<int64_t> observedFrameTimeStamps_;
-  double observedFrameRate_ { 0 };
-  uint64_t frameCount_ { 0 };
-#endif
 
   SeqNumUnwrapper<uint16_t> rtp_seq_num_unwrapper_
       RTC_GUARDED_BY(worker_queue_);

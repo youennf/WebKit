@@ -315,12 +315,6 @@ std::optional<H265ProfileTierLevel> ParseSdpForH265ProfileTierLevel(
 
 bool H265IsSameProfileTierLevel(const CodecParameterMap& params1,
                                 const CodecParameterMap& params2) {
-#if WEBRTC_WEBKIT_BUILD
-  // FIXME: https://bugs.webkit.org/show_bug.cgi?id=276486.
-  // Populate encoder and decoder factories to properly support negotiation.
-  if (!params1.size() || !params2.size())
-      return true;
-#endif
   const std::optional<H265ProfileTierLevel> ptl1 =
       ParseSdpForH265ProfileTierLevel(params1);
   const std::optional<H265ProfileTierLevel> ptl2 =

@@ -27,7 +27,7 @@
 #include <sys/epoll.h>
 
 #define WEBRTC_USE_EPOLL 1
-#elif defined(WEBRTC_FUCHSIA) || (defined(WEBRTC_MAC) && !defined(WEBRTC_WEBKIT_BUILD))
+#elif defined(WEBRTC_FUCHSIA) || defined(WEBRTC_MAC)
 // Fuchsia implements select and poll but not epoll, and testing shows that poll
 // is faster than select.
 #include <poll.h>
@@ -98,6 +98,7 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
   // SocketServer:
   bool Wait(TimeDelta max_wait_duration, bool process_io) override;
   void WakeUp() override;
+  bool CanCreateSockets() const override { return true; }
 
   void Add(Dispatcher* dispatcher);
   void Remove(Dispatcher* dispatcher);

@@ -19,9 +19,7 @@
 #ifndef API_ENVIRONMENT_ENVIRONMENT_H_
 #define API_ENVIRONMENT_ENVIRONMENT_H_
 
-#if !defined(WEBRTC_WEBKIT_BUILD)
 #include <utility>
-#endif
 
 #include "absl/base/nullability.h"
 #include "api/field_trials_view.h"

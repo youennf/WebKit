@@ -541,6 +541,57 @@ void LibvpxVp9Encoder::SetRates(const RateControlParameters& parameters) {
   config_changed_ = true;
 }
 
+void LibvpxVp9Encoder::SetComplexity(
+    std::span<const VideoCodecComplexity> complexity_by_spatial_layer,
+    ComplexityControlMode /*complexity_control_mode*/) {
+  if (!inited_) {
+    return;
+  }
+
+  auto get_cpu_speed = [](VideoCodecComplexity complexity) {
+    switch (complexity) {
+      case VideoCodecComplexity::kComplexityLow:
+        return 9;
+      case VideoCodecComplexity::kComplexityNormal:
+        return 7;
+      case VideoCodecComplexity::kComplexityHigh:
+        return 6;
+      case VideoCodecComplexity::kComplexityHigher:
+      case VideoCodecComplexity::kComplexityMax:
+        return 5;
+    }
+  };
+
+  auto get_layer_complexity = [&](size_t si) {
+    if (complexity_by_spatial_layer.empty()) {
+      return VideoCodecComplexity::kComplexityNormal;
+    }
+    return complexity_by_spatial_layer[std::min(
+        si, complexity_by_spatial_layer.size() - 1)];
+  };
+
+  if (is_svc_ && performance_flags_.use_per_layer_speed) {
+    for (size_t si = 0; si < num_spatial_layers_; ++si) {
+      const int speed = get_cpu_speed(get_layer_complexity(si));
+      performance_flags_by_spatial_index_[si].base_layer_speed = speed;
+      performance_flags_by_spatial_index_[si].high_layer_speed = speed;
+      svc_params_.speed_per_layer[si] = speed;
+    }
+    libvpx_->codec_control(encoder_, VP9E_SET_SVC_PARAMETERS, &svc_params_);
+  } else {
+    VideoCodecComplexity lowest_complexity = get_layer_complexity(0);
+    for (size_t si = 1; si < num_spatial_layers_; ++si) {
+      lowest_complexity = std::min(lowest_complexity, get_layer_complexity(si));
+    }
+    const int speed = get_cpu_speed(lowest_complexity);
+    for (auto& flags : performance_flags_by_spatial_index_) {
+      flags.base_layer_speed = speed;
+      flags.high_layer_speed = speed;
+    }
+    libvpx_->codec_control(encoder_, VP8E_SET_CPUUSED, speed);
+  }
+}
+
 // TODO(eladalon): s/inst/codec_settings/g.
 int LibvpxVp9Encoder::InitEncode(const VideoCodec* inst,
                                  const Settings& settings) {
@@ -1034,39 +1085,6 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     }
   }
 
-#if WEBRTC_WEBKIT_BUILD
-  if (input_image.color_space() && current_color_space_ != input_image.color_space()) {
-    current_color_space_ = input_image.color_space();
-    force_key_frame_ = true;
-
-    vpx_color_range_t vpxColorRange = current_color_space_ && current_color_space_->range() == ColorSpace::RangeID::kFull ? VPX_CR_FULL_RANGE : VPX_CR_STUDIO_RANGE;
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_RANGE, vpxColorRange);
-    vpx_color_space_t vpxColorSpace = VPX_CS_UNKNOWN;
-    if (current_color_space_) {
-      switch (current_color_space_->primaries()) {
-        case ColorSpace::PrimaryID::kBT709:
-          vpxColorSpace = current_color_space_->matrix() == ColorSpace::MatrixID::kRGB ? VPX_CS_SRGB : VPX_CS_BT_709;
-          break;
-        case ColorSpace::PrimaryID::kBT470BG:
-          vpxColorSpace = VPX_CS_BT_601;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE170M:
-          vpxColorSpace = VPX_CS_SMPTE_170;
-          break;
-        case ColorSpace::PrimaryID::kSMPTE240M:
-          vpxColorSpace = VPX_CS_SMPTE_240;
-          break;
-        case ColorSpace::PrimaryID::kBT2020:
-          vpxColorSpace = VPX_CS_BT_2020;
-          break;
-        default:
-          break;
-      }
-    }
-    libvpx_->codec_control(encoder_, VP9E_SET_COLOR_SPACE, vpxColorSpace);
-  }
-#endif
-
   vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   if (!force_key_frame_) {
     const size_t gof_idx = (pics_since_key_ + 1) % gof_.num_frames_in_gof;
@@ -1183,15 +1201,9 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
       // resolution instead and base the speed on that.
       for (int i = num_spatial_layers_ - 1; i >= 0; --i) {
         if (config_->ss_target_bitrate[i] > 0) {
-          int width = (scaling_factors_num_[i] * codec_.width) /
-                      scaling_factors_den_[i];
-          int height = (scaling_factors_num_[i] * codec_.height) /
-                       scaling_factors_den_[i];
-          int speed =
-              std::prev(performance_flags_.settings_by_resolution.lower_bound(
-                            width * height))
-                  ->second.base_layer_speed;
-          libvpx_->codec_control(encoder_, VP8E_SET_CPUUSED, speed);
+          libvpx_->codec_control(
+              encoder_, VP8E_SET_CPUUSED,
+              performance_flags_by_spatial_index_[i].base_layer_speed);
           break;
         }
       }

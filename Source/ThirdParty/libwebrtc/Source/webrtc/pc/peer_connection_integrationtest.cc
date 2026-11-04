@@ -15,6 +15,7 @@
 // do NOT add it here, but instead add it to the file
 // slow_peer_connection_integrationtest.cc
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -1713,6 +1714,118 @@ TEST_P(PeerConnectionIntegrationTest,
   EXPECT_TRUE(inbound_rtps[index]->audio_level.has_value());
 }
 
+// Used for the test below. Without BUNDLE, payload type demuxing stays enabled
+// and unsignaled receive streams are kept when renegotiating.
+void RemoveBundleGroupSsrcsAndMsids(
+    std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  RemoveSsrcsAndMsids(sdp);
+  sdp->description()->RemoveGroupByName("BUNDLE");
+}
+
+// Test that getStats() for the receiver of an unsignaled stream, i.e.
+// RTCRtpReceiver.getStats(), keeps returning the inbound-rtp stats of the
+// stream after renegotiating without signaled SSRCs.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       ReceiverGetStatsForUnsignaledStreamAfterRenegotiation) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  callee()->SetReceivedSdpMunger(RemoveBundleGroupSsrcsAndMsids);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> receivers =
+      callee()->pc()->GetReceivers();
+  ASSERT_THAT(receivers, SizeIs(2));
+  for (const auto& receiver : receivers) {
+    SCOPED_TRACE(receiver->track()->kind());
+    // Frames are only reported by GetSources() once the receiver has been
+    // bound to the SSRC of the unsignaled stream.
+    ASSERT_TRUE(WaitUntil([&] { return !receiver->GetSources().empty(); }));
+    scoped_refptr<const RTCStatsReport> report =
+        callee()->NewGetStats(receiver, run_loop());
+    ASSERT_NE(report, nullptr);
+    ASSERT_THAT(report->GetStatsOfType<RTCInboundRtpStreamStats>(), SizeIs(1));
+  }
+
+  // Renegotiate, still without signaled SSRCs. The unsignaled streams are kept
+  // and no new first packet notifications will be issued for them.
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+
+  for (const auto& receiver : receivers) {
+    SCOPED_TRACE(receiver->track()->kind());
+    scoped_refptr<const RTCStatsReport> report =
+        callee()->NewGetStats(receiver, run_loop());
+    ASSERT_NE(report, nullptr);
+    EXPECT_THAT(report->GetStatsOfType<RTCInboundRtpStreamStats>(), SizeIs(1));
+  }
+}
+
+// Test that the receiver of an unsignaled stream follows when the remote
+// endpoint changes the SSRC of the stream.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       ReceiverFollowsSsrcChangeOfUnsignaledStream) {
+  constexpr uint32_t kNewAudioSsrc = 1337;
+  constexpr uint32_t kNewVideoSsrc = 1338;
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  // Remove SSRCs and MSIDs from the received offer SDP.
+  callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> receivers =
+      callee()->pc()->GetReceivers();
+  ASSERT_THAT(receivers, SizeIs(2));
+  for (const auto& receiver : receivers) {
+    ASSERT_TRUE(WaitUntil([&] { return !receiver->GetSources().empty(); }));
+  }
+
+  // Make the caller send with new SSRCs by applying a local offer with modified
+  // SSRCs. The offer isn't signaled, so the callee doesn't renegotiate and
+  // receives the new SSRCs as new unsignaled streams.
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_NE(offer, nullptr);
+  for (ContentInfo& content : offer->description()->contents()) {
+    MediaContentDescription* media = content.media_description();
+    for (StreamParams& stream : media->mutable_streams()) {
+      ReplaceFirstSsrc(stream, media->type() == MediaType::AUDIO
+                                   ? kNewAudioSsrc
+                                   : kNewVideoSsrc);
+    }
+  }
+  auto observer = make_ref_counted<FakeSetLocalDescriptionObserver>();
+  caller()->pc()->SetLocalDescription(std::move(offer), observer);
+  ASSERT_TRUE(WaitUntil([&] { return observer->called(); }));
+  ASSERT_THAT(observer->error(), IsRtcOk());
+
+  for (const auto& receiver : receivers) {
+    SCOPED_TRACE(receiver->track()->kind());
+    const uint32_t new_ssrc = receiver->media_type() == MediaType::AUDIO
+                                  ? kNewAudioSsrc
+                                  : kNewVideoSsrc;
+    // Frames of the new stream are only reported by GetSources() once the
+    // receiver has been bound to the new SSRC.
+    ASSERT_TRUE(WaitUntil([&] {
+      return absl::c_any_of(
+          receiver->GetSources(), [&](const RtpSource& source) {
+            return source.source_type() == RtpSourceType::SSRC &&
+                   source.source_id() == new_ssrc;
+          });
+    }));
+    scoped_refptr<const RTCStatsReport> report =
+        callee()->NewGetStats(receiver, run_loop());
+    ASSERT_NE(report, nullptr);
+    std::vector<const RTCInboundRtpStreamStats*> inbound_rtps =
+        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+    ASSERT_THAT(inbound_rtps, SizeIs(1));
+    EXPECT_EQ(inbound_rtps[0]->ssrc, new_ssrc);
+  }
+}
+
 // Test that DTLS 1.0 is used if both sides only support DTLS 1.0.
 TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithDtls10) {
   PeerConnectionFactory::Options dtls_10_options;
@@ -2557,14 +2670,6 @@ TEST_F(PeerConnectionIntegrationTestPlanB, CanSendRemoteVideoTrack) {
 //                  the first of which should have arrived before the answer.
 TEST_P(PeerConnectionIntegrationTestWithFakeClock,
        EndToEndConnectionTimeWithTurnTurnPair) {
-#if defined(WEBRTC_WEBKIT_BUILD)
-  // WebKit's libwebrtc DTLS handshake over a TURN<->TURN relay pair does not
-  // complete within the fake-clock connection-time budget, so this test fails
-  // deterministically in the WebKit build (verified failing on every run).
-  // Skip until the WebKit DTLS-over-TURN timing is addressed.
-  GTEST_SKIP() << "DTLS over TURN<->TURN does not connect within the "
-                  "fake-clock budget in WebKit's libwebrtc build";
-#endif
   static constexpr int media_hop_delay_ms = 50;
   static constexpr int signaling_trip_delay_ms = 500;
   // For explanation of these values, see comment above.
@@ -3161,13 +3266,6 @@ TEST_F(PeerConnectionIntegrationTestPlanB, RemoveAndAddTrackWithNewStreamId) {
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalled) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  // `RtcEventLogFactory::Create()` returns `RtcEventLogNull`, whose
-  // `StartLogging()` always returns false (see
-  // `api/rtc_event_log/rtc_event_log.cc`).  This test cannot be exercised
-  // until `WEBRTC_ENABLE_RTC_EVENT_LOG` is defined in the build.
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
 
@@ -3181,13 +3279,9 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalled) {
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnStop) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   // This test uses check point to ensure log is written before peer connection
   // is destroyed.
   // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
@@ -3212,13 +3306,9 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnStop) {
 
   caller()->pc()->StopRtcEventLog();
   test_is_complete.Call();
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnClose) {
-#if !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
-  GTEST_SKIP() << "RTC event log disabled in this build";
-#else
   // This test uses check point to ensure log is written before peer connection
   // is destroyed.
   // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
@@ -3243,7 +3333,6 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnClose) {
 
   caller()->pc()->Close();
   test_is_complete.Call();
-#endif  // !defined(WEBRTC_ENABLE_RTC_EVENT_LOG)
 }
 
 // Test that if candidates are only signaled by applying full session
@@ -4061,6 +4150,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_THAT(WaitUntil([&] { return caller()->ice_gathering_state(); },
+                        Eq(PeerConnectionInterface::kIceGatheringComplete)),
+              IsRtcOk());
 
   audio_transceiver->StopStandard();
   caller()->CreateAndSetAndSignalOffer();
@@ -5120,6 +5212,50 @@ TEST_P(PeerConnectionIntegrationTest, DtlsPqcFieldTrial) {
   }
   EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
   EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
+}
+
+TEST_P(PeerConnectionIntegrationTest,
+       SpedWireTriggerStartsDtlsWithoutRemoteDescription) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "DTLS-in-STUN requires BoringSSL.";
+  }
+  SetFieldTrials("WebRTC-IceHandshakeDtls/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  // Suppress SetRemoteDescription and ICE candidates from callee.
+  caller()->SetReceivedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& desc) { desc.reset(); });
+  callee()->set_signal_ice_candidates(false);
+
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            const auto& history = caller()->peer_connection_state_history();
+            return std::find(history.begin(), history.end(),
+                             PeerConnectionInterface::PeerConnectionState::
+                                 kConnecting) != history.end();
+          },
+          IsTrue()),
+      IsRtcOk());
+}
+
+TEST_P(PeerConnectionIntegrationTest, NoEarlyDtlsStartWhenSpedNotInAnswer) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "DTLS-in-STUN requires BoringSSL.";
+  }
+  SetFieldTrials(kCallerName, "WebRTC-IceHandshakeDtls/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(caller()->peer_connection_state_history(),
+              ::testing::Not(::testing::Contains(
+                  PeerConnectionInterface::PeerConnectionState::kConnecting)));
 }
 
 #endif  // WEBRTC_HAVE_SCTP

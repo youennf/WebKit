@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "api/environment/environment.h"
@@ -73,6 +74,10 @@ class LibvpxVp9Encoder : public VideoEncoder {
   int RegisterEncodeCompleteCallback(EncodedImageCallback* callback) override;
 
   void SetRates(const RateControlParameters& parameters) override;
+
+  void SetComplexity(
+      std::span<const VideoCodecComplexity> complexity_by_spatial_layer,
+      ComplexityControlMode complexity_control_mode) override;
 
   EncoderInfo GetEncoderInfo() const override;
 
@@ -252,10 +257,6 @@ class LibvpxVp9Encoder : public VideoEncoder {
 
   // Determine whether the frame should be sampled for PSNR.
   FrameSampler psnr_frame_sampler_;
-
-#if WEBRTC_WEBKIT_BUILD
-  std::optional<webrtc::ColorSpace> current_color_space_;
-#endif
 
   // TODO(webrtc:500517546): Remove once the feature is fully deployed.
   const bool post_encode_frame_drop_;
