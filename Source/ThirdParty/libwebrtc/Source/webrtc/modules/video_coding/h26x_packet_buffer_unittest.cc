@@ -1175,6 +1175,24 @@ TEST(H26xPacketBufferTest, FullPacketBufferDoesNotBlockKeyframe) {
               SizeIs(1));
 }
 
+TEST(H26xPacketBufferTest, TooManyNalusInPacket) {
+  H26xPacketBuffer packet_buffer(/*h264_allow_idr_only_keyframes=*/false);
+
+  std::unique_ptr<H26xPacketBuffer::Packet> packet(H264Packet(kH264StapA)
+                                                       .Sps()
+                                                       .Pps()
+                                                       .Idr()
+                                                       .SeqNum(1)
+                                                       .Time(1)
+                                                       .Marker()
+                                                       .Build());
+  auto& h264_header =
+      absl::get<RTPVideoHeaderH264>(packet->video_header.video_type_header);
+  h264_header.nalus_length = kMaxNalusPerPacket + 1;
+
+  EXPECT_THAT(packet_buffer.InsertPacket(std::move(packet)).packets, IsEmpty());
+}
+
 TEST(H26xPacketBufferTest, AssembleFrameAfterReordering) {
   H26xPacketBuffer packet_buffer(/*h264_allow_idr_only_keyframes=*/false);
 
