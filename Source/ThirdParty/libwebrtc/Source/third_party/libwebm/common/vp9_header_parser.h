@@ -71,6 +71,12 @@ class Vp9HeaderParser {
   int column_tiles() const { return column_tiles_; }
   int frame_parallel_mode() const { return frame_parallel_mode_; }
 
+#if defined(WEBRTC_WEBKIT_BUILD)
+  int color_range() const { return color_range_; }
+  int subsampling_x() const { return subsampling_x_; }
+  int subsampling_y() const { return subsampling_y_; }
+#endif
+
  private:
   // Set the compressed VP9 frame.
   bool SetFrame(const uint8_t* frame, size_t length);
