@@ -25,10 +25,17 @@ uint64_t BitstreamReader::ReadBits(int bits) {
   RTC_DCHECK_LE(bits, 64);
   set_last_read_is_verified(false);
 
+#if WEBRTC_WEBKIT_BUILD
+  if (remaining_bits_ < bits || bits < 0) {
+    Invalidate();
+    return 0;
+  }
+#else
   if (remaining_bits_ < bits) {
     Invalidate();
     return 0;
   }
+#endif
 
   int remaining_bits_in_first_byte = remaining_bits_ % 8;
   remaining_bits_ -= bits;
@@ -82,7 +89,12 @@ int BitstreamReader::ReadBit() {
 void BitstreamReader::ConsumeBits(int bits) {
   RTC_DCHECK_GE(bits, 0);
   set_last_read_is_verified(false);
-  if (remaining_bits_ < bits) {
+#if WEBRTC_WEBKIT_BUILD
+  if (remaining_bits_ < bits || bits < 0)
+#else
+  if (remaining_bits_ < bits)
+#endif
+  {
     Invalidate();
     return;
   }
@@ -111,11 +123,19 @@ uint32_t BitstreamReader::ReadExponentialGolomb() {
   // Count the number of leading 0.
   int zero_bit_count = 0;
   while (ReadBit() == 0) {
+#if WEBRTC_WEBKIT_BUILD
+    if (++zero_bit_count >= 32 || remaining_bits_ < 0) {
+      // Golob value won't fit into 32 bits of the return value, or we ran out of bits. Fail the parse.
+      Invalidate();
+      return 0;
+    }
+#else
     if (++zero_bit_count >= 32) {
       // Golob value won't fit into 32 bits of the return value. Fail the parse.
       Invalidate();
       return 0;
     }
+#endif
   }
 
   // The bit count of the value is the number of zeros + 1.
