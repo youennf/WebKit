@@ -213,7 +213,7 @@ typedef union v4sf_union {
 #define assertv4(v,f0,f1,f2,f3) assert(v.f[0] == (f0) && v.f[1] == (f1) && v.f[2] == (f2) && v.f[3] == (f3))
 
 /* detect bugs with the vector support macros */
-void validate_pffft_simd(void) {
+void validate_pffft_simd() {
   float f[16] = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
   v4sf_union a0, a1, a2, a3, t, u; 
   memcpy(a0.f, f, 4*sizeof(float));
@@ -246,19 +246,6 @@ void validate_pffft_simd(void) {
 
 /* SSE and co like 16-bytes aligned pointers */
 #define MALLOC_V4SF_ALIGNMENT 64 // with a 64-byte alignment, we are even aligned on L2 cache lines...
-#if defined(WEBRTC_WEBKIT_BUILD)
-#if defined(_MALLOC_TYPE_ENABLED) && _MALLOC_TYPE_ENABLED
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wallocator-wrappers" // rdar://170138232
-void *pffft_aligned_malloc_typed(size_t nb_bytes, malloc_type_id_t type_id) {
-  void *p, *p0 = malloc_type_malloc(nb_bytes + MALLOC_V4SF_ALIGNMENT, type_id);
-  if (!p0) return (void *) 0;
-  p = (void *) (((size_t) p0 + MALLOC_V4SF_ALIGNMENT) & (~((size_t) (MALLOC_V4SF_ALIGNMENT-1))));
-  *((void **) p - 1) = p0;
-  return p;
-}
-#pragma clang diagnostic pop
-#else
 void *pffft_aligned_malloc(size_t nb_bytes) {
   void *p, *p0 = malloc(nb_bytes + MALLOC_V4SF_ALIGNMENT);
   if (!p0) return (void *) 0;
@@ -266,22 +253,12 @@ void *pffft_aligned_malloc(size_t nb_bytes) {
   *((void **) p - 1) = p0;
   return p;
 }
-#endif
-#else
-void *pffft_aligned_malloc(size_t nb_bytes) {
-  void *p, *p0 = malloc(nb_bytes + MALLOC_V4SF_ALIGNMENT);
-  if (!p0) return (void *) 0;
-  p = (void *) (((size_t) p0 + MALLOC_V4SF_ALIGNMENT) & (~((size_t) (MALLOC_V4SF_ALIGNMENT-1))));
-  *((void **) p - 1) = p0;
-  return p;
-}
-#endif
 
 void pffft_aligned_free(void *p) {
   if (p) free(*((void **) p - 1));
 }
 
-int pffft_simd_size(void) { return SIMD_SZ; }
+int pffft_simd_size() { return SIMD_SZ; }
 
 /*
   passf2 and passb2 has been merged here, fsign = -1 for passf2, +1 for passb2
