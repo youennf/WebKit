@@ -96,6 +96,8 @@ private:
     void focusPickerWindowOtherThanRequestingOne();
     void showPickerBanner();
     void cancelPickerSession();
+    void switchPickerToWindowOrScreen();
+    void showWindowOrScreenPicker(WebPageProxy&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
     void pollPickerOverlays();
     void installPickerOverlayInWindow(NSWindow *);
     void dismissPickerOverlays();

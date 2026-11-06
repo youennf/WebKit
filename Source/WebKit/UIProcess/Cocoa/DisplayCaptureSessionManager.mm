@@ -223,15 +223,16 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
 // system window picker's banner. It becomes key so that the requesting window loses focus, and it
 // owns the picker's Escape key handling.
 @interface WKTabCapturePickerBanner : NSPanel
-- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock;
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock shareWindowOrScreenBlock:(void(^)(void))shareWindowOrScreenBlock;
 - (void)invalidate;
 @end
 
 @implementation WKTabCapturePickerBanner {
     BlockPtr<void()> _cancelBlock;
+    BlockPtr<void()> _shareWindowOrScreenBlock;
 }
 
-- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock shareWindowOrScreenBlock:(void(^)(void))shareWindowOrScreenBlock
 {
     // Full-width translucent bar covering the menu bar, mirroring ScreenCaptureKit's picker banner.
     NSRect screenFrame = [screen frame];
@@ -243,6 +244,7 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
         return nil;
 
     _cancelBlock = makeBlockPtr(cancelBlock);
+    _shareWindowOrScreenBlock = makeBlockPtr(shareWindowOrScreenBlock);
 
     [self setReleasedWhenClosed:NO];
     [self setLevel:NSStatusWindowLevel + 1];
@@ -288,6 +290,19 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
     [cancelButton setAutoresizingMask:NSViewMinXMargin];
     [content addSubview:cancelButton.get()];
 
+    RetainPtr shareWindowOrScreenButton = adoptNS([[NSButton alloc] initWithFrame:NSZeroRect]);
+    [shareWindowOrScreenButton setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+    [shareWindowOrScreenButton setBezelStyle:NSBezelStyleRounded];
+    [shareWindowOrScreenButton setControlSize:NSControlSizeLarge];
+    [shareWindowOrScreenButton setTitle:@"Share Window or Screen"];
+    [shareWindowOrScreenButton setTarget:self];
+    [shareWindowOrScreenButton setAction:@selector(_shareWindowOrScreenClicked:)];
+    [shareWindowOrScreenButton sizeToFit];
+    NSSize shareWindowOrScreenSize = NSMakeSize(NSWidth([shareWindowOrScreenButton frame]) + 24, NSHeight([shareWindowOrScreenButton frame]));
+    [shareWindowOrScreenButton setFrame:NSMakeRect(NSMinX([cancelButton frame]) - shareWindowOrScreenSize.width - 10, (bannerHeight - shareWindowOrScreenSize.height) / 2, shareWindowOrScreenSize.width, shareWindowOrScreenSize.height)];
+    [shareWindowOrScreenButton setAutoresizingMask:NSViewMinXMargin];
+    [content addSubview:shareWindowOrScreenButton.get()];
+
     RetainPtr<NSImage> showAllWindowsImage = [NSImage imageWithSystemSymbolName:@"rectangle.3.group" accessibilityDescription:@"Show All Windows"];
     if (showAllWindowsImage) {
         RetainPtr symbolConfiguration = [NSImageSymbolConfiguration configurationWithPointSize:20 weight:NSFontWeightRegular];
@@ -297,7 +312,7 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
         [showAllWindowsButton setBordered:NO];
         [showAllWindowsButton setContentTintColor:[NSColor labelColor]];
         [showAllWindowsButton setToolTip:@"Show All Windows"];
-        [showAllWindowsButton setFrame:NSMakeRect(NSMinX([cancelButton frame]) - showAllWindowsSize - 16, (bannerHeight - showAllWindowsSize) / 2, showAllWindowsSize, showAllWindowsSize)];
+        [showAllWindowsButton setFrame:NSMakeRect(NSMinX([shareWindowOrScreenButton frame]) - showAllWindowsSize - 16, (bannerHeight - showAllWindowsSize) / 2, showAllWindowsSize, showAllWindowsSize)];
         [showAllWindowsButton setAutoresizingMask:NSViewMinXMargin];
         [content addSubview:showAllWindowsButton.get()];
     }
@@ -313,12 +328,21 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
 - (void)invalidate
 {
     _cancelBlock = nullptr;
+    _shareWindowOrScreenBlock = nullptr;
     [self orderOut:nil];
 }
 
 - (void)_cancelClicked:(id)sender
 {
+    _shareWindowOrScreenBlock = nullptr;
     if (auto block = std::exchange(_cancelBlock, nullptr))
+        block();
+}
+
+- (void)_shareWindowOrScreenClicked:(id)sender
+{
+    _cancelBlock = nullptr;
+    if (auto block = std::exchange(_shareWindowOrScreenBlock, nullptr))
         block();
 }
 
@@ -570,6 +594,8 @@ void DisplayCaptureSessionManager::showPickerBanner()
 
     m_pickerBanner = adoptNS([[WKTabCapturePickerBanner alloc] initWithScreen:screen.get() cancelBlock:^{
         DisplayCaptureSessionManager::singleton().cancelPickerSession();
+    } shareWindowOrScreenBlock:^{
+        DisplayCaptureSessionManager::singleton().switchPickerToWindowOrScreen();
     }]);
     [m_pickerBanner makeKeyAndOrderFront:nil];
 }
@@ -581,6 +607,37 @@ void DisplayCaptureSessionManager::cancelPickerSession()
     auto completion = WTF::move(*m_pickerCompletion);
     endPickerSession();
     completion(std::nullopt);
+}
+
+void DisplayCaptureSessionManager::switchPickerToWindowOrScreen()
+{
+    if (!m_pickerCompletion)
+        return;
+    auto completion = WTF::move(*m_pickerCompletion);
+    RefPtr requestingPage = m_pickerRequestingPage.get();
+    endPickerSession();
+    if (!requestingPage) {
+        completion(std::nullopt);
+        return;
+    }
+    showWindowOrScreenPicker(*requestingPage, WTF::move(completion));
+}
+
+void DisplayCaptureSessionManager::showWindowOrScreenPicker(WebPageProxy& page, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
+{
+    // Route to SCK's SCContentSharingPicker with UserChoose so the system picker offers both windows
+    // and screens.
+    if (!WebCore::ScreenCaptureKitSharingSessionManager::isAvailable()) {
+        completionHandler(std::nullopt);
+        return;
+    }
+    if (!protect(page.preferences())->useGPUProcessForDisplayCapture()) {
+        WebCore::ScreenCaptureKitSharingSessionManager::singleton().promptForGetDisplayMedia(WebCore::DisplayCapturePromptType::UserChoose, WTF::move(completionHandler));
+        return;
+    }
+    Ref gpuProcess = protect(page.configuration().processPool())->ensureGPUProcess();
+    gpuProcess->updateSandboxAccess(false, false, true);
+    gpuProcess->promptForGetDisplayMedia(WebCore::DisplayCapturePromptType::UserChoose, WTF::move(completionHandler));
 }
 
 void DisplayCaptureSessionManager::pollPickerOverlays()
@@ -1336,19 +1393,7 @@ void DisplayCaptureSessionManager::promptForGetDisplayMedia(UserMediaPermissionR
             return;
         }
 
-        // Window/Screen → route to SCK's SCContentSharingPicker with UserChoose so the system picker
-        // offers both windows and screens.
-        if (WebCore::ScreenCaptureKitSharingSessionManager::isAvailable()) {
-            if (!protect(protectedPage->preferences())->useGPUProcessForDisplayCapture()) {
-                WebCore::ScreenCaptureKitSharingSessionManager::singleton().promptForGetDisplayMedia(WebCore::DisplayCapturePromptType::UserChoose, WTF::move(completionHandler));
-                return;
-            }
-            Ref gpuProcess = protect(protectedPage->configuration().processPool())->ensureGPUProcess();
-            gpuProcess->updateSandboxAccess(false, false, true);
-            gpuProcess->promptForGetDisplayMedia(WebCore::DisplayCapturePromptType::UserChoose, WTF::move(completionHandler));
-            return;
-        }
-        completionHandler(std::nullopt);
+        showWindowOrScreenPicker(*protectedPage, WTF::move(completionHandler));
     });
 #else
     completionHandler(std::nullopt);
