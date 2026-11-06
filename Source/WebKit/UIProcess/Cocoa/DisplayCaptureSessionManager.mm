@@ -104,6 +104,8 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
 @interface WKTabCapturePickerOverlay : NSView
 - (instancetype)initWithFrame:(NSRect)frame shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock;
 - (void)setShowsCaptureTint:(BOOL)shows;
+- (void)setTabTitle:(NSString *)title;
+- (void)pulse;
 - (NSView *)cardView;
 - (void)invalidate;
 @end
@@ -113,6 +115,7 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
     void (^_cancelBlock)(void);
     BOOL _showsCaptureTint;
     RetainPtr<NSView> _cardView;
+    RetainPtr<NSTextField> _titleLabel;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock
@@ -129,8 +132,8 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
     [[self layer] setBorderWidth:0];
 
     NSRect bounds = [self bounds];
-    CGFloat cardWidth = 260;
-    CGFloat cardHeight = 88;
+    CGFloat cardWidth = 300;
+    CGFloat cardHeight = 110;
     NSRect cardFrame = NSMakeRect((NSWidth(bounds) - cardWidth) / 2, (NSHeight(bounds) - cardHeight) / 2, cardWidth, cardHeight);
     RetainPtr card = adoptNS([[NSVisualEffectView alloc] initWithFrame:cardFrame]);
     [card setMaterial:NSVisualEffectMaterialHUDWindow];
@@ -145,8 +148,19 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
     [self addSubview:card.get()];
     _cardView = card;
 
-    CGFloat buttonWidth = cardWidth - 24;
-    NSRect shareFrame = NSMakeRect((cardWidth - buttonWidth) / 2, 46, buttonWidth, 28);
+    CGFloat contentWidth = cardWidth - 24;
+    CGFloat contentX = (cardWidth - contentWidth) / 2;
+
+    // Title of the tab that "Share This Tab" would pick. It updates as the user switches tabs, which
+    // is the main cue that switching tabs changes what gets shared.
+    _titleLabel = [NSTextField labelWithString:@""];
+    [_titleLabel setFont:[NSFont systemFontOfSize:13 weight:NSFontWeightSemibold]];
+    [_titleLabel setAlignment:NSTextAlignmentCenter];
+    [_titleLabel setLineBreakMode:NSLineBreakByTruncatingTail];
+    [_titleLabel setFrame:NSMakeRect(contentX, 80, contentWidth, 18)];
+    [card addSubview:_titleLabel.get()];
+
+    NSRect shareFrame = NSMakeRect(contentX, 44, contentWidth, 28);
     RetainPtr shareButton = adoptNS([[NSButton alloc] initWithFrame:shareFrame]);
     [shareButton setBezelStyle:NSBezelStyleRounded];
     [shareButton setTitle:@"Share This Tab"];
@@ -155,7 +169,7 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
     [shareButton setAction:@selector(_shareClicked:)];
     [card addSubview:shareButton.get()];
 
-    NSRect cancelFrame = NSMakeRect((cardWidth - buttonWidth) / 2, 10, buttonWidth, 26);
+    NSRect cancelFrame = NSMakeRect(contentX, 10, contentWidth, 26);
     RetainPtr cancelButton = adoptNS([[NSButton alloc] initWithFrame:cancelFrame]);
     [cancelButton setBezelStyle:NSBezelStyleRounded];
     [cancelButton setTitle:@"Cancel"];
@@ -180,6 +194,20 @@ typedef NS_ENUM(uint32_t, CGVirtualDisplayHiDPIMode) {
         [[self layer] setBackgroundColor:[NSColor clearColor].CGColor];
         [[self layer] setBorderWidth:0];
     }
+}
+
+- (void)setTabTitle:(NSString *)title
+{
+    if (![[_titleLabel stringValue] isEqualToString:title])
+        [_titleLabel setStringValue:title];
+}
+
+- (void)pulse
+{
+    RetainPtr animation = [CAKeyframeAnimation animationWithKeyPath:@"borderWidth"];
+    [animation setValues:@[ @1, @4, @1 ]];
+    [animation setDuration:0.4];
+    [[_cardView layer] addAnimation:animation.get() forKey:@"pulse"];
 }
 
 - (NSView *)cardView { return _cardView.get(); }
@@ -560,6 +588,18 @@ static bool pickerWindowContainsWKWebView(NSWindow *window)
     return false;
 }
 
+static void updatePickerOverlayTabInformation(WKTabCapturePickerOverlay *overlay)
+{
+    NSWindow *window = [overlay window];
+    RefPtr page = pickerPageForCocoaView(pickerVisibleWKWebViewInWindow(window).get());
+    String title = page ? page->pageLoadState().title() : String();
+    if (title.isEmpty())
+        title = page ? page->pageLoadState().activeURL().host().toString() : String();
+    if (title.isEmpty())
+        title = "Empty Tab"_s;
+    [overlay setTabTitle:title.createNSString().get()];
+}
+
 void DisplayCaptureSessionManager::focusPickerWindowOtherThanRequestingOne()
 {
     if (!m_pickerCompletion)
@@ -652,6 +692,7 @@ void DisplayCaptureSessionManager::pollPickerOverlays()
 
     // Remove stale overlays (their WKWebView host is no longer the visible one, or they got detached).
     RetainPtr<NSMutableSet> windowsWithOverlays = adoptNS([[NSMutableSet alloc] init]);
+    RetainPtr<NSMutableSet> windowsWithReplacedOverlays = adoptNS([[NSMutableSet alloc] init]);
     RetainPtr<NSMutableArray> stale = adoptNS([[NSMutableArray alloc] init]);
     for (WKTabCapturePickerOverlay *overlay in m_pickerOverlays.get()) {
         NSWindow *win = [overlay window];
@@ -664,6 +705,8 @@ void DisplayCaptureSessionManager::pollPickerOverlays()
         if (!desiredHost)
             desiredHost = win ? [win contentView] : nullptr;
         if (!win || !desired || !desiredHost || superview != desiredHost.get()) {
+            if (win)
+                [windowsWithReplacedOverlays addObject:win];
             [stale addObject:overlay];
             continue;
         }
@@ -691,9 +734,14 @@ void DisplayCaptureSessionManager::pollPickerOverlays()
         }
     }
 
-    // Toggle tint: only the hovered window shows the blue capture-region tint.
-    for (WKTabCapturePickerOverlay *overlay in m_pickerOverlays.get())
+    // Toggle tint: only the hovered window shows the blue capture-region tint. Refresh the tab
+    // information, and pulse the card when the user switched tabs so they notice what changed.
+    for (WKTabCapturePickerOverlay *overlay in m_pickerOverlays.get()) {
         [overlay setShowsCaptureTint:([overlay window] == m_pickerHoveredWindow.get())];
+        updatePickerOverlayTabInformation(overlay);
+        if ([windowsWithReplacedOverlays containsObject:[overlay window]])
+            [overlay pulse];
+    }
 }
 
 void DisplayCaptureSessionManager::installPickerOverlayInWindow(NSWindow *window)
