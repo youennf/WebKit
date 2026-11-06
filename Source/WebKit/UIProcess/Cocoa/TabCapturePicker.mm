@@ -63,15 +63,16 @@ constexpr CGFloat promptCornerRadius = 12;
 // system window picker's banner. It becomes key so that the requesting window loses focus, and it
 // owns the picker's Escape key handling.
 @interface WKTabCapturePickerBanner : NSPanel
-- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock;
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock shareWindowOrScreenBlock:(void(^)(void))shareWindowOrScreenBlock;
 - (void)invalidate;
 @end
 
 @implementation WKTabCapturePickerBanner {
     BlockPtr<void()> _cancelBlock;
+    BlockPtr<void()> _shareWindowOrScreenBlock;
 }
 
-- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock shareWindowOrScreenBlock:(void(^)(void))shareWindowOrScreenBlock
 {
     // Full-width translucent bar covering the menu bar, mirroring ScreenCaptureKit's picker banner.
     NSRect screenFrame = [screen frame];
@@ -83,6 +84,7 @@ constexpr CGFloat promptCornerRadius = 12;
         return nil;
 
     _cancelBlock = makeBlockPtr(cancelBlock);
+    _shareWindowOrScreenBlock = makeBlockPtr(shareWindowOrScreenBlock);
 
     [self setReleasedWhenClosed:NO];
     [self setLevel:NSStatusWindowLevel + 1];
@@ -128,6 +130,19 @@ constexpr CGFloat promptCornerRadius = 12;
     [cancelButton setAutoresizingMask:NSViewMinXMargin];
     [content addSubview:cancelButton.get()];
 
+    RetainPtr shareWindowOrScreenButton = adoptNS([[NSButton alloc] initWithFrame:NSZeroRect]);
+    [shareWindowOrScreenButton setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+    [shareWindowOrScreenButton setBezelStyle:NSBezelStyleRounded];
+    [shareWindowOrScreenButton setControlSize:NSControlSizeLarge];
+    [shareWindowOrScreenButton setTitle:WEB_UI_NSSTRING(@"Share Window or Screen", "Button of the tab capture picker banner to share a window or a screen instead of a tab")];
+    [shareWindowOrScreenButton setTarget:self];
+    [shareWindowOrScreenButton setAction:@selector(_shareWindowOrScreenClicked:)];
+    [shareWindowOrScreenButton sizeToFit];
+    NSSize shareWindowOrScreenSize = NSMakeSize(NSWidth([shareWindowOrScreenButton frame]) + 24, NSHeight([shareWindowOrScreenButton frame]));
+    [shareWindowOrScreenButton setFrame:NSMakeRect(NSMinX([cancelButton frame]) - shareWindowOrScreenSize.width - 10, (bannerHeight - shareWindowOrScreenSize.height) / 2, shareWindowOrScreenSize.width, shareWindowOrScreenSize.height)];
+    [shareWindowOrScreenButton setAutoresizingMask:NSViewMinXMargin];
+    [content addSubview:shareWindowOrScreenButton.get()];
+
     RetainPtr<NSString> showAllWindowsString = WEB_UI_NSSTRING(@"Show All Windows", "Tooltip of the button of the tab capture picker banner that shows all the application windows");
     RetainPtr<NSImage> showAllWindowsImage = [NSImage imageWithSystemSymbolName:@"rectangle.3.group" accessibilityDescription:showAllWindowsString.get()];
     if (showAllWindowsImage) {
@@ -138,7 +153,7 @@ constexpr CGFloat promptCornerRadius = 12;
         [showAllWindowsButton setBordered:NO];
         [showAllWindowsButton setContentTintColor:[NSColor labelColor]];
         [showAllWindowsButton setToolTip:showAllWindowsString.get()];
-        [showAllWindowsButton setFrame:NSMakeRect(NSMinX([cancelButton frame]) - showAllWindowsSize - 16, (bannerHeight - showAllWindowsSize) / 2, showAllWindowsSize, showAllWindowsSize)];
+        [showAllWindowsButton setFrame:NSMakeRect(NSMinX([shareWindowOrScreenButton frame]) - showAllWindowsSize - 16, (bannerHeight - showAllWindowsSize) / 2, showAllWindowsSize, showAllWindowsSize)];
         [showAllWindowsButton setAutoresizingMask:NSViewMinXMargin];
         [content addSubview:showAllWindowsButton.get()];
     }
@@ -154,12 +169,21 @@ constexpr CGFloat promptCornerRadius = 12;
 - (void)invalidate
 {
     _cancelBlock = nullptr;
+    _shareWindowOrScreenBlock = nullptr;
     [self orderOut:nil];
 }
 
 - (void)_cancelClicked:(id)sender
 {
+    _shareWindowOrScreenBlock = nullptr;
     if (auto block = std::exchange(_cancelBlock, nullptr))
+        block();
+}
+
+- (void)_shareWindowOrScreenClicked:(id)sender
+{
+    _cancelBlock = nullptr;
+    if (auto block = std::exchange(_shareWindowOrScreenBlock, nullptr))
         block();
 }
 
@@ -459,7 +483,7 @@ TabCapturePicker::~TabCapturePicker()
 {
     stop();
     if (m_callback)
-        m_callback(nullptr);
+        m_callback(Outcome::Cancelled, nullptr);
 }
 
 void TabCapturePicker::start()
@@ -467,7 +491,7 @@ void TabCapturePicker::start()
     RefPtr requestingPage = m_requestingPage;
     RetainPtr requestingWebView = requestingPage ? requestingPage->cocoaView() : nullptr;
     if (!requestingWebView) {
-        finish(nullptr);
+        finish(Outcome::Cancelled);
         return;
     }
 
@@ -492,7 +516,7 @@ void TabCapturePicker::start()
 
 void TabCapturePicker::cancel()
 {
-    finish(nullptr);
+    finish(Outcome::Cancelled);
 }
 
 void TabCapturePicker::scheduleOverlaysUpdate()
@@ -557,12 +581,15 @@ void TabCapturePicker::installOverlay(WebPageProxy& page)
         return;
 
     auto shareBlock = makeBlockPtr([weakThis = WeakPtr { *this }, weakPage = WeakPtr { page }] {
-        if (RefPtr protectedThis = weakThis)
-            protectedThis->finish(weakPage);
+        RefPtr protectedThis = weakThis;
+        if (!protectedThis)
+            return;
+        RefPtr page = weakPage.get();
+        protectedThis->finish(page ? Outcome::TabPicked : Outcome::Cancelled, WTF::move(page));
     });
     auto cancelBlock = makeBlockPtr([weakThis = WeakPtr { *this }] {
         if (RefPtr protectedThis = weakThis)
-            protectedThis->finish(nullptr);
+            protectedThis->finish(Outcome::Cancelled);
     });
     auto hoverBlock = makeBlockPtr([weakThis = WeakPtr { *this }, weakWindow = WeakObjCPtr<NSWindow> { window }] {
         if (RefPtr protectedThis = weakThis)
@@ -608,7 +635,10 @@ void TabCapturePicker::showBanner()
 
     m_banner = adoptNS([[WKTabCapturePickerBanner alloc] initWithScreen:screen.get() cancelBlock:makeBlockPtr([weakThis = WeakPtr { *this }] {
         if (RefPtr protectedThis = weakThis)
-            protectedThis->finish(nullptr);
+            protectedThis->finish(Outcome::Cancelled);
+    }).get() shareWindowOrScreenBlock:makeBlockPtr([weakThis = WeakPtr { *this }] {
+        if (RefPtr protectedThis = weakThis)
+            protectedThis->finish(Outcome::WindowOrScreenRequested);
     }).get()]);
     [m_banner makeKeyAndOrderFront:nil];
 }
@@ -628,13 +658,14 @@ void TabCapturePicker::updateTints()
         [overlay.view setShowsCaptureTint:[overlay.view window] == selectedWindow];
 }
 
-void TabCapturePicker::finish(RefPtr<WebPageProxy>&& pickedPage)
+void TabCapturePicker::finish(Outcome outcome, RefPtr<WebPageProxy>&& pickedPage)
 {
+    ASSERT(outcome == Outcome::TabPicked || !pickedPage);
     if (!m_callback)
         return;
     auto callback = WTF::move(m_callback);
     stop();
-    callback(WTF::move(pickedPage));
+    callback(outcome, WTF::move(pickedPage));
 }
 
 void TabCapturePicker::stop()

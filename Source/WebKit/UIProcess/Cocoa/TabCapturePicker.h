@@ -52,7 +52,9 @@ class WebPageProxy;
 class TabCapturePicker : public RefCountedAndCanMakeWeakPtr<TabCapturePicker> {
     WTF_MAKE_TZONE_ALLOCATED(TabCapturePicker);
 public:
-    using Callback = CompletionHandler<void(RefPtr<WebPageProxy>&&)>;
+    enum class Outcome : uint8_t { Cancelled, TabPicked, WindowOrScreenRequested };
+    // The picked page is only set when the outcome is TabPicked.
+    using Callback = CompletionHandler<void(Outcome, RefPtr<WebPageProxy>&& pickedPage)>;
     static Ref<TabCapturePicker> create(WebPageProxy& requestingPage, const WebCore::SecurityOriginData& requestingOrigin, Callback&&);
     ~TabCapturePicker();
 
@@ -72,7 +74,7 @@ private:
     void showBanner();
     void selectWindow(NSWindow *);
     void updateTints();
-    void finish(RefPtr<WebPageProxy>&&);
+    void finish(Outcome, RefPtr<WebPageProxy>&& pickedPage = nullptr);
     void stop();
 
     struct Overlay {

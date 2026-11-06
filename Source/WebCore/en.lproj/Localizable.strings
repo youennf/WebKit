@@ -1405,6 +1405,9 @@
 /* Button title in the tab capture picker to share the selected tab */
 "Share This Tab" = "Share This Tab";
 
+/* Button of the tab capture picker banner to share a window or a screen instead of a tab */
+"Share Window or Screen" = "Share Window or Screen";
+
 /* Title of the tab capture picker prompt */
 "Share this tab with “%@”?" = "Share this tab with “%@”?";
 

@@ -123,18 +123,25 @@ void DisplayCaptureSessionManager::showTabPicker(WebPageProxy& requestingPage, c
         previousPicker->cancel();
     ASSERT(!m_tabCapturePicker);
 
-    m_tabCapturePicker = TabCapturePicker::create(requestingPage, origin, [weakRequestingPage = WeakPtr { requestingPage }, completionHandler = WTF::move(completionHandler)](RefPtr<WebPageProxy>&& pickedPage) mutable {
-        DisplayCaptureSessionManager::singleton().m_tabCapturePicker = nullptr;
-        if (!pickedPage) {
-            completionHandler(std::nullopt);
-            return;
-        }
+    m_tabCapturePicker = TabCapturePicker::create(requestingPage, origin, [weakRequestingPage = WeakPtr { requestingPage }, completionHandler = WTF::move(completionHandler)](auto outcome, RefPtr<WebPageProxy>&& pickedPage) mutable {
+        auto& manager = DisplayCaptureSessionManager::singleton();
+        manager.m_tabCapturePicker = nullptr;
         RefPtr requestingPage = weakRequestingPage.get();
         if (!requestingPage) {
             completionHandler(std::nullopt);
             return;
         }
-        DisplayCaptureSessionManager::singleton().startTabCapture(*requestingPage, *pickedPage, WTF::move(completionHandler));
+        switch (outcome) {
+        case TabCapturePicker::Outcome::Cancelled:
+            completionHandler(std::nullopt);
+            return;
+        case TabCapturePicker::Outcome::TabPicked:
+            manager.startTabCapture(*requestingPage, *pickedPage, WTF::move(completionHandler));
+            return;
+        case TabCapturePicker::Outcome::WindowOrScreenRequested:
+            manager.showWindowOrScreenPicker(*requestingPage, WTF::move(completionHandler));
+            return;
+        }
     });
     if (RefPtr picker = m_tabCapturePicker)
         picker->start();
