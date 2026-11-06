@@ -31,11 +31,13 @@
 #import "CapturePromptUtilities.h"
 #import "Logging.h"
 #import "MediaPermissionUtilities.h"
+#import "PageLoadState.h"
 #import "WKWebViewInternal.h"
 #import "WKWebViewPrivate.h"
 #import "WebInspectorUtilities.h"
 #import "WebPageProxy.h"
 #import "WebProcessProxy.h"
+#import <QuartzCore/QuartzCore.h>
 #import <WebCore/FloatRect.h>
 #import <WebCore/LocalizedStrings.h>
 #import <wtf/BlockPtr.h>
@@ -199,6 +201,8 @@ constexpr CGFloat promptCornerRadius = 12;
 @interface WKTabCapturePickerOverlay : NSView
 - (instancetype)initWithWebView:(WKWebView *)webView frame:(NSRect)frame requestingOriginName:(NSString *)requestingOriginName shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock hoverBlock:(void(^)(void))hoverBlock;
 - (void)setShowsCaptureTint:(BOOL)shows;
+- (void)setTabTitle:(NSString *)title;
+- (void)pulse;
 - (void)invalidate;
 @end
 
@@ -209,6 +213,8 @@ constexpr CGFloat promptCornerRadius = 12;
     WeakObjCPtr<WKWebView> _webView;
     BOOL _webViewIgnoredMouseMoveEvents;
     BOOL _showsCaptureTint;
+    RetainPtr<NSView> _prompt;
+    RetainPtr<NSTextField> _tabTitleLabel;
 }
 
 - (instancetype)initWithWebView:(WKWebView *)webView frame:(NSRect)frame requestingOriginName:(NSString *)requestingOriginName shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock hoverBlock:(void(^)(void))hoverBlock
@@ -274,10 +280,19 @@ constexpr CGFloat promptCornerRadius = 12;
     [contentStack setDistribution:NSStackViewDistributionFill];
     [contentStack setSpacing:WebKit::capturePromptSpacing];
     [contentStack setTranslatesAutoresizingMaskIntoConstraints:NO];
-    for (NSView *view in @[ titleLabel, buttonStack ]) {
+    // Title of the tab that Share This Tab would pick. It updates as the user switches tabs, which is
+    // the main cue that switching tabs changes what gets shared.
+    _tabTitleLabel = [NSTextField labelWithString:@""];
+    [_tabTitleLabel setFont:[NSFont systemFontOfSize:[NSFont systemFontSize]]];
+    [_tabTitleLabel setLineBreakMode:NSLineBreakByTruncatingTail];
+    [_tabTitleLabel setSelectable:NO];
+    [_tabTitleLabel setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+    for (NSView *view in @[ titleLabel, _tabTitleLabel, buttonStack ]) {
         [contentStack addArrangedSubview:view];
         WebKit::pinToWidthOfStack(view, contentStack);
     }
+    [contentStack setCustomSpacing:WebKit::capturePromptInformativeTextSpacing afterView:titleLabel];
 
     RetainPtr prompt = adoptNS([[NSVisualEffectView alloc] initWithFrame:NSZeroRect]);
     [prompt setMaterial:NSVisualEffectMaterialWindowBackground];
@@ -286,9 +301,12 @@ constexpr CGFloat promptCornerRadius = 12;
     [prompt setWantsLayer:YES];
     [[prompt layer] setCornerRadius:promptCornerRadius];
     [[prompt layer] setMasksToBounds:YES];
+    [[prompt layer] setBorderColor:[NSColor controlAccentColor].CGColor];
+    [[prompt layer] setBorderWidth:0];
     [prompt setTranslatesAutoresizingMaskIntoConstraints:NO];
     [prompt addSubview:contentStack];
     [self addSubview:prompt];
+    _prompt = prompt;
 
     [NSLayoutConstraint activateConstraints:@[
         [[contentStack topAnchor] constraintEqualToAnchor:[prompt topAnchor] constant:WebKit::capturePromptTopInset],
@@ -318,6 +336,21 @@ constexpr CGFloat promptCornerRadius = 12;
     [layer setBackgroundColor:retainPtr([[NSColor systemBlueColor] colorWithAlphaComponent:0.18].CGColor)];
     [layer setBorderColor:retainPtr([[NSColor systemBlueColor] colorWithAlphaComponent:0.9].CGColor)];
     [layer setBorderWidth:3];
+}
+
+- (void)setTabTitle:(NSString *)title
+{
+    if (![[_tabTitleLabel stringValue] isEqualToString:title])
+        [_tabTitleLabel setStringValue:title];
+}
+
+// Draws attention to the prompt when the tab it would share changes.
+- (void)pulse
+{
+    RetainPtr animation = [CAKeyframeAnimation animationWithKeyPath:@"borderWidth"];
+    [animation setValues:@[ @0, @3, @0 ]];
+    [animation setDuration:0.4];
+    [[_prompt layer] addAnimation:animation.get() forKey:@"pulse"];
 }
 
 - (void)invalidate
@@ -438,6 +471,16 @@ static NSView *overlayHostForWebView(WKWebView *webView)
     return [[webView window] contentView];
 }
 
+static RetainPtr<NSString> tabTitle(WebPageProxy* page)
+{
+    String title = page ? page->pageLoadState().title() : String();
+    if (title.isEmpty() && page)
+        title = page->pageLoadState().activeURL().host().toString();
+    if (title.isEmpty())
+        return WEB_UI_NSSTRING(@"Empty Tab", "Title shown in the tab capture picker for a tab with no title");
+    return title.createNSString();
+}
+
 static bool canShowOverlayInWindow(NSWindow *window)
 {
     return window && ([window isVisible] || [window isMiniaturized]);
@@ -538,6 +581,7 @@ void TabCapturePicker::updateOverlays()
         return;
 
     RetainPtr windowsWithOverlay = adoptNS([[NSMutableSet alloc] init]);
+    RetainPtr windowsWithReplacedOverlay = adoptNS([[NSMutableSet alloc] init]);
     m_overlays.removeAllMatching([&](auto& overlay) {
         // As the tabs of a window may share the overlay host, an overlay is stale when its page is no longer the
         // visible one of its window, for instance after a tab switch.
@@ -550,6 +594,8 @@ void TabCapturePicker::updateOverlays()
             [windowsWithOverlay addObject:window];
             return false;
         }
+        if (window)
+            [windowsWithReplacedOverlay addObject:window];
         [overlay.view invalidate];
         return true;
     });
@@ -565,6 +611,14 @@ void TabCapturePicker::updateOverlays()
                 installOverlay(*visiblePage);
             }
         }
+    }
+
+    // Refresh the title of the tab each overlay would share, and pulse the prompt when the user switched tabs.
+    for (auto& overlay : borrow(m_overlays)) {
+        RefPtr page = overlay.page;
+        [overlay.view setTabTitle:tabTitle(page.get())];
+        if ([windowsWithReplacedOverlay containsObject:retainPtr([overlay.view window])])
+            [overlay.view pulse];
     }
 
     updateTints();

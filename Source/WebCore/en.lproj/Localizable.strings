@@ -541,6 +541,9 @@
 /* Fallback label text for unlabeled email address field. */
 "Email address" = "Email address";
 
+/* Title shown in the tab capture picker for a tab with no title */
+"Empty Tab" = "Empty Tab";
+
 /* WKWebExtensionErrorInvalidManifestEntry description for background */
 "Empty or invalid `background` manifest entry." = "Empty or invalid `background` manifest entry.";
 
