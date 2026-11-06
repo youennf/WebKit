@@ -29,6 +29,7 @@
 #if HAVE(WINDOW_CAPTURE)
 
 #import "CapturePromptUtilities.h"
+#import "Logging.h"
 #import "MediaPermissionUtilities.h"
 #import "WKWebViewInternal.h"
 #import "WKWebViewPrivate.h"
@@ -40,6 +41,8 @@
 #import <wtf/BlockPtr.h>
 #import <wtf/RunLoop.h>
 #import <wtf/TZoneMallocInlines.h>
+
+#import <pal/spi/mac/HIServicesSPI.h>
 
 constexpr CGFloat promptCornerRadius = 12;
 
@@ -125,6 +128,21 @@ constexpr CGFloat promptCornerRadius = 12;
     [cancelButton setAutoresizingMask:NSViewMinXMargin];
     [content addSubview:cancelButton.get()];
 
+    RetainPtr<NSString> showAllWindowsString = WEB_UI_NSSTRING(@"Show All Windows", "Tooltip of the button of the tab capture picker banner that shows all the application windows");
+    RetainPtr<NSImage> showAllWindowsImage = [NSImage imageWithSystemSymbolName:@"rectangle.3.group" accessibilityDescription:showAllWindowsString.get()];
+    if (showAllWindowsImage) {
+        RetainPtr symbolConfiguration = [NSImageSymbolConfiguration configurationWithPointSize:20 weight:NSFontWeightRegular];
+        showAllWindowsImage = [showAllWindowsImage imageWithSymbolConfiguration:symbolConfiguration.get()];
+        CGFloat showAllWindowsSize = 36;
+        RetainPtr showAllWindowsButton = [NSButton buttonWithImage:showAllWindowsImage.get() target:self action:@selector(_showAllWindowsClicked:)];
+        [showAllWindowsButton setBordered:NO];
+        [showAllWindowsButton setContentTintColor:[NSColor labelColor]];
+        [showAllWindowsButton setToolTip:showAllWindowsString.get()];
+        [showAllWindowsButton setFrame:NSMakeRect(NSMinX([cancelButton frame]) - showAllWindowsSize - 16, (bannerHeight - showAllWindowsSize) / 2, showAllWindowsSize, showAllWindowsSize)];
+        [showAllWindowsButton setAutoresizingMask:NSViewMinXMargin];
+        [content addSubview:showAllWindowsButton.get()];
+    }
+
     return self;
 }
 
@@ -143,6 +161,13 @@ constexpr CGFloat promptCornerRadius = 12;
 {
     if (auto block = std::exchange(_cancelBlock, nullptr))
         block();
+}
+
+- (void)_showAllWindowsClicked:(id)sender
+{
+    // Ask the Dock for App Exposé, which only shows the frontmost application's windows.
+    if (OSStatus status = CoreDockSendNotification(CFSTR("com.apple.expose.front.awake"), 0))
+        RELEASE_LOG_ERROR(WebRTC, "Failed to show all windows for tab picker: %d", static_cast<int>(status));
 }
 
 @end

@@ -1414,6 +1414,9 @@
 /* Title for Share action button */
 "Share…" = "Share…";
 
+/* Tooltip of the button of the tab capture picker banner that shows all the application windows */
+"Show All Windows" = "Show All Windows";
+
 /* Show colors context menu item */
 "Show Colors" = "Show Colors";
 
