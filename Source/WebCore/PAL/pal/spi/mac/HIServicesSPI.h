@@ -136,6 +136,7 @@ OSStatus CoreDragSetImage(CoreDragRef, CGPoint imageOffset, CoreDragImageSpec*, 
 const UInt8* AXTextMarkerGetBytePtr(AXTextMarkerRef);
 bool _AXUIElementRequestServicedBySecondaryAXThread(void);
 OSStatus SetApplicationIsDaemon(Boolean);
+OSStatus CoreDockSendNotification(CFStringRef notification, UInt32 options);
 
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
 AXError _AXUIElementUseSecondaryAXThread(bool enabled);
