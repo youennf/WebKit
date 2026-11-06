@@ -67,6 +67,7 @@ private:
 
     void updateOverlays();
     void installOverlay(WebPageProxy&);
+    void focusWindowOtherThanRequestingOne();
     void selectWindow(NSWindow *);
     void updateTints();
     void finish(RefPtr<WebPageProxy>&&);

@@ -363,6 +363,13 @@ void TabCapturePicker::start()
     }).get()];
 
     updateOverlays();
+
+    // Defer so that the getDisplayMedia alert sheet has fully torn down; otherwise AppKit hands key
+    // status back to the sheet's parent, the requesting window, after we move focus.
+    RunLoop::mainSingleton().dispatch([weakThis = WeakPtr { *this }] {
+        if (RefPtr protectedThis = weakThis)
+            protectedThis->focusWindowOtherThanRequestingOne();
+    });
 }
 
 void TabCapturePicker::cancel()
@@ -447,6 +454,27 @@ void TabCapturePicker::installOverlay(WebPageProxy& page)
     RetainPtr overlay = adoptNS([[WKTabCapturePickerOverlay alloc] initWithWebView:webView frame:overlayFrame(page, webView, overlayHost) requestingOriginName:m_requestingOriginName shareBlock:shareBlock.get() cancelBlock:cancelBlock.get() hoverBlock:hoverBlock.get()]);
     [overlayHost addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
     m_overlays.append({ WTF::move(overlay), page });
+}
+
+void TabCapturePicker::focusWindowOtherThanRequestingOne()
+{
+    if (!m_callback)
+        return;
+
+    // Like the system window picker, move focus away from the requesting window so the user is
+    // steered towards picking another tab. -[NSApp orderedWindows] is front-to-back, so the first
+    // match is the most recently used browser window. If the requesting window is the only one, keep
+    // it: the user can still switch tabs in it.
+    RefPtr requestingPage = m_requestingPage;
+    RetainPtr requestingWebView = requestingPage ? requestingPage->cocoaView() : nullptr;
+    RetainPtr requestingWindow = [requestingWebView window];
+    for (NSWindow *window in [NSApp orderedWindows]) {
+        if (window == requestingWindow || ![window isVisible] || [window isMiniaturized] || !visiblePageInWindow(window))
+            continue;
+        [window makeKeyAndOrderFront:nil];
+        selectWindow(window);
+        return;
+    }
 }
 
 void TabCapturePicker::selectWindow(NSWindow *window)
