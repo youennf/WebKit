@@ -41,6 +41,7 @@ OBJC_CLASS NSMutableArray;
 OBJC_CLASS NSObject;
 OBJC_CLASS NSTimer;
 OBJC_CLASS NSWindow;
+OBJC_CLASS WKTabCapturePickerBanner;
 
 namespace WebCore {
 class SecurityOrigin;
@@ -93,6 +94,8 @@ private:
     void updateTabCaptureCursorMirror();
 
     void focusPickerWindowOtherThanRequestingOne();
+    void showPickerBanner();
+    void cancelPickerSession();
     void pollPickerOverlays();
     void installPickerOverlayInWindow(NSWindow *);
     void dismissPickerOverlays();
@@ -128,6 +131,7 @@ private:
 
     // Tab-picker overlay session state.
     RetainPtr<NSMutableArray> m_pickerOverlays;
+    RetainPtr<WKTabCapturePickerBanner> m_pickerBanner;
     RetainPtr<NSMutableArray> m_pickerWindowsWithMouseMovedEnabled;
     RetainPtr<NSTimer> m_pickerHoverTimer;
     RetainPtr<NSObject> m_pickerEventMonitor;
