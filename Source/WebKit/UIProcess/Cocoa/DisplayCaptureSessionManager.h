@@ -92,6 +92,7 @@ private:
     void updateCaptureMode();
     void updateTabCaptureCursorMirror();
 
+    void focusPickerWindowOtherThanRequestingOne();
     void pollPickerOverlays();
     void installPickerOverlayInWindow(NSWindow *);
     void dismissPickerOverlays();

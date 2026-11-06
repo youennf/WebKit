@@ -49,6 +49,7 @@
 #import <wtf/Borrow.h>
 #import <wtf/MainThread.h>
 #import <wtf/NeverDestroyed.h>
+#import <wtf/RunLoop.h>
 #import <wtf/URLHelpers.h>
 #import <wtf/WeakObjCPtr.h>
 #import <wtf/cocoa/TypeCastsCocoa.h>
@@ -357,6 +358,12 @@ void DisplayCaptureSessionManager::showTabPicker(WebPageProxy& requestingPage, C
     }];
     [[NSRunLoop mainRunLoop] addTimer:m_pickerHoverTimer.get() forMode:NSRunLoopCommonModes];
     pollPickerOverlays();
+
+    // Defer so that the getDisplayMedia alert sheet has fully torn down; otherwise AppKit hands key
+    // status back to the sheet's parent (the requesting window) after we move focus.
+    RunLoop::mainSingleton().dispatch([] {
+        DisplayCaptureSessionManager::singleton().focusPickerWindowOtherThanRequestingOne();
+    });
 }
 
 static RetainPtr<NSView> pickerVisibleWKWebViewInWindow(NSWindow *window)
@@ -412,6 +419,26 @@ static bool pickerWindowContainsWKWebView(NSWindow *window)
         }
     }
     return false;
+}
+
+void DisplayCaptureSessionManager::focusPickerWindowOtherThanRequestingOne()
+{
+    if (!m_pickerCompletion)
+        return;
+
+    // Like the system window picker, move focus away from the requesting window so the user is
+    // steered towards picking another tab. -[NSApp orderedWindows] is front-to-back, so the first
+    // match is the most recently used Safari window. If the requesting window is the only one, keep
+    // it: the user can still switch tabs in it.
+    RefPtr requestingPage = m_pickerRequestingPage.get();
+    RetainPtr<NSView> requestingView = requestingPage ? requestingPage->cocoaView() : nullptr;
+    NSWindow *requestingWindow = [requestingView window];
+    for (NSWindow *window in [NSApp orderedWindows]) {
+        if (window == requestingWindow || ![window isVisible] || [window isMiniaturized] || !pickerWindowContainsWKWebView(window))
+            continue;
+        [window makeKeyAndOrderFront:nil];
+        return;
+    }
 }
 
 void DisplayCaptureSessionManager::pollPickerOverlays()
