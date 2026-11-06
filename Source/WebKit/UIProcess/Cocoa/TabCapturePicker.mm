@@ -56,6 +56,97 @@ constexpr CGFloat promptCornerRadius = 12;
 
 @end
 
+// Floating banner shown at the top of the screen for the tab picker's lifetime, similar to the
+// system window picker's banner. It becomes key so that the requesting window loses focus, and it
+// owns the picker's Escape key handling.
+@interface WKTabCapturePickerBanner : NSPanel
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock;
+- (void)invalidate;
+@end
+
+@implementation WKTabCapturePickerBanner {
+    BlockPtr<void()> _cancelBlock;
+}
+
+- (instancetype)initWithScreen:(NSScreen *)screen cancelBlock:(void(^)(void))cancelBlock
+{
+    // Full-width translucent bar covering the menu bar, mirroring ScreenCaptureKit's picker banner.
+    NSRect screenFrame = [screen frame];
+    CGFloat bannerWidth = NSWidth(screenFrame);
+    CGFloat bannerHeight = 52;
+    CGFloat padding = 20;
+    NSRect bannerFrame = NSMakeRect(NSMinX(screenFrame), NSMaxY(screenFrame) - bannerHeight, bannerWidth, bannerHeight);
+    if (!(self = [super initWithContentRect:bannerFrame styleMask:(NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel) backing:NSBackingStoreBuffered defer:NO]))
+        return nil;
+
+    _cancelBlock = makeBlockPtr(cancelBlock);
+
+    [self setReleasedWhenClosed:NO];
+    [self setLevel:NSStatusWindowLevel + 1];
+    [self setOpaque:NO];
+    [self setBackgroundColor:[NSColor clearColor]];
+    [self setHasShadow:NO];
+    [self setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]];
+    [self setCollectionBehavior:(NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorTransient)];
+
+    RetainPtr content = adoptNS([[NSVisualEffectView alloc] initWithFrame:NSMakeRect(0, 0, bannerWidth, bannerHeight)]);
+    [content setMaterial:NSVisualEffectMaterialHUDWindow];
+    [content setBlendingMode:NSVisualEffectBlendingModeBehindWindow];
+    [content setState:NSVisualEffectStateActive];
+    [content setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [self setContentView:content.get()];
+
+    CGFloat iconSize = 30;
+    RetainPtr icon = adoptNS([[NSImageView alloc] initWithFrame:NSMakeRect(padding, (bannerHeight - iconSize) / 2, iconSize, iconSize)]);
+    [icon setImage:[NSApp applicationIconImage]];
+    [icon setImageScaling:NSImageScaleProportionallyUpOrDown];
+    [content addSubview:icon.get()];
+
+    RetainPtr title = [NSTextField labelWithString:WEB_UI_NSSTRING(@"Choose a Tab to Share", "Title of the banner shown while the tab capture picker is shown")];
+    [title setFont:[NSFont systemFontOfSize:17 weight:NSFontWeightSemibold]];
+    [title setTextColor:[NSColor labelColor]];
+    [title sizeToFit];
+    CGFloat titleX = padding + iconSize + 10;
+    [title setFrame:NSMakeRect(titleX, (bannerHeight - NSHeight([title frame])) / 2, NSWidth([title frame]), NSHeight([title frame]))];
+    [content addSubview:title.get()];
+
+    // Light appearance gives the white button of the system banner.
+    RetainPtr cancelButton = adoptNS([[NSButton alloc] initWithFrame:NSZeroRect]);
+    [cancelButton setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]];
+    [cancelButton setBezelStyle:NSBezelStyleRounded];
+    [cancelButton setControlSize:NSControlSizeLarge];
+    [cancelButton setTitle:WEB_UI_NSSTRING(@"Cancel", "Cancel")];
+    [cancelButton setKeyEquivalent:@"\E"];
+    [cancelButton setTarget:self];
+    [cancelButton setAction:@selector(_cancelClicked:)];
+    [cancelButton sizeToFit];
+    NSSize cancelSize = NSMakeSize(std::max<CGFloat>(NSWidth([cancelButton frame]), 120), NSHeight([cancelButton frame]));
+    [cancelButton setFrame:NSMakeRect(bannerWidth - cancelSize.width - padding, (bannerHeight - cancelSize.height) / 2, cancelSize.width, cancelSize.height)];
+    [cancelButton setAutoresizingMask:NSViewMinXMargin];
+    [content addSubview:cancelButton.get()];
+
+    return self;
+}
+
+- (BOOL)canBecomeKeyWindow
+{
+    return YES;
+}
+
+- (void)invalidate
+{
+    _cancelBlock = nullptr;
+    [self orderOut:nil];
+}
+
+- (void)_cancelClicked:(id)sender
+{
+    if (auto block = std::exchange(_cancelBlock, nullptr))
+        block();
+}
+
+@end
+
 @interface WKTabCapturePickerOverlay : NSView
 - (instancetype)initWithWebView:(WKWebView *)webView frame:(NSRect)frame requestingOriginName:(NSString *)requestingOriginName shareBlock:(void(^)(void))shareBlock cancelBlock:(void(^)(void))cancelBlock hoverBlock:(void(^)(void))hoverBlock;
 - (void)setShowsCaptureTint:(BOOL)shows;
@@ -367,8 +458,10 @@ void TabCapturePicker::start()
     // Defer so that the getDisplayMedia alert sheet has fully torn down; otherwise AppKit hands key
     // status back to the sheet's parent, the requesting window, after we move focus.
     RunLoop::mainSingleton().dispatch([weakThis = WeakPtr { *this }] {
-        if (RefPtr protectedThis = weakThis)
+        if (RefPtr protectedThis = weakThis) {
             protectedThis->focusWindowOtherThanRequestingOne();
+            protectedThis->showBanner();
+        }
     });
 }
 
@@ -464,17 +557,35 @@ void TabCapturePicker::focusWindowOtherThanRequestingOne()
     // Like the system window picker, move focus away from the requesting window so the user is
     // steered towards picking another tab. -[NSApp orderedWindows] is front-to-back, so the first
     // match is the most recently used browser window. If the requesting window is the only one, keep
-    // it: the user can still switch tabs in it.
+    // it: the user can still switch tabs in it. The window is only ordered front: the banner takes key status.
     RefPtr requestingPage = m_requestingPage;
     RetainPtr requestingWebView = requestingPage ? requestingPage->cocoaView() : nullptr;
     RetainPtr requestingWindow = [requestingWebView window];
     for (NSWindow *window in [NSApp orderedWindows]) {
         if (window == requestingWindow || ![window isVisible] || [window isMiniaturized] || !visiblePageInWindow(window))
             continue;
-        [window makeKeyAndOrderFront:nil];
+        [window orderFront:nil];
         selectWindow(window);
         return;
     }
+}
+
+void TabCapturePicker::showBanner()
+{
+    if (!m_callback || m_banner)
+        return;
+
+    RefPtr requestingPage = m_requestingPage;
+    RetainPtr requestingWebView = requestingPage ? requestingPage->cocoaView() : nullptr;
+    RetainPtr screen = [[requestingWebView window] screen];
+    if (!screen)
+        screen = [NSScreen mainScreen];
+
+    m_banner = adoptNS([[WKTabCapturePickerBanner alloc] initWithScreen:screen.get() cancelBlock:makeBlockPtr([weakThis = WeakPtr { *this }] {
+        if (RefPtr protectedThis = weakThis)
+            protectedThis->finish(nullptr);
+    }).get()]);
+    [m_banner makeKeyAndOrderFront:nil];
 }
 
 void TabCapturePicker::selectWindow(NSWindow *window)
@@ -505,6 +616,8 @@ void TabCapturePicker::stop()
 {
     for (auto& overlay : std::exchange(m_overlays, { }))
         [overlay.view invalidate];
+    if (RetainPtr banner = std::exchange(m_banner, nullptr))
+        [banner invalidate];
     if (m_windowWillCloseObserver) {
         [[NSNotificationCenter defaultCenter] removeObserver:m_windowWillCloseObserver];
         m_windowWillCloseObserver = nullptr;

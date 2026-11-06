@@ -367,6 +367,9 @@
 /* Title for file button used in HTML forms for media files */
 "Choose Media (Single)" = "Choose Media (Single)";
 
+/* Title of the banner shown while the tab capture picker is shown */
+"Choose a Tab to Share" = "Choose a Tab to Share";
+
 /* menu item in Recent Searches menu that empties menu's contents */
 "Clear Recent Searches" = "Clear Recent Searches";
 

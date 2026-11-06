@@ -38,6 +38,7 @@
 OBJC_CLASS NSObject;
 OBJC_CLASS NSString;
 OBJC_CLASS NSWindow;
+OBJC_CLASS WKTabCapturePickerBanner;
 OBJC_CLASS WKTabCapturePickerOverlay;
 
 namespace WebCore {
@@ -68,6 +69,7 @@ private:
     void updateOverlays();
     void installOverlay(WebPageProxy&);
     void focusWindowOtherThanRequestingOne();
+    void showBanner();
     void selectWindow(NSWindow *);
     void updateTints();
     void finish(RefPtr<WebPageProxy>&&);
@@ -83,6 +85,7 @@ private:
     Callback m_callback;
 
     Vector<Overlay> m_overlays;
+    RetainPtr<WKTabCapturePickerBanner> m_banner;
     RetainPtr<NSObject> m_windowWillCloseObserver;
     WeakObjCPtr<NSWindow> m_selectedWindow;
     bool m_isOverlaysUpdateScheduled { false };
