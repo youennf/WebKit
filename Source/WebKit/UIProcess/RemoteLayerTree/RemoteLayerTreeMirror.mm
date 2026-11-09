@@ -170,6 +170,28 @@ void RemoteLayerTreeMirror::copyAnimationsFromPrimaryTree(const RemoteLayerTreeH
         copyAnimationsFromPrimaryLayer(layerID, primaryHost);
 }
 
+void RemoteLayerTreeMirror::updateGeometryFromPrimaryTree(const RemoteLayerTreeHost& primaryHost)
+{
+    // This runs after every commit and display refresh, so only set what differs.
+    for (auto& [layerID, node] : m_host.nodes()) {
+        RetainPtr primaryLayer = primaryHost.layerForID(layerID);
+        if (!primaryLayer)
+            continue;
+
+        RetainPtr mirrorLayer = node->layer();
+        if (auto position = [primaryLayer position]; !CGPointEqualToPoint(position, [mirrorLayer position]))
+            [mirrorLayer setPosition:position];
+        if (auto bounds = [primaryLayer bounds]; !CGRectEqualToRect(bounds, [mirrorLayer bounds]))
+            [mirrorLayer setBounds:bounds];
+        if (auto transform = [primaryLayer transform]; !CATransform3DEqualToTransform(transform, [mirrorLayer transform]))
+            [mirrorLayer setTransform:transform];
+        if (auto sublayerTransform = [primaryLayer sublayerTransform]; !CATransform3DEqualToTransform(sublayerTransform, [mirrorLayer sublayerTransform]))
+            [mirrorLayer setSublayerTransform:sublayerTransform];
+    }
+
+    updateLayerFrom(primaryHost);
+}
+
 void RemoteLayerTreeMirror::updateLayerFrom(const RemoteLayerTreeHost& primaryHost)
 {
     // Use the coordinate space of the primary root layer, so that the mirror root keeps the same geometry.

@@ -255,6 +255,26 @@ TEST(MirrorLayerTree, UpdatesAfterAttaching)
     mirror.expectMatchesPrimaryTree();
 }
 
+TEST(MirrorLayerTree, Scrolling)
+{
+    RetainPtr webView = createMirrorWebView();
+    [webView synchronouslyLoadHTMLString:staticContent];
+    [webView waitForNextPresentationUpdate];
+
+    LayerTreeMirror mirror(webView);
+    ASSERT_NOT_NULL(mirror.layer());
+
+    // The scrolling tree moves the scrolled, fixed and overflow scrolled layers in the UI process.
+    [webView objectByEvaluatingJavaScript:@"window.scrollTo(0, 500); 1"];
+    mirror.expectMatchesPrimaryTree();
+
+    [webView objectByEvaluatingJavaScript:@"document.getElementById('scroller').scrollTop = 300; 1"];
+    mirror.expectMatchesPrimaryTree();
+
+    [webView objectByEvaluatingJavaScript:@"window.scrollTo(0, 0); 1"];
+    mirror.expectMatchesPrimaryTree();
+}
+
 static NSString *const animationContent = @""
     "<style>"
     "@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }"
