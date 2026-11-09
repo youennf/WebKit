@@ -28,10 +28,36 @@
 
 #import "LayerProperties.h"
 #import "RemoteLayerTreeCommitBundle.h"
+#import "RemoteLayerTreeDrawingAreaProxy.h"
 #import "RemoteLayerTreeTransaction.h"
 #import <QuartzCore/QuartzCore.h>
-#import <WebCore/WebActionDisablingCALayerDelegate.h>
+#import <wtf/MainThread.h>
 #import <wtf/TZoneMallocInlines.h>
+
+@interface WKMirrorContainerLayer : CALayer
+- (void)setDidEnterLayerTreeHandler:(Function<void()>&&)handler;
+@end
+
+@implementation WKMirrorContainerLayer {
+    Function<void()> _didEnterLayerTreeHandler;
+}
+
+- (void)setDidEnterLayerTreeHandler:(Function<void()>&&)handler
+{
+    _didEnterLayerTreeHandler = WTF::move(handler);
+}
+
+- (id<CAAction>)actionForKey:(NSString *)key
+{
+    // Sent when the layer joins a layer tree that is in a context, directly or through an ancestor.
+    if (_didEnterLayerTreeHandler && isMainThread() && [key isEqualToString:kCAOnOrderIn])
+        _didEnterLayerTreeHandler();
+
+    // No implicit animations, like WebActionDisablingCALayerDelegate.
+    return nil;
+}
+
+@end
 
 namespace WebKit {
 
@@ -39,19 +65,26 @@ WTF_MAKE_TZONE_ALLOCATED_IMPL(RemoteLayerTreeMirror);
 
 RemoteLayerTreeMirror::RemoteLayerTreeMirror(RemoteLayerTreeDrawingAreaProxy& drawingArea)
     : m_host(drawingArea, RemoteLayerTreeHost::Role::Mirror)
-    , m_layer(adoptNS([[CALayer alloc] init]))
+    , m_layer(adoptNS([[WKMirrorContainerLayer alloc] init]))
 {
     [m_layer setName:@"Layer tree mirror container"];
-    [m_layer setDelegate:[WebActionDisablingCALayerDelegate shared]];
     [m_layer setAnchorPoint:CGPointZero];
     [m_layer setMasksToBounds:YES];
+    [m_layer setDidEnterLayerTreeHandler:[weakDrawingArea = WeakPtr { drawingArea }] {
+        if (RefPtr drawingArea = weakDrawingArea.get())
+            drawingArea->mirrorDidEnterLayerTree();
+    }];
 }
 
-RemoteLayerTreeMirror::~RemoteLayerTreeMirror() = default;
+RemoteLayerTreeMirror::~RemoteLayerTreeMirror()
+{
+    // Clients can keep the layer alive.
+    [m_layer setDidEnterLayerTreeHandler:nullptr];
+}
 
 CALayer *RemoteLayerTreeMirror::layer() const
 {
-    return m_layer;
+    return m_layer.get();
 }
 
 void RemoteLayerTreeMirror::willRequestFullState(WebCore::ProcessIdentifier processIdentifier)
@@ -73,8 +106,11 @@ void RemoteLayerTreeMirror::didReceiveFullState(const IPC::Connection& connectio
     }
 
     for (auto& transaction : fullState) {
-        for (auto layerID : transaction->changedLayerProperties().keys())
+        for (auto layerID : transaction->changedLayerProperties().keys()) {
             copyContentsFromPrimaryLayer(layerID, primaryHost);
+            // The full state does not contain the CA animations added before it, but the primary layers have them.
+            copyAnimationsFromPrimaryLayer(layerID, primaryHost);
+        }
     }
 
     if (RetainPtr rootLayer = m_host.rootLayer(); rootLayer && hasMainFrame)
@@ -90,7 +126,7 @@ void RemoteLayerTreeMirror::didCommitTransactionToPrimaryTree(const IPC::Connect
         return;
 
     m_host.updateLayerTree(connection, transaction, mainFrameData);
-    ASSERT(!m_host.rootLayer() || [m_host.rootLayer() superlayer] == m_layer);
+    ASSERT(!m_host.rootLayer() || [m_host.rootLayer() superlayer] == m_layer.get());
 
     for (auto layerID : transaction.changedLayerProperties().keys())
         copyContentsFromPrimaryLayer(layerID, primaryHost);
@@ -109,6 +145,29 @@ void RemoteLayerTreeMirror::copyContentsFromPrimaryLayer(WebCore::PlatformLayerI
     RefPtr mirrorNode = m_host.nodeForID(layerID);
     if (primaryNode && mirrorNode)
         mirrorNode->copyContentsFrom(*primaryNode);
+}
+
+void RemoteLayerTreeMirror::copyAnimationsFromPrimaryLayer(WebCore::PlatformLayerIdentifier layerID, const RemoteLayerTreeHost& primaryHost)
+{
+    RetainPtr primaryLayer = primaryHost.layerForID(layerID);
+    RetainPtr mirrorLayer = m_host.layerForID(layerID);
+    if (!primaryLayer || !mirrorLayer)
+        return;
+
+    [mirrorLayer removeAllAnimations];
+    // FIXME: Remove the suppression once https://github.com/llvm/llvm-project/pull/230818 is deployed (rdar://189710680).
+    for (SUPPRESS_UNRETAINED_LOCAL NSString *key in [primaryLayer animationKeys]) {
+        // The copy keeps the begin time that CA set on the primary animation, so both layers stay in sync.
+        RetainPtr animation = adoptNS([[primaryLayer animationForKey:key] copy]);
+        [animation setDelegate:nil];
+        [mirrorLayer addAnimation:animation.get() forKey:key];
+    }
+}
+
+void RemoteLayerTreeMirror::copyAnimationsFromPrimaryTree(const RemoteLayerTreeHost& primaryHost)
+{
+    for (auto layerID : m_host.nodes().keys())
+        copyAnimationsFromPrimaryLayer(layerID, primaryHost);
 }
 
 void RemoteLayerTreeMirror::updateLayerFrom(const RemoteLayerTreeHost& primaryHost)

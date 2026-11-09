@@ -33,6 +33,7 @@
 #include <wtf/TZoneMalloc.h>
 
 OBJC_CLASS CALayer;
+OBJC_CLASS WKMirrorContainerLayer;
 
 namespace IPC {
 class Connection;
@@ -62,15 +63,19 @@ public:
     void didCommitTransactionToPrimaryTree(const IPC::Connection&, const RemoteLayerTreeTransaction&, const std::optional<MainFrameData>&, const TransactionID&, const RemoteLayerTreeHost& primaryHost);
     void didSetLayerContentsInPrimaryTree(WebCore::PlatformLayerIdentifier, const RemoteLayerTreeHost& primaryHost);
 
+    // CA drops the animations of layers committed outside of a context, as the mirror is until its layer is parented.
+    void copyAnimationsFromPrimaryTree(const RemoteLayerTreeHost& primaryHost);
+
     void processDidTerminate(WebCore::ProcessIdentifier);
     void processDidLeavePage(WebCore::ProcessIdentifier);
 
 private:
     void copyContentsFromPrimaryLayer(WebCore::PlatformLayerIdentifier, const RemoteLayerTreeHost& primaryHost);
+    void copyAnimationsFromPrimaryLayer(WebCore::PlatformLayerIdentifier, const RemoteLayerTreeHost& primaryHost);
     void updateLayerFrom(const RemoteLayerTreeHost& primaryHost);
 
     RemoteLayerTreeHost m_host;
-    const RetainPtr<CALayer> m_layer;
+    const RetainPtr<WKMirrorContainerLayer> m_layer;
     HashSet<WebCore::ProcessIdentifier> m_processesAwaitingFullState;
 };
 

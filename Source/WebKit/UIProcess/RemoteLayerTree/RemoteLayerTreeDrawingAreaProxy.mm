@@ -884,6 +884,12 @@ void RemoteLayerTreeDrawingAreaProxy::disableMirrorLayerTree()
         invalidationProducer->resolve();
 }
 
+void RemoteLayerTreeDrawingAreaProxy::mirrorDidEnterLayerTree()
+{
+    if (m_mirror && m_remoteLayerTreeHost)
+        m_mirror->copyAnimationsFromPrimaryTree(*m_remoteLayerTreeHost);
+}
+
 void RemoteLayerTreeDrawingAreaProxy::initializeSlowFrameIndicator()
 {
     lazyInitialize(m_slowFrameIndicatorLayer, adoptNS([[_WKSlowFrameHUDLayer alloc] initWithDrawingArea:this]));

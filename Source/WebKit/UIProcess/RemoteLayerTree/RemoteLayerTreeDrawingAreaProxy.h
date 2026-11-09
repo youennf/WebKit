@@ -166,6 +166,7 @@ public:
     Ref<MirrorLayerTreePromise> enableMirrorLayerTree();
     void disableMirrorLayerTree();
     bool hasMirrorLayerTree() const { return !!m_mirror; }
+    void mirrorDidEnterLayerTree();
 
     RetainPtr<CALayer> layerWithIDForTesting(WebCore::PlatformLayerIdentifier) const;
 
