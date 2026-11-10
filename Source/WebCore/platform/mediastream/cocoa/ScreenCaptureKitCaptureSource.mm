@@ -143,6 +143,13 @@ ScreenCaptureKitCaptureSource::ScreenCaptureKitCaptureSource(CapturerObserver& o
     , m_captureDevice(device)
 {
     m_contentSize = FloatSize { [m_contentFilter.get() contentRect].size };
+
+    // The content filter of a window that was just created, like the capture window of tab capture, does not know its size.
+    if (auto requestedContentSize = m_contentFilter.requestedContentSize(); m_contentSize.isEmpty() && requestedContentSize) {
+        m_contentSize = *requestedContentSize;
+        return;
+    }
+
     if (m_contentSize.isEmpty())
         m_contentSize = defaultIntrinsicSize;
     if ([m_contentFilter.get() pointPixelScale])
@@ -443,8 +450,14 @@ IntSize ScreenCaptureKitCaptureSource::intrinsicSize() const
         return m_intrinsicSize.value();
 
 #if HAVE(WINDOW_CAPTURE)
-    if (!m_content)
-        return defaultIntrinsicSize;
+    if (!m_content) {
+        // The size can be needed before the stream starts, for instance to apply constraints.
+        auto requestedContentSize = m_contentFilter.requestedContentSize();
+        if (!requestedContentSize)
+            return defaultIntrinsicSize;
+        m_intrinsicSize = *requestedContentSize;
+        return m_intrinsicSize.value();
+    }
 
     auto frame = switchOn(m_content.value(),
         [] (const RetainPtr<SCDisplay> display) -> CGRect {

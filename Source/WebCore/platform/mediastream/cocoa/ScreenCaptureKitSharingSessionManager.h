@@ -27,6 +27,7 @@
 #if HAVE(SCREEN_CAPTURE_KIT)
 
 #include <WebCore/DisplayCapturePromptType.h>
+#include <WebCore/IntSize.h>
 #include <wtf/AbstractCanMakeCheckedPtr.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/RefCountedAndCanMakeWeakPtr.h>
@@ -99,16 +100,20 @@ public:
     SCContentFilter* get() const { return m_filter.get(); }
     explicit operator bool() const { return !!m_filter; }
     const String& deviceID() const { return m_deviceID; }
+    // Size in pixels given when requesting the capture, for content filters that do not know it, like the one of a window that was just created.
+    std::optional<IntSize> requestedContentSize() const { return m_requestedContentSize; }
 
     // Keeps the device ID and the destruction handler, as the capture of the device continues with the new filter.
     void setFilter(RetainPtr<SCContentFilter>&& filter) { m_filter = WTF::move(filter); }
     void setDeviceID(const String& deviceID) { m_deviceID = deviceID; }
+    void setRequestedContentSize(std::optional<IntSize> size) { m_requestedContentSize = size; }
 
 private:
     void callDestructionHandler();
 
     RetainPtr<SCContentFilter> m_filter;
     String m_deviceID;
+    std::optional<IntSize> m_requestedContentSize;
     DestructionHandler m_destructionHandler;
 };
 
@@ -130,9 +135,10 @@ public:
     void captureSourceWasDestroyedWithoutSession();
 
     WEBCORE_EXPORT void promptForGetDisplayMedia(DisplayCapturePromptType, CompletionHandler<void(std::optional<CaptureDevice>)>&&);
+    // The content size, in pixels, is for windows whose content filter does not know it yet, like a window that was just created.
     // contentFilterDestructionHandler is called with the ID of the selected device when the capture of the window ends,
     // or with an empty string if the window cannot be selected.
-    WEBCORE_EXPORT void selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&&, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler);
+    WEBCORE_EXPORT void selectWindowForCapture(uint32_t windowID, std::optional<IntSize> contentSize, CompletionHandler<void(std::optional<CaptureDevice>)>&&, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler);
     WEBCORE_EXPORT void cancelGetDisplayMediaPrompt();
 
 private:

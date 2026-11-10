@@ -49,6 +49,8 @@ public:
     ~TabCaptureWindow();
 
     uint32_t windowID() const;
+    // ScreenCaptureKit does not know the size of a window that was just created.
+    WebCore::IntSize pixelSize() const;
     bool isCapturing(const WebPageProxy&) const;
 
     // Matches the window size to the WKWebView frame and obscured content insets.

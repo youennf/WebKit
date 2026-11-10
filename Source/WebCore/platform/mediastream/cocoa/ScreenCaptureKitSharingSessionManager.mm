@@ -158,7 +158,7 @@ void ScreenCaptureKitSharingSessionManager::cancelGetDisplayMediaPrompt()
         cancelPicking();
 }
 
-void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&& completionHandler, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler)
+void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t windowID, std::optional<IntSize> contentSize, CompletionHandler<void(std::optional<CaptureDevice>)>&& completionHandler, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler)
 {
 #if HAVE(WINDOW_CAPTURE)
     ASSERT(isMainThread());
@@ -181,6 +181,7 @@ void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t wind
 
     // The content filter calls its destruction handler wherever it is destroyed, including if the window is not found.
     ScreenCaptureKitContentFilter contentFilter { nullptr, WTF::move(contentFilterDestructionHandler) };
+    contentFilter.setRequestedContentSize(contentSize);
     auto lookupBlock = makeBlockPtr([weakThis = WeakPtr { *this }, windowID, requestCount = m_requestCount, contentFilter = WTF::move(contentFilter)](SCShareableContent *content, NSError *error) mutable {
         callOnMainThread([weakThis = WTF::move(weakThis), windowID, content = retainPtr(content), error = retainPtr(error), requestCount, contentFilter = WTF::move(contentFilter)] mutable {
             RefPtr protectedThis = weakThis;
@@ -227,6 +228,7 @@ void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t wind
     m_watchdogTimer->startOneShot(selectWatchdogInterval);
 #else
     UNUSED_PARAM(windowID);
+    UNUSED_PARAM(contentSize);
     completionHandler(std::nullopt);
     contentFilterDestructionHandler({ });
 #endif
@@ -511,6 +513,7 @@ ScreenCaptureKitContentFilter& ScreenCaptureKitContentFilter::operator=(ScreenCa
     callDestructionHandler();
     m_filter = WTF::move(other.m_filter);
     m_deviceID = WTF::move(other.m_deviceID);
+    m_requestedContentSize = WTF::move(other.m_requestedContentSize);
     m_destructionHandler = WTF::move(other.m_destructionHandler);
     return *this;
 }

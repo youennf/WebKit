@@ -511,9 +511,9 @@ void GPUProcessProxy::promptForGetDisplayMedia(WebCore::DisplayCapturePromptType
     sendWithAsyncReply(Messages::GPUProcess::PromptForGetDisplayMedia { type }, WTF::move(completionHandler));
 }
 
-void GPUProcessProxy::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
+void GPUProcessProxy::selectWindowForCapture(uint32_t windowID, std::optional<WebCore::IntSize> contentSize, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
 {
-    sendWithAsyncReply(Messages::GPUProcess::SelectWindowForCapture { windowID }, WTF::move(completionHandler));
+    sendWithAsyncReply(Messages::GPUProcess::SelectWindowForCapture { windowID, contentSize }, WTF::move(completionHandler));
 }
 
 void GPUProcessProxy::displayCaptureDidEnd(const String& deviceID)

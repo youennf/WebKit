@@ -116,6 +116,13 @@ uint32_t TabCaptureWindow::windowID() const
     return static_cast<uint32_t>([m_window windowNumber]);
 }
 
+WebCore::IntSize TabCaptureWindow::pixelSize() const
+{
+    NSSize size = [m_window frame].size;
+    CGFloat scale = [m_window backingScaleFactor];
+    return { static_cast<int>(std::round(size.width * scale)), static_cast<int>(std::round(size.height * scale)) };
+}
+
 bool TabCaptureWindow::isCapturing(const WebPageProxy& page) const
 {
     return m_page == &page;
