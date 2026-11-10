@@ -32,6 +32,8 @@
 #import "Logging.h"
 #import "MediaPermissionUtilities.h"
 #import "TabCapturePicker.h"
+#import "TabCaptureWindow.h"
+#import "UserMediaPermissionRequestManagerProxy.h"
 #import "WKWebViewInternal.h"
 #import "WebPageProxy.h"
 #import "WebProcess.h"
@@ -121,13 +123,54 @@ void DisplayCaptureSessionManager::showTabPicker(WebPageProxy& requestingPage, c
         previousPicker->cancel();
     ASSERT(!m_tabCapturePicker);
 
-    m_tabCapturePicker = TabCapturePicker::create(requestingPage, origin, [completionHandler = WTF::move(completionHandler)](auto&&) mutable {
+    m_tabCapturePicker = TabCapturePicker::create(requestingPage, origin, [weakRequestingPage = WeakPtr { requestingPage }, completionHandler = WTF::move(completionHandler)](RefPtr<WebPageProxy>&& pickedPage) mutable {
         DisplayCaptureSessionManager::singleton().m_tabCapturePicker = nullptr;
-        // FIXME: Implement capture of the selected tab.
-        completionHandler(std::nullopt);
+        if (!pickedPage) {
+            completionHandler(std::nullopt);
+            return;
+        }
+        RefPtr requestingPage = weakRequestingPage.get();
+        if (!requestingPage) {
+            completionHandler(std::nullopt);
+            return;
+        }
+        DisplayCaptureSessionManager::singleton().startTabCapture(*requestingPage, *pickedPage, WTF::move(completionHandler));
     });
     if (RefPtr picker = m_tabCapturePicker)
         picker->start();
+}
+
+void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& requestingPage, WebPageProxy& capturedPage, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
+{
+    if (!protect(capturedPage.preferences())->useGPUProcessForDisplayCapture()) {
+        completionHandler(std::nullopt);
+        return;
+    }
+
+    RefPtr manager = requestingPage.userMediaPermissionRequestManagerIfExists();
+    if (!manager) {
+        completionHandler(std::nullopt);
+        return;
+    }
+
+    RefPtr window = manager->tabCaptureWindowForPage(capturedPage);
+    if (!window)
+        window = TabCaptureWindow::create(capturedPage);
+    if (!window) {
+        completionHandler(std::nullopt);
+        return;
+    }
+
+    auto windowID = window->windowID();
+    auto selectWindowCompletionHandler = [weakManager = WeakPtr { *manager }, window = window.releaseNonNull(), completionHandler = WTF::move(completionHandler)](std::optional<WebCore::CaptureDevice> device) mutable {
+        if (RefPtr manager = weakManager.get(); manager && device)
+            manager->addTabCaptureWindow(device->persistentId(), WTF::move(window));
+        completionHandler(WTF::move(device));
+    };
+
+    Ref gpuProcess = protect(capturedPage.configuration().processPool())->ensureGPUProcess();
+    gpuProcess->updateSandboxAccess(false, false, true);
+    gpuProcess->selectWindowForCapture(windowID, WTF::move(selectWindowCompletionHandler));
 }
 #endif // HAVE(WINDOW_CAPTURE)
 
@@ -355,6 +398,9 @@ void DisplayCaptureSessionManager::pageObscuredContentRectDidChange()
 #if HAVE(WINDOW_CAPTURE)
     if (RefPtr picker = m_tabCapturePicker)
         picker->scheduleOverlaysUpdate();
+    UserMediaPermissionRequestManagerProxy::forEach([](auto& manager) {
+        manager.updateTabCaptureWindowSizes();
+    });
 #endif
 }
 

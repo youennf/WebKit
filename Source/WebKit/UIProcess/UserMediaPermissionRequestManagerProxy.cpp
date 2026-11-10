@@ -67,6 +67,10 @@
 #include <WebCore/ScreenCaptureKitCaptureSource.h>
 #endif
 
+#if HAVE(WINDOW_CAPTURE)
+#include "TabCaptureWindow.h"
+#endif
+
 namespace WebKit {
 using namespace WebCore;
 
@@ -186,7 +190,32 @@ void UserMediaPermissionRequestManagerProxy::stopCapture()
     invalidatePendingRequests();
     if (RefPtr page = m_page.get())
         page->stopMediaCapture(MediaProducerMediaCaptureKind::EveryKind);
+#if HAVE(WINDOW_CAPTURE)
+    m_tabCaptureWindows.clear();
+#endif
 }
+
+#if HAVE(WINDOW_CAPTURE)
+RefPtr<TabCaptureWindow> UserMediaPermissionRequestManagerProxy::tabCaptureWindowForPage(const WebPageProxy& capturedPage) const
+{
+    for (auto& window : m_tabCaptureWindows.values()) {
+        if (window->isCapturing(capturedPage))
+            return window.ptr();
+    }
+    return nullptr;
+}
+
+void UserMediaPermissionRequestManagerProxy::addTabCaptureWindow(const String& deviceID, Ref<TabCaptureWindow>&& window)
+{
+    m_tabCaptureWindows.set(deviceID, WTF::move(window));
+}
+
+void UserMediaPermissionRequestManagerProxy::updateTabCaptureWindowSizes()
+{
+    for (Ref window : m_tabCaptureWindows.values())
+        window->updateSize();
+}
+#endif
 
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
 void UserMediaPermissionRequestManagerProxy::gpuProcessExited()
@@ -1307,6 +1336,12 @@ void UserMediaPermissionRequestManagerProxy::syncWithWebCorePrefs() const
 
 void UserMediaPermissionRequestManagerProxy::captureStateChanged(MediaProducerMediaStateFlags oldState, MediaProducerMediaStateFlags newState)
 {
+#if HAVE(WINDOW_CAPTURE)
+    // FIXME: Remove the window of a tab when its capture ends, not only when the page stops capturing all tabs.
+    if (oldState.containsAny(MediaProducer::DisplayCaptureMask) && !newState.containsAny(MediaProducer::DisplayCaptureMask))
+        m_tabCaptureWindows.clear();
+#endif
+
     RefPtr page = m_page.get();
     if (!page || !page->hasRunningProcess())
         return;

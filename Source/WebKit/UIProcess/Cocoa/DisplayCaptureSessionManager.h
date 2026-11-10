@@ -31,6 +31,7 @@
 #include "WebPageProxy.h"
 #include <WebCore/SecurityOriginData.h>
 #include <wtf/CompletionHandler.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
@@ -67,6 +68,7 @@ private:
     void alertForGetDisplayMedia(WebPageProxy&, const WebCore::SecurityOriginData&, CompletionHandler<void(DisplayCaptureSessionManager::CaptureSessionType)>&&);
 #if HAVE(WINDOW_CAPTURE)
     void showTabPicker(WebPageProxy&, const WebCore::SecurityOriginData&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
+    void startTabCapture(WebPageProxy& requestingPage, WebPageProxy& capturedPage, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
 #endif
     void showWindowOrScreenPicker(WebPageProxy&, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&&);
 #endif

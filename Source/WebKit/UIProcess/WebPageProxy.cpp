@@ -3931,6 +3931,10 @@ void WebPageProxy::updateActivityState(OptionSet<ActivityState> flagsToUpdate)
         internals().activityState.add(ActivityState::IsVisibleOrOccluded);
     if (flagsToUpdate & ActivityState::IsInWindow && pageClient->isViewInWindow())
         internals().activityState.add(ActivityState::IsInWindow);
+    // A page captured for tab capture may be in a background tab. Keep it visible and in a window so that
+    // WebContent keeps rendering and committing layer tree transactions.
+    if (m_isBeingCapturedForTabCapture)
+        internals().activityState.add({ ActivityState::IsInWindow, ActivityState::IsVisible, ActivityState::IsVisibleOrOccluded, ActivityState::WindowIsActive });
     bool isVisuallyIdle = pageClient->isVisuallyIdle();
 #if PLATFORM(COCOA) && !HAVE(CGS_FIX_FOR_RADAR_97530095) && ENABLE(MEDIA_USAGE)
     if (pageClient->isMainViewVisible() && m_mediaUsageManager && m_mediaUsageManager->isPlayingVideoInViewport())
@@ -9418,6 +9422,16 @@ void WebPageProxy::setDevicePostureType(WebCore::DevicePostureType type)
     forEachWebContentProcess([&](auto& webProcess, auto pageID) {
         webProcess.send(Messages::WebPage::SetDevicePostureType(type), pageID);
     });
+}
+
+void WebPageProxy::setIsBeingCapturedForTabCapture(bool isBeingCaptured)
+{
+    if (m_isBeingCapturedForTabCapture == isBeingCaptured)
+        return;
+
+    m_isBeingCapturedForTabCapture = isBeingCaptured;
+    WEBPAGEPROXY_RELEASE_LOG(WebRTC, "setIsBeingCapturedForTabCapture: %d", isBeingCaptured);
+    activityStateDidChange({ ActivityState::IsInWindow, ActivityState::IsVisible, ActivityState::IsVisibleOrOccluded, ActivityState::WindowIsActive });
 }
 
 void WebPageProxy::preferencesDidChange()

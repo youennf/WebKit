@@ -61,6 +61,9 @@ OBJC_CLASS WKRotationCoordinatorObserver;
 
 namespace WebKit {
 
+#if HAVE(WINDOW_CAPTURE)
+class TabCaptureWindow;
+#endif
 class WebFrameProxy;
 class WebPageProxy;
 
@@ -119,6 +122,12 @@ public:
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
     void gpuProcessExited();
     void showMediaCapturePermissionPrompt(MediaPermissionPromptCustomization&&, UserMediaPermissionRequestProxy::PromptResultHandler&&);
+#endif
+
+#if HAVE(WINDOW_CAPTURE)
+    RefPtr<TabCaptureWindow> tabCaptureWindowForPage(const WebPageProxy& capturedPage) const;
+    void addTabCaptureWindow(const String& deviceID, Ref<TabCaptureWindow>&&);
+    void updateTabCaptureWindowSizes();
 #endif
 
     void captureStateChanged(WebCore::MediaProducerMediaStateFlags oldState, WebCore::MediaProducerMediaStateFlags newState);
@@ -227,6 +236,10 @@ private:
 
     Vector<Ref<UserMediaPermissionRequestProxy>> m_pregrantedRequests;
     Vector<Ref<UserMediaPermissionRequestProxy>> m_grantedRequests;
+#if HAVE(WINDOW_CAPTURE)
+    // Windows of the tabs captured by this page, keyed by the persistent ID of their capture device.
+    HashMap<String, Ref<TabCaptureWindow>> m_tabCaptureWindows;
+#endif
     HashMap<WebCore::FrameIdentifier, String> m_frameEphemeralHashSalts;
 
     Vector<DeniedRequest> m_deniedRequests;

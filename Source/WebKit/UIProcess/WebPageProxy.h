@@ -1927,6 +1927,10 @@ public:
     void getAccessibilityTreeData(CompletionHandler<void(API::Data*)>&&);
     void updateRenderingWithForcedRepaint(CompletionHandler<void()>&&);
 
+    // While a page is captured for tab capture, its activity state stays visible and in window.
+    void setIsBeingCapturedForTabCapture(bool);
+    bool isBeingCapturedForTabCapture() const { return m_isBeingCapturedForTabCapture; }
+
     float headerHeightForPrinting(WebFrameProxy&);
     float footerHeightForPrinting(WebFrameProxy&);
     void drawHeaderForPrinting(WebFrameProxy&, WebCore::FloatRect&&);
@@ -4168,6 +4172,7 @@ private:
 #endif
 
     RefPtr<DrawingAreaProxy> m_drawingArea;
+    bool m_isBeingCapturedForTabCapture { false };
 #if PLATFORM(COCOA)
     std::unique_ptr<RemoteLayerTreeHost> m_frozenRemoteLayerTreeHost;
     RefPtr<RemoteScrollingCoordinatorProxy> m_scrollingCoordinatorProxy;
