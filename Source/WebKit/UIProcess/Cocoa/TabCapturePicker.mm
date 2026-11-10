@@ -225,6 +225,12 @@ constexpr CGFloat promptCornerRadius = 12;
     [[NSCursor arrowCursor] set];
 }
 
+// The overlay is a sibling of the WKWebView, so scroll events have to be forwarded for the page to still scroll.
+- (void)scrollWheel:(NSEvent *)event
+{
+    [_webView.get() scrollWheel:event];
+}
+
 // The overlay takes the mouse and zoom events so that they do not reach the page underneath.
 - (void)mouseDown:(NSEvent *)event
 {
@@ -276,11 +282,20 @@ namespace WebKit {
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(TabCapturePicker);
 
-static NSRect overlayFrame(WebPageProxy& page, WKWebView *webView)
+static NSRect overlayFrame(WebPageProxy& page, WKWebView *webView, NSView *overlayHost)
 {
     WebCore::FloatRect frame = [webView bounds];
     frame.contract(page.pendingOrActualObscuredContentInsets());
-    return frame;
+    return [overlayHost convertRect:frame fromView:webView];
+}
+
+// The overlay is a sibling of the WKWebView rather than a subview: on empty tabs, like the Start Page or Favorites,
+// the browser hides the WKWebView but keeps it in the view hierarchy, and the overlay should stay visible.
+static NSView *overlayHostForWebView(WKWebView *webView)
+{
+    if (RetainPtr superview = [webView superview])
+        return superview.get();
+    return [[webView window] contentView];
 }
 
 static bool canShowOverlayInWindow(NSWindow *window)
@@ -288,25 +303,26 @@ static bool canShowOverlayInWindow(NSWindow *window)
     return window && ([window isVisible] || [window isMiniaturized]);
 }
 
-static bool canShowOverlay(WebPageProxy* page)
-{
-    RetainPtr webView = page ? page->cocoaView() : nullptr;
-    return webView && canShowOverlayInWindow([webView window]) && ![webView isHiddenOrHasHiddenAncestor];
-}
-
+// The page whose WKWebView is visible in the window. On empty tabs, the browser hides the WKWebView of the tab, so this
+// falls back to a page of the window whose WKWebView is hidden.
 // FIXME: for now, we only support a window that renders one web view. We should consider the case of a window rendering multiple web views.
 static RefPtr<WebPageProxy> visiblePageInWindow(NSWindow *window)
 {
     if (!window)
         return nullptr;
+    RefPtr<WebPageProxy> hiddenPage;
     for (Ref process : WebProcessProxy::allProcesses()) {
         for (Ref page : process->pages()) {
             RetainPtr view = page->cocoaView();
-            if (view && [view window] == window && ![view isHiddenOrHasHiddenAncestor] && !isInspectorPage(page))
+            if (!view || [view window] != window || isInspectorPage(page))
+                continue;
+            if (![view isHiddenOrHasHiddenAncestor])
                 return page;
+            if (!hiddenPage)
+                hiddenPage = page.ptr();
         }
     }
-    return nullptr;
+    return hiddenPage;
 }
 
 Ref<TabCapturePicker> TabCapturePicker::create(WebPageProxy& requestingPage, const WebCore::SecurityOriginData& requestingOrigin, Callback&& callback)
@@ -374,11 +390,15 @@ void TabCapturePicker::updateOverlays()
 
     RetainPtr windowsWithOverlay = adoptNS([[NSMutableSet alloc] init]);
     m_overlays.removeAllMatching([&](auto& overlay) {
+        // As the tabs of a window may share the overlay host, an overlay is stale when its page is no longer the
+        // visible one of its window, for instance after a tab switch.
         RefPtr page = overlay.page;
         RetainPtr webView = page ? page->cocoaView() : nullptr;
-        if (canShowOverlay(page) && [overlay.view superview] == webView) {
-            [overlay.view setFrame:overlayFrame(*page, webView)];
-            [windowsWithOverlay addObject:retainPtr([webView window])];
+        RetainPtr window = [webView window];
+        RetainPtr overlayHost = webView ? overlayHostForWebView(webView) : nil;
+        if (webView && canShowOverlayInWindow(window) && visiblePageInWindow(window) == page && [overlay.view superview] == overlayHost) {
+            [overlay.view setFrame:overlayFrame(*page, webView, overlayHost)];
+            [windowsWithOverlay addObject:window];
             return false;
         }
         [overlay.view invalidate];
@@ -407,6 +427,9 @@ void TabCapturePicker::installOverlay(WebPageProxy& page)
     if (!webView)
         return;
     RetainPtr window = [webView window];
+    RetainPtr overlayHost = overlayHostForWebView(webView);
+    if (!overlayHost)
+        return;
 
     auto shareBlock = makeBlockPtr([weakThis = WeakPtr { *this }, weakPage = WeakPtr { page }] {
         if (RefPtr protectedThis = weakThis)
@@ -421,8 +444,8 @@ void TabCapturePicker::installOverlay(WebPageProxy& page)
             protectedThis->selectWindow(weakWindow.get());
     });
 
-    RetainPtr overlay = adoptNS([[WKTabCapturePickerOverlay alloc] initWithWebView:webView frame:overlayFrame(page, webView) requestingOriginName:m_requestingOriginName shareBlock:shareBlock.get() cancelBlock:cancelBlock.get() hoverBlock:hoverBlock.get()]);
-    [webView addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
+    RetainPtr overlay = adoptNS([[WKTabCapturePickerOverlay alloc] initWithWebView:webView frame:overlayFrame(page, webView, overlayHost) requestingOriginName:m_requestingOriginName shareBlock:shareBlock.get() cancelBlock:cancelBlock.get() hoverBlock:hoverBlock.get()]);
+    [overlayHost addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
     m_overlays.append({ WTF::move(overlay), page });
 }
 
