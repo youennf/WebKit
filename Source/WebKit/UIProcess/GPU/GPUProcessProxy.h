@@ -261,6 +261,10 @@ private:
     void nowPlayingOwnerDidChange(std::optional<WebCore::QualifiedPageIdentifier>);
 #endif
 
+#if HAVE(SCREEN_CAPTURE_KIT)
+    void displayCaptureDidEnd(const String& deviceID);
+#endif
+
 #if ENABLE(MEDIA_STREAM)
     void voiceActivityDetected();
     void microphoneMuteStatusChanged(bool isMuting);

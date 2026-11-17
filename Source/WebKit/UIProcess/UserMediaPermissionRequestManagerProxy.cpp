@@ -205,9 +205,14 @@ RefPtr<TabCaptureWindow> UserMediaPermissionRequestManagerProxy::tabCaptureWindo
     return nullptr;
 }
 
-void UserMediaPermissionRequestManagerProxy::addTabCaptureWindow(const String& deviceID, Ref<TabCaptureWindow>&& window)
+void UserMediaPermissionRequestManagerProxy::tabCaptureDidStart(const String& deviceID, Ref<TabCaptureWindow>&& window)
 {
     m_tabCaptureWindows.set(deviceID, WTF::move(window));
+}
+
+void UserMediaPermissionRequestManagerProxy::tabCaptureDidEnd(const String& deviceID)
+{
+    m_tabCaptureWindows.remove(deviceID);
 }
 
 void UserMediaPermissionRequestManagerProxy::updateTabCaptureWindowSizes()
@@ -1336,12 +1341,6 @@ void UserMediaPermissionRequestManagerProxy::syncWithWebCorePrefs() const
 
 void UserMediaPermissionRequestManagerProxy::captureStateChanged(MediaProducerMediaStateFlags oldState, MediaProducerMediaStateFlags newState)
 {
-#if HAVE(WINDOW_CAPTURE)
-    // FIXME: Remove the window of a tab when its capture ends, not only when the page stops capturing all tabs.
-    if (oldState.containsAny(MediaProducer::DisplayCaptureMask) && !newState.containsAny(MediaProducer::DisplayCaptureMask))
-        m_tabCaptureWindows.clear();
-#endif
-
     RefPtr page = m_page.get();
     if (!page || !page->hasRunningProcess())
         return;

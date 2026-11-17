@@ -83,28 +83,33 @@ private:
 };
 
 // Content filter selected for a capture device.
+// The destruction handler is called with the device ID when the content filter is destroyed, which happens when the capture
+// of the device ends. The device ID is empty if no device was selected with this content filter.
 class ScreenCaptureKitContentFilter {
     WTF_MAKE_NONCOPYABLE(ScreenCaptureKitContentFilter);
 public:
+    using DestructionHandler = CompletionHandler<void(String&& deviceID)>;
+
     ScreenCaptureKitContentFilter() = default;
-    ScreenCaptureKitContentFilter(RetainPtr<SCContentFilter>&& filter, String&& deviceID)
-        : m_filter(WTF::move(filter))
-        , m_deviceID(WTF::move(deviceID))
-    {
-    }
+    ScreenCaptureKitContentFilter(RetainPtr<SCContentFilter>&&, DestructionHandler&& = { });
     ScreenCaptureKitContentFilter(ScreenCaptureKitContentFilter&&) = default;
-    ScreenCaptureKitContentFilter& operator=(ScreenCaptureKitContentFilter&&) = default;
+    ScreenCaptureKitContentFilter& operator=(ScreenCaptureKitContentFilter&&);
+    ~ScreenCaptureKitContentFilter();
 
     SCContentFilter* get() const { return m_filter.get(); }
     explicit operator bool() const { return !!m_filter; }
     const String& deviceID() const { return m_deviceID; }
 
-    // Keeps the device ID, as the capture of the device continues with the new filter.
+    // Keeps the device ID and the destruction handler, as the capture of the device continues with the new filter.
     void setFilter(RetainPtr<SCContentFilter>&& filter) { m_filter = WTF::move(filter); }
+    void setDeviceID(const String& deviceID) { m_deviceID = deviceID; }
 
 private:
+    void callDestructionHandler();
+
     RetainPtr<SCContentFilter> m_filter;
     String m_deviceID;
+    DestructionHandler m_destructionHandler;
 };
 
 class ScreenCaptureKitSharingSessionManager : public RefCountedAndCanMakeWeakPtr<ScreenCaptureKitSharingSessionManager> {
@@ -125,14 +130,16 @@ public:
     void captureSourceWasDestroyedWithoutSession();
 
     WEBCORE_EXPORT void promptForGetDisplayMedia(DisplayCapturePromptType, CompletionHandler<void(std::optional<CaptureDevice>)>&&);
-    WEBCORE_EXPORT void selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&&);
+    // contentFilterDestructionHandler is called with the ID of the selected device when the capture of the window ends,
+    // or with an empty string if the window cannot be selected.
+    WEBCORE_EXPORT void selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&&, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler);
     WEBCORE_EXPORT void cancelGetDisplayMediaPrompt();
 
 private:
     ScreenCaptureKitSharingSessionManager();
 
     void cleanupAllSessions();
-    void completeDeviceSelection(SCContentFilter*);
+    void completeDeviceSelection(ScreenCaptureKitContentFilter&&);
     String makeDeviceID(uint32_t contentID);
 
     bool promptWithSCContentSharingPicker(DisplayCapturePromptType);

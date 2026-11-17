@@ -161,10 +161,11 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& requestingPage,
         return;
     }
 
+    // Once a device is selected, the GPU process calls displayCaptureDidEnd() with its ID when the capture ends.
     auto windowID = window->windowID();
     auto selectWindowCompletionHandler = [weakManager = WeakPtr { *manager }, window = window.releaseNonNull(), completionHandler = WTF::move(completionHandler)](std::optional<WebCore::CaptureDevice> device) mutable {
         if (RefPtr manager = weakManager.get(); manager && device)
-            manager->addTabCaptureWindow(device->persistentId(), WTF::move(window));
+            manager->tabCaptureDidStart(device->persistentId(), WTF::move(window));
         completionHandler(WTF::move(device));
     };
 
@@ -189,6 +190,17 @@ void DisplayCaptureSessionManager::showWindowOrScreenPicker(WebPageProxy& reques
     Ref gpuProcess = protect(requestingPage.configuration().processPool())->ensureGPUProcess();
     gpuProcess->updateSandboxAccess(false, false, true);
     gpuProcess->promptForGetDisplayMedia(WebCore::DisplayCapturePromptType::UserChoose, WTF::move(completionHandler));
+}
+
+void DisplayCaptureSessionManager::displayCaptureDidEnd(const String& deviceID)
+{
+#if HAVE(WINDOW_CAPTURE)
+    UserMediaPermissionRequestManagerProxy::forEach([&](auto& manager) {
+        manager.tabCaptureDidEnd(deviceID);
+    });
+#else
+    UNUSED_PARAM(deviceID);
+#endif
 }
 #endif // HAVE(SCREEN_CAPTURE_KIT)
 

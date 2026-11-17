@@ -76,6 +76,10 @@
 #include <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 #endif
 
+#if HAVE(SCREEN_CAPTURE_KIT)
+#include "DisplayCaptureSessionManager.h"
+#endif
+
 #if USE(GBM)
 #include "DRMMainDevice.h"
 #endif
@@ -510,6 +514,11 @@ void GPUProcessProxy::promptForGetDisplayMedia(WebCore::DisplayCapturePromptType
 void GPUProcessProxy::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
 {
     sendWithAsyncReply(Messages::GPUProcess::SelectWindowForCapture { windowID }, WTF::move(completionHandler));
+}
+
+void GPUProcessProxy::displayCaptureDidEnd(const String& deviceID)
+{
+    DisplayCaptureSessionManager::singleton().displayCaptureDidEnd(deviceID);
 }
 
 void GPUProcessProxy::cancelGetDisplayMediaPrompt()

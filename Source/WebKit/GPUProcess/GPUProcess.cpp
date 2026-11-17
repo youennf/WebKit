@@ -1126,7 +1126,10 @@ void GPUProcess::promptForGetDisplayMedia(WebCore::DisplayCapturePromptType type
 
 void GPUProcess::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<WebCore::CaptureDevice>)>&& completionHandler)
 {
-    WebCore::ScreenCaptureKitSharingSessionManager::singleton().selectWindowForCapture(windowID, WTF::move(completionHandler));
+    WebCore::ScreenCaptureKitSharingSessionManager::singleton().selectWindowForCapture(windowID, WTF::move(completionHandler), [](String&& deviceID) {
+        if (!deviceID.isEmpty())
+            protect(GPUProcess::singleton().parentProcessConnection())->send(Messages::GPUProcessProxy::DisplayCaptureDidEnd { WTF::move(deviceID) }, 0);
+    });
 }
 
 void GPUProcess::cancelGetDisplayMediaPrompt()

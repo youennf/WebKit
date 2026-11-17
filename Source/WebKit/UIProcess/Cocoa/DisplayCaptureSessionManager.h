@@ -54,6 +54,9 @@ public:
     void cancelGetDisplayMediaPrompt(WebPageProxy&);
     void pageVisibilityDidChange();
     void pageObscuredContentRectDidChange();
+#if HAVE(SCREEN_CAPTURE_KIT)
+    void displayCaptureDidEnd(const String& deviceID);
+#endif
     bool canRequestDisplayCapturePermission();
     void setIndexOfDeviceSelectedForTesting(std::optional<unsigned> index) { m_indexOfDeviceSelectedForTesting = index; }
 

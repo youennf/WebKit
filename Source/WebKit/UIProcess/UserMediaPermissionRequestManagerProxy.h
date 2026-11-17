@@ -126,7 +126,8 @@ public:
 
 #if HAVE(WINDOW_CAPTURE)
     RefPtr<TabCaptureWindow> tabCaptureWindowForPage(const WebPageProxy& capturedPage) const;
-    void addTabCaptureWindow(const String& deviceID, Ref<TabCaptureWindow>&&);
+    void tabCaptureDidStart(const String& deviceID, Ref<TabCaptureWindow>&&);
+    void tabCaptureDidEnd(const String& deviceID);
     void updateTabCaptureWindowSizes();
 #endif
 
@@ -237,7 +238,8 @@ private:
     Vector<Ref<UserMediaPermissionRequestProxy>> m_pregrantedRequests;
     Vector<Ref<UserMediaPermissionRequestProxy>> m_grantedRequests;
 #if HAVE(WINDOW_CAPTURE)
-    // Windows of the tabs captured by this page, keyed by the persistent ID of their capture device.
+    // Windows of the tabs captured by this page, keyed by capture device ID. A tab captured several times has one
+    // device ID per capture, which all share the same window.
     HashMap<String, Ref<TabCaptureWindow>> m_tabCaptureWindows;
 #endif
     HashMap<WebCore::FrameIdentifier, String> m_frameEphemeralHashSalts;

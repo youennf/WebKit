@@ -33,6 +33,7 @@
 #import "PlatformMediaSessionManager.h"
 #import "ScreenCaptureKitCaptureSource.h"
 #import <ScreenCaptureKit/SCContentSharingPicker.h>
+#import <wtf/MainThread.h>
 #import <wtf/cocoa/Entitlements.h>
 #import <wtf/text/MakeString.h>
 
@@ -157,13 +158,14 @@ void ScreenCaptureKitSharingSessionManager::cancelGetDisplayMediaPrompt()
         cancelPicking();
 }
 
-void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&& completionHandler)
+void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t windowID, CompletionHandler<void(std::optional<CaptureDevice>)>&& completionHandler, ScreenCaptureKitContentFilter::DestructionHandler&& contentFilterDestructionHandler)
 {
 #if HAVE(WINDOW_CAPTURE)
     ASSERT(isMainThread());
     ASSERT(isAvailable());
     if (!isAvailable()) {
         completionHandler(std::nullopt);
+        contentFilterDestructionHandler({ });
         return;
     }
 
@@ -177,13 +179,15 @@ void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t wind
     m_completionHandler = WTF::move(completionHandler);
     ++m_requestCount;
 
-    auto lookupBlock = makeBlockPtr([weakThis = WeakPtr { *this }, windowID, requestCount = m_requestCount](SCShareableContent *content, NSError *error) mutable {
-        callOnMainThread([weakThis = WTF::move(weakThis), windowID, content = retainPtr(content), error = retainPtr(error), requestCount] {
+    // The content filter calls its destruction handler wherever it is destroyed, including if the window is not found.
+    ScreenCaptureKitContentFilter contentFilter { nullptr, WTF::move(contentFilterDestructionHandler) };
+    auto lookupBlock = makeBlockPtr([weakThis = WeakPtr { *this }, windowID, requestCount = m_requestCount, contentFilter = WTF::move(contentFilter)](SCShareableContent *content, NSError *error) mutable {
+        callOnMainThread([weakThis = WTF::move(weakThis), windowID, content = retainPtr(content), error = retainPtr(error), requestCount, contentFilter = WTF::move(contentFilter)] mutable {
             RefPtr protectedThis = weakThis;
             if (!protectedThis || protectedThis->m_requestCount != requestCount)
                 return;
 
-            protectedThis->completeDeviceSelection([&] -> RetainPtr<SCContentFilter> {
+            contentFilter.setFilter([&] -> RetainPtr<SCContentFilter> {
                 if (error || !content) {
                     RELEASE_LOG_ERROR(WebRTC, "ScreenCaptureKitSharingSessionManager::selectWindowForCapture - SCShareableContent failed.");
                     return nullptr;
@@ -204,6 +208,7 @@ void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t wind
 
                 return adoptNS([PAL::allocSCContentFilterInstance() initWithDesktopIndependentWindow:targetWindow]);
             }());
+            protectedThis->completeDeviceSelection(WTF::move(contentFilter));
         });
     });
 
@@ -223,6 +228,7 @@ void ScreenCaptureKitSharingSessionManager::selectWindowForCapture(uint32_t wind
 #else
     UNUSED_PARAM(windowID);
     completionHandler(std::nullopt);
+    contentFilterDestructionHandler({ });
 #endif
 }
 
@@ -245,10 +251,11 @@ void ScreenCaptureKitSharingSessionManager::cancelPicking()
     completionHandler(std::nullopt);
 }
 
-void ScreenCaptureKitSharingSessionManager::completeDeviceSelection(SCContentFilter* contentFilter)
+void ScreenCaptureKitSharingSessionManager::completeDeviceSelection(ScreenCaptureKitContentFilter&& selectedContentFilter)
 {
     m_watchdogTimer = nullptr;
 
+    RetainPtr contentFilter = selectedContentFilter.get();
     if (!contentFilter || !m_completionHandler) {
         if (m_completionHandler)
             m_completionHandler(std::nullopt);
@@ -258,9 +265,9 @@ void ScreenCaptureKitSharingSessionManager::completeDeviceSelection(SCContentFil
     std::optional<CaptureDevice> device;
 
 #if HAVE(WINDOW_CAPTURE)
-    switch (contentFilter.style) {
+    switch ([contentFilter style]) {
     case SCShareableContentStyleWindow: {
-        RetainPtr windows = retainPtr(contentFilter.includedWindows);
+        RetainPtr windows = retainPtr([contentFilter includedWindows]);
         ASSERT([windows count] == 1);
         if (![windows count])
             return;
@@ -270,7 +277,7 @@ void ScreenCaptureKitSharingSessionManager::completeDeviceSelection(SCContentFil
         break;
     }
     case SCShareableContentStyleDisplay: {
-        RetainPtr displays = retainPtr(contentFilter.includedDisplays);
+        RetainPtr displays = retainPtr([contentFilter includedDisplays]);
         ASSERT([displays count] == 1);
         if (![displays count])
             return;
@@ -288,7 +295,8 @@ void ScreenCaptureKitSharingSessionManager::completeDeviceSelection(SCContentFil
     device = CaptureDevice(makeDeviceID(1), CaptureDevice::DeviceType::Screen, "Screen "_str, emptyString(), true);
 #endif
 
-    m_pendingContentFilter = { contentFilter, String { device->persistentId() } };
+    selectedContentFilter.setDeviceID(device->persistentId());
+    m_pendingContentFilter = WTF::move(selectedContentFilter);
 
     auto completionHandler = std::exchange(m_completionHandler, nullptr);
     completionHandler(device);
@@ -305,7 +313,7 @@ void ScreenCaptureKitSharingSessionManager::contentSharingPickerSelectedFilterFo
     ASSERT_WITH_SECURITY_IMPLICATION(isMainThread());
     RELEASE_LOG(WebRTC, "ScreenCaptureKitSharingSessionManager::contentSharingPickerSelectedFilterForStream");
 
-    completeDeviceSelection(contentFilter);
+    completeDeviceSelection({ contentFilter });
 }
 
 void ScreenCaptureKitSharingSessionManager::contentSharingPickerUpdatedFilterForStream(SCContentFilter* contentFilter, SCStream* stream)
@@ -321,7 +329,7 @@ void ScreenCaptureKitSharingSessionManager::contentSharingPickerUpdatedFilterFor
             RELEASE_LOG_ERROR(WebRTC, "ScreenCaptureKitSharingSessionManager::contentFilterWasUpdated - unexpected stream!");
             return;
         }
-        completeDeviceSelection(contentFilter);
+        completeDeviceSelection({ contentFilter });
         return;
     }
 
@@ -487,6 +495,40 @@ void ScreenCaptureKitSharingSessionManager::cleanupSessionSource(ScreenCaptureSe
 
     if (!promptingInProgress())
         cancelPicking();
+}
+
+ScreenCaptureKitContentFilter::ScreenCaptureKitContentFilter(RetainPtr<SCContentFilter>&& filter, DestructionHandler&& destructionHandler)
+    : m_filter(WTF::move(filter))
+    , m_destructionHandler(WTF::move(destructionHandler))
+{
+}
+
+ScreenCaptureKitContentFilter& ScreenCaptureKitContentFilter::operator=(ScreenCaptureKitContentFilter&& other)
+{
+    if (this == &other)
+        return *this;
+
+    callDestructionHandler();
+    m_filter = WTF::move(other.m_filter);
+    m_deviceID = WTF::move(other.m_deviceID);
+    m_destructionHandler = WTF::move(other.m_destructionHandler);
+    return *this;
+}
+
+ScreenCaptureKitContentFilter::~ScreenCaptureKitContentFilter()
+{
+    callDestructionHandler();
+}
+
+void ScreenCaptureKitContentFilter::callDestructionHandler()
+{
+    if (!m_destructionHandler)
+        return;
+
+    // A content filter may be destroyed in a ScreenCaptureKit completion block, outside of the main thread.
+    ensureOnMainThread([destructionHandler = std::exchange(m_destructionHandler, { }), deviceID = std::exchange(m_deviceID, { })] mutable {
+        destructionHandler(WTF::move(deviceID));
+    });
 }
 
 Ref<ScreenCaptureSessionSource> ScreenCaptureSessionSource::create(WeakPtr<ScreenCaptureSessionSourceObserver> observer, RetainPtr<SCStream> stream, RetainPtr<SCContentFilter> filter, CleanupFunction&& cleanupFunction)
