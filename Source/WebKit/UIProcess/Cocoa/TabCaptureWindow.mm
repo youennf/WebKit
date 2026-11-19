@@ -173,6 +173,9 @@ RetainPtr<WKWebView> TabCaptureWindow::webView() const
 
 void TabCaptureWindow::attachLayer()
 {
+    // The mirror of the previous drawing area, if any, has no content anymore.
+    [std::exchange(m_layer, nil) removeFromSuperlayer];
+
     RefPtr page = m_page.get();
     if (!page)
         return;
@@ -197,6 +200,18 @@ void TabCaptureWindow::attachLayer()
             RELEASE_LOG_ERROR(WebRTC, "TabCaptureWindow::attachLayer - could not mirror the layer tree; aborting.");
             return;
         }
+
+        // The mirror goes away with its drawing area, for instance when a navigation swaps processes.
+        // The page then has a new drawing area, which needs its own mirror.
+        result->invalidationPromise->whenSettled(RunLoop::mainSingleton(), [weakThis](auto&&) {
+            RefPtr protectedThis = weakThis.get();
+            if (!protectedThis)
+                return;
+
+            protectedThis->m_mirrorRequest->complete();
+            RELEASE_LOG(WebRTC, "TabCaptureWindow::attachLayer - mirror went away; attaching a new one.");
+            protectedThis->attachLayer();
+        })->track(protectedThis->m_mirrorRequest);
 
         RetainPtr contentViewLayer = [[protectedThis->m_window contentView] layer];
         if (!contentViewLayer) {
