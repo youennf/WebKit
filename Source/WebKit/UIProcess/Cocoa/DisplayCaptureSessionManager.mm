@@ -153,6 +153,11 @@ void DisplayCaptureSessionManager::startTabCapture(WebPageProxy& requestingPage,
         return;
     }
 
+    // Users should see the tab they are about to share. The picker overlay is only installed on the visible WKWebView
+    // of each browser window, so the picked WKWebView is already the current tab of its window.
+    if (RetainPtr webViewWindow = [capturedPage.cocoaView() window])
+        [webViewWindow makeKeyAndOrderFront:nil];
+
     RefPtr window = manager->tabCaptureWindowForPage(capturedPage);
     if (!window)
         window = TabCaptureWindow::create(capturedPage);
