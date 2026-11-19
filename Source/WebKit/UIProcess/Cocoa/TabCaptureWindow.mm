@@ -105,15 +105,36 @@ TabCaptureWindow::TabCaptureWindow(WebPageProxy& page, RetainPtr<NSWindow>&& win
 
 TabCaptureWindow::~TabCaptureWindow()
 {
-    if (m_webViewFrameObserver)
-        [[NSNotificationCenter defaultCenter] removeObserver:m_webViewFrameObserver.get()];
     if (m_cursorLocalMonitor)
         [NSEvent removeMonitor:m_cursorLocalMonitor.get()];
     if (m_cursorGlobalMonitor)
         [NSEvent removeMonitor:m_cursorGlobalMonitor.get()];
     [m_cursorRefreshTimer invalidate];
-    [m_layer removeFromSuperlayer];
+    detachFromPage();
     [m_window close];
+}
+
+void TabCaptureWindow::setPage(WebPageProxy& page)
+{
+    if (m_page == &page)
+        return;
+
+    detachFromPage();
+
+    m_page = page;
+    page.setIsBeingCapturedForTabCapture(true);
+
+    updateSize();
+    attachLayer();
+    observeWebViewFrame();
+    updateCursor();
+}
+
+void TabCaptureWindow::detachFromPage()
+{
+    if (RetainPtr observer = std::exchange(m_webViewFrameObserver, nil))
+        [[NSNotificationCenter defaultCenter] removeObserver:observer.get()];
+    [std::exchange(m_layer, nil) removeFromSuperlayer];
 
     if (m_mirrorRequest->hasCallback())
         m_mirrorRequest->disconnect();
@@ -165,7 +186,7 @@ void TabCaptureWindow::attachLayer()
     // The mirror layer arrives once every web process of the page sent the full state of its layer tree.
     // It reproduces the geometry of the layer hosting the primary root layer, so it goes right under the
     // flipped content view, like the hosting layer under the WKWebView.
-    // The destructor disconnects m_mirrorRequest before disabling the mirror, so this is not called once the window is gone.
+    // detachFromPage() disconnects m_mirrorRequest before disabling the mirror, so this is not called once the window left the page.
     drawingArea->enableMirrorLayerTree()->whenSettled(RunLoop::mainSingleton(), [weakThis = WeakPtr { *this }](auto&& result) {
         RefPtr protectedThis = weakThis.get();
         if (!protectedThis)

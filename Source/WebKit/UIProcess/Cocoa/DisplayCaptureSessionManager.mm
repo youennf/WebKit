@@ -406,6 +406,26 @@ void DisplayCaptureSessionManager::pageVisibilityDidChange()
 #endif
 }
 
+void DisplayCaptureSessionManager::migrateTabCaptureIfNeeded(WebPageProxy& oldPage, WebPageProxy& newPage)
+{
+#if HAVE(WINDOW_CAPTURE)
+    if (&oldPage == &newPage)
+        return;
+
+    UserMediaPermissionRequestManagerProxy::forEach([&](auto& manager) {
+        RefPtr window = manager.tabCaptureWindowForPage(oldPage);
+        if (!window)
+            return;
+
+        RELEASE_LOG(WebRTC, "migrateTabCaptureIfNeeded - migrating capture from page %" PRIu64 " to page %" PRIu64 ".", oldPage.identifier().toUInt64(), newPage.identifier().toUInt64());
+        window->setPage(newPage);
+    });
+#else
+    UNUSED_PARAM(oldPage);
+    UNUSED_PARAM(newPage);
+#endif
+}
+
 void DisplayCaptureSessionManager::pageObscuredContentRectDidChange()
 {
 #if HAVE(WINDOW_CAPTURE)

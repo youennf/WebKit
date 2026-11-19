@@ -54,6 +54,8 @@ public:
     // ScreenCaptureKit does not know the size of a window that was just created.
     WebCore::IntSize pixelSize() const;
     bool isCapturing(const WebPageProxy&) const;
+    // Moves the capture to another page, for instance when a browser replaces the WKWebView of the captured tab.
+    void setPage(WebPageProxy&);
 
     // Matches the window size to the WKWebView frame and obscured content insets.
     void updateSize();
@@ -63,6 +65,7 @@ private:
 
     RetainPtr<WKWebView> webView() const;
     void attachLayer();
+    void detachFromPage();
     void observeWebViewFrame();
     void installCursorOverlay();
     void updateCursor();

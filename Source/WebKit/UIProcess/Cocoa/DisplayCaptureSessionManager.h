@@ -57,6 +57,11 @@ public:
 #if HAVE(SCREEN_CAPTURE_KIT)
     void displayCaptureDidEnd(const String& deviceID);
 #endif
+
+    // Called from -[WKWebView _willReplace:] when a browser tab swaps the WKWebView it shows, for instance on some
+    // cross-site navigations. If oldPage is captured, its capture windows move to newPage, so that the
+    // ScreenCaptureKit streams of these windows keep running.
+    void migrateTabCaptureIfNeeded(WebPageProxy& oldPage, WebPageProxy& newPage);
     bool canRequestDisplayCapturePermission();
     void setIndexOfDeviceSelectedForTesting(std::optional<unsigned> index) { m_indexOfDeviceSelectedForTesting = index; }
 
