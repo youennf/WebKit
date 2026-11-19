@@ -28,6 +28,7 @@
 #if HAVE(WINDOW_CAPTURE)
 
 #include <WebCore/IntSize.h>
+#include <wtf/NativePromise.h>
 #include <wtf/RefCountedAndCanMakeWeakPtr.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/TZoneMalloc.h>
@@ -66,6 +67,8 @@ private:
     WeakPtr<WebPageProxy> m_page;
     RetainPtr<NSWindow> m_window;
     RetainPtr<CALayer> m_layer;
+    // Tracks the attachment of the layer tree mirror.
+    const Ref<NativePromiseRequest> m_mirrorRequest;
     RetainPtr<NSObject> m_webViewFrameObserver;
 };
 

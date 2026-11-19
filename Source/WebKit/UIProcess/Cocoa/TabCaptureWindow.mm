@@ -29,6 +29,7 @@
 #if HAVE(WINDOW_CAPTURE)
 
 #import "Logging.h"
+#import "RemoteLayerTreeDrawingAreaProxy.h"
 #import "WKWebViewInternal.h"
 #import "WebPageProxy.h"
 #import <wtf/TZoneMallocInlines.h>
@@ -92,6 +93,7 @@ RefPtr<TabCaptureWindow> TabCaptureWindow::create(WebPageProxy& page)
 TabCaptureWindow::TabCaptureWindow(WebPageProxy& page, RetainPtr<NSWindow>&& window)
     : m_page(page)
     , m_window(WTF::move(window))
+    , m_mirrorRequest(NativePromiseRequest::create())
 {
     page.setIsBeingCapturedForTabCapture(true);
 
@@ -107,8 +109,16 @@ TabCaptureWindow::~TabCaptureWindow()
     [m_layer removeFromSuperlayer];
     [m_window close];
 
-    if (RefPtr page = m_page.get())
-        page->setIsBeingCapturedForTabCapture(false);
+    if (m_mirrorRequest->hasCallback())
+        m_mirrorRequest->disconnect();
+
+    RefPtr page = m_page.get();
+    if (!page)
+        return;
+
+    page->setIsBeingCapturedForTabCapture(false);
+    if (RefPtr drawingArea = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(page->drawingArea()))
+        drawingArea->disableMirrorLayerTree();
 }
 
 uint32_t TabCaptureWindow::windowID() const
@@ -136,16 +146,40 @@ RetainPtr<WKWebView> TabCaptureWindow::webView() const
 
 void TabCaptureWindow::attachLayer()
 {
-    // FIXME: Use a capture mirror of the page layer tree instead of the WKWebView layer itself.
-    RetainPtr webViewLayer = [webView() layer];
-    RetainPtr contentViewLayer = [[m_window contentView] layer];
-    if (!contentViewLayer || !webViewLayer) {
-        RELEASE_LOG_ERROR(WebRTC, "TabCaptureWindow::attachLayer - contentViewLayer=%p webViewLayer=%p; aborting.", contentViewLayer.get(), webViewLayer.get());
+    RefPtr page = m_page.get();
+    if (!page)
+        return;
+
+    RefPtr drawingArea = dynamicDowncast<RemoteLayerTreeDrawingAreaProxy>(page->drawingArea());
+    if (!drawingArea) {
+        RELEASE_LOG_ERROR(WebRTC, "TabCaptureWindow::attachLayer - drawing area is not a RemoteLayerTreeDrawingAreaProxy; mirror unavailable.");
         return;
     }
 
-    [contentViewLayer insertSublayer:webViewLayer.get() atIndex:0];
-    m_layer = WTF::move(webViewLayer);
+    // The mirror layer arrives once every web process of the page sent the full state of its layer tree.
+    // It reproduces the geometry of the layer hosting the primary root layer, so it goes right under the
+    // flipped content view, like the hosting layer under the WKWebView.
+    // The destructor disconnects m_mirrorRequest before disabling the mirror, so this is not called once the window is gone.
+    drawingArea->enableMirrorLayerTree()->whenSettled(RunLoop::mainSingleton(), [weakThis = WeakPtr { *this }](auto&& result) {
+        RefPtr protectedThis = weakThis.get();
+        if (!protectedThis)
+            return;
+
+        protectedThis->m_mirrorRequest->complete();
+        if (!result) {
+            RELEASE_LOG_ERROR(WebRTC, "TabCaptureWindow::attachLayer - could not mirror the layer tree; aborting.");
+            return;
+        }
+
+        RetainPtr contentViewLayer = [[protectedThis->m_window contentView] layer];
+        if (!contentViewLayer) {
+            RELEASE_LOG_ERROR(WebRTC, "TabCaptureWindow::attachLayer - no content view layer; aborting.");
+            return;
+        }
+
+        [contentViewLayer insertSublayer:result->layer.get() atIndex:0];
+        protectedThis->m_layer = result->layer;
+    })->track(m_mirrorRequest);
 }
 
 void TabCaptureWindow::observeWebViewFrame()
