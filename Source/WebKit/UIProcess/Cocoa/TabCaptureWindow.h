@@ -35,6 +35,7 @@
 #include <wtf/WeakPtr.h>
 
 OBJC_CLASS CALayer;
+OBJC_CLASS CGVirtualDisplay;
 OBJC_CLASS NSObject;
 OBJC_CLASS NSTimer;
 OBJC_CLASS NSWindow;
@@ -61,7 +62,7 @@ public:
     void updateSize();
 
 private:
-    TabCaptureWindow(WebPageProxy&, RetainPtr<NSWindow>&&);
+    TabCaptureWindow(WebPageProxy&, RetainPtr<NSWindow>&&, RetainPtr<CGVirtualDisplay>&&);
 
     RetainPtr<WKWebView> webView() const;
     void attachLayer();
@@ -72,6 +73,11 @@ private:
 
     WeakPtr<WebPageProxy> m_page;
     RetainPtr<NSWindow> m_window;
+    // Keeps the display hosting the window, if any, alive for the lifetime of the window.
+    RetainPtr<CGVirtualDisplay> m_virtualDisplay;
+    // The virtual display is 1x, so the window is sized twice the WKWebView and scales the layer tree mirror by 2 to keep
+    // the retina pixel density. 1 without a virtual display.
+    CGFloat m_mirrorScale { 1 };
     RetainPtr<CALayer> m_layer;
     // Tracks the attachment of the layer tree mirror.
     const Ref<NativePromiseRequest> m_mirrorRequest;
