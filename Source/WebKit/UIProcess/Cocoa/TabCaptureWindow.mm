@@ -244,7 +244,12 @@ RefPtr<TabCaptureWindow> TabCaptureWindow::create(WebPageProxy& page)
         return nullptr;
 
     NSPoint windowOrigin = NSMakePoint(-100000, -100000);
-    RetainPtr virtualDisplay = createVirtualDisplayForWebView(webView.get(), page.obscuredContentInsets().top(), windowOrigin);
+    RetainPtr<CGVirtualDisplay> virtualDisplay;
+    // To compare both approaches, the WebKitTabCaptureUsesOffscreenWindow default keeps the window far off screen.
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"WebKitTabCaptureUsesOffscreenWindow"])
+        RELEASE_LOG(WebRTC, "TabCaptureWindow::create - WebKitTabCaptureUsesOffscreenWindow is set; not using a virtual display.");
+    else
+        virtualDisplay = createVirtualDisplayForWebView(webView.get(), page.obscuredContentInsets().top(), windowOrigin);
 
     RetainPtr window = createOffscreenWindow(windowOrigin);
     if (!window)
