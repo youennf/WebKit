@@ -99,6 +99,7 @@ TabCaptureWindow::TabCaptureWindow(WebPageProxy& page, RetainPtr<NSWindow>&& win
 
     updateSize();
     attachLayer();
+    installCursorOverlay();
     observeWebViewFrame();
 }
 
@@ -106,6 +107,11 @@ TabCaptureWindow::~TabCaptureWindow()
 {
     if (m_webViewFrameObserver)
         [[NSNotificationCenter defaultCenter] removeObserver:m_webViewFrameObserver.get()];
+    if (m_cursorLocalMonitor)
+        [NSEvent removeMonitor:m_cursorLocalMonitor.get()];
+    if (m_cursorGlobalMonitor)
+        [NSEvent removeMonitor:m_cursorGlobalMonitor.get()];
+    [m_cursorRefreshTimer invalidate];
     [m_layer removeFromSuperlayer];
     [m_window close];
 
@@ -191,6 +197,100 @@ void TabCaptureWindow::observeWebViewFrame()
         if (RefPtr protectedThis = weakThis.get())
             protectedThis->updateSize();
     }];
+}
+
+void TabCaptureWindow::installCursorOverlay()
+{
+    // The captured window does not contain the mouse cursor, so draw it in a layer on top of the layer tree mirror.
+    // This layer is also under the -topInset sublayer transform of the content view, so updateCursor() adds the
+    // top inset to its position.
+    RetainPtr cursorLayer = adoptNS([[CALayer alloc] init]);
+    [cursorLayer setAnchorPoint:CGPointMake(0, 0)];
+    [cursorLayer setContentsScale:[m_window backingScaleFactor]];
+    [cursorLayer setZPosition:1000];
+    [cursorLayer setHidden:YES];
+    [[[m_window contentView] layer] addSublayer:cursorLayer.get()];
+    m_cursorLayer = WTF::move(cursorLayer);
+
+    // Local monitor for events in the browser windows, global monitor for events in other applications, so that
+    // the cursor is still mirrored when the browser is not the active application. Neither consumes events.
+    WeakPtr weakThis { *this };
+    auto cursorEventBlock = ^(NSEvent *) {
+        if (RefPtr protectedThis = weakThis.get())
+            protectedThis->updateCursor();
+    };
+    m_cursorLocalMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged | NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp | NSEventMaskRightMouseDown | NSEventMaskRightMouseUp) handler:^NSEvent *(NSEvent *event) {
+        cursorEventBlock(event);
+        return event;
+    }];
+    m_cursorGlobalMonitor = [NSEvent addGlobalMonitorForEventsMatchingMask:(NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged) handler:cursorEventBlock];
+
+    // Browser windows only deliver mouse moved events to the local monitor if they accept them.
+    if (RetainPtr webViewWindow = [webView() window]; webViewWindow && ![webViewWindow acceptsMouseMovedEvents])
+        [webViewWindow setAcceptsMouseMovedEvents:YES];
+
+    // The cursor can change without mouse moves, for instance from JavaScript.
+    m_cursorRefreshTimer = [NSTimer timerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *) {
+        if (RefPtr protectedThis = weakThis.get())
+            protectedThis->updateCursor();
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:m_cursorRefreshTimer.get() forMode:NSRunLoopCommonModes];
+
+    updateCursor();
+}
+
+void TabCaptureWindow::updateCursor()
+{
+    RefPtr page = m_page.get();
+    if (!m_cursorLayer || !page)
+        return;
+
+    RetainPtr webView = this->webView();
+    RetainPtr webViewWindow = [webView window];
+    if (!webViewWindow) {
+        [m_cursorLayer setHidden:YES];
+        return;
+    }
+
+    // Map the mouse location to WKWebView coordinates with a top-left origin.
+    NSPoint mouseInWindow = [webViewWindow convertPointFromScreen:[NSEvent mouseLocation]];
+    NSRect webViewInWindow = [webView convertRect:[webView bounds] toView:nil];
+    CGFloat localX = mouseInWindow.x - NSMinX(webViewInWindow);
+    CGFloat localYFromTop = NSHeight(webViewInWindow) - (mouseInWindow.y - NSMinY(webViewInWindow));
+
+    // Hide the cursor when the mouse is outside of the WKWebView or above the top obscured content inset.
+    CGFloat topInset = page->obscuredContentInsets().top();
+    bool isInsideContent = localX >= 0 && localX <= NSWidth(webViewInWindow) && localYFromTop >= topInset && localYFromTop <= NSHeight(webViewInWindow);
+    if (!isInsideContent) {
+        [m_cursorLayer setHidden:YES];
+        return;
+    }
+
+    // PageClientImplMac::setCursor sets the cursor of the hit-tested element, so the current cursor reflects
+    // link, I-beam, resize and custom cursors.
+    RetainPtr cursor = [NSCursor currentCursor];
+    RetainPtr image = [cursor image];
+    NSSize imageSize = image ? [image size] : NSZeroSize;
+    if (imageSize.width <= 0 || imageSize.height <= 0) {
+        [m_cursorLayer setHidden:YES];
+        return;
+    }
+
+    CGImageRef cgImage = [image CGImageForProposedRect:nullptr context:nil hints:nil];
+    if (!cgImage) {
+        [m_cursorLayer setHidden:YES];
+        return;
+    }
+
+    NSPoint hotSpot = [cursor hotSpot];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [m_cursorLayer setContents:(__bridge id)cgImage];
+    [m_cursorLayer setBounds:CGRectMake(0, 0, imageSize.width, imageSize.height)];
+    // The content view sublayer transform shifts the cursor layer up by the top inset, like the mirror.
+    [m_cursorLayer setPosition:CGPointMake(localX - hotSpot.x, localYFromTop - hotSpot.y)];
+    [m_cursorLayer setHidden:NO];
+    [CATransaction commit];
 }
 
 void TabCaptureWindow::updateSize()

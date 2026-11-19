@@ -36,6 +36,7 @@
 
 OBJC_CLASS CALayer;
 OBJC_CLASS NSObject;
+OBJC_CLASS NSTimer;
 OBJC_CLASS NSWindow;
 OBJC_CLASS WKWebView;
 
@@ -63,6 +64,8 @@ private:
     RetainPtr<WKWebView> webView() const;
     void attachLayer();
     void observeWebViewFrame();
+    void installCursorOverlay();
+    void updateCursor();
 
     WeakPtr<WebPageProxy> m_page;
     RetainPtr<NSWindow> m_window;
@@ -70,6 +73,10 @@ private:
     // Tracks the attachment of the layer tree mirror.
     const Ref<NativePromiseRequest> m_mirrorRequest;
     RetainPtr<NSObject> m_webViewFrameObserver;
+    RetainPtr<CALayer> m_cursorLayer;
+    RetainPtr<NSTimer> m_cursorRefreshTimer;
+    RetainPtr<NSObject> m_cursorLocalMonitor;
+    RetainPtr<NSObject> m_cursorGlobalMonitor;
 };
 
 } // namespace WebKit
